@@ -98,7 +98,7 @@ export function PipelineBoard() {
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    setCandidates(mockCandidates);
+                    setCandidates([]);
                     setSelectedCandidate(null);
                   }}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
