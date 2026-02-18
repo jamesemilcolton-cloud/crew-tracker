@@ -1,6 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
-import { mockCandidates } from "@/lib/mock-data";
 import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
@@ -10,18 +9,13 @@ import { Calendar, Clock } from "lucide-react";
 interface PipelineBoardProps {
   startEmpty?: boolean;
   trendRange: TrendRange;
-  onCandidatesChange?: (candidates: Candidate[]) => void;
+  candidates: Candidate[];
+  onCandidatesChange: (candidates: Candidate[]) => void;
 }
 
-export function PipelineBoard({ startEmpty = false, trendRange, onCandidatesChange }: PipelineBoardProps) {
-  const [candidates, setCandidates] = useState<Candidate[]>(startEmpty ? [] : mockCandidates);
+export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCandidatesChange }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
-
-  // Notify parent of candidate changes
-  useEffect(() => {
-    onCandidatesChange?.(candidates);
-  }, [candidates, onCandidatesChange]);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -40,12 +34,12 @@ export function PipelineBoard({ startEmpty = false, trendRange, onCandidatesChan
   }, [candidates]);
 
   const handleUpdate = (updated: Candidate) => {
-    setCandidates((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    onCandidatesChange(candidates.map((c) => (c.id === updated.id ? updated : c)));
     setSelectedCandidate(updated);
   };
 
   const handleAdd = (candidate: Candidate) => {
-    setCandidates((prev) => [...prev, candidate]);
+    onCandidatesChange([...candidates, candidate]);
   };
 
   const handleDrop = useCallback((targetStage: PipelineStage, e: React.DragEvent) => {
@@ -54,23 +48,20 @@ export function PipelineBoard({ startEmpty = false, trendRange, onCandidatesChan
     const candidateId = e.dataTransfer.getData("candidateId");
     if (!candidateId) return;
 
-    setCandidates((prev) => prev.map((c) => {
+    onCandidatesChange(candidates.map((c) => {
       if (c.id !== candidateId) return c;
       if (c.stage === targetStage) return c;
 
-      // Enforce strict order: can only move forward
       const currentIdx = STAGES_ORDER.indexOf(c.stage);
       const targetIdx = STAGES_ORDER.indexOf(targetStage);
-      if (targetIdx <= currentIdx) return c; // no backward moves
+      if (targetIdx <= currentIdx) return c;
 
-      // Record stage change in history
       const stageChange = {
         from: c.stage,
         to: targetStage,
         date: new Date().toISOString().split("T")[0],
       };
 
-      // Auto-fill start date when moving to "start" stage
       const updatedStartDate = (targetStage === "start" && !c.potentialStartDate)
         ? new Date().toISOString().split("T")[0]
         : c.potentialStartDate;
@@ -82,7 +73,7 @@ export function PipelineBoard({ startEmpty = false, trendRange, onCandidatesChan
         history: [...c.history, stageChange],
       };
     }));
-  }, []);
+  }, [candidates, onCandidatesChange]);
 
   const handleDragOver = useCallback((stage: PipelineStage, e: React.DragEvent) => {
     e.preventDefault();
