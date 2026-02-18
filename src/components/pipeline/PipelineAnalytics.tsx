@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { KPITarget } from "@/lib/types";
-import { mockKPITargets } from "@/lib/mock-data";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp, TrendingDown, Target, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import { format, subWeeks, startOfWeek, endOfWeek } from "date-fns";
+import { format, subWeeks, startOfWeek, isWithinInterval, parseISO } from "date-fns";
 
 export type TrendRange = "this-week" | "prev-week" | "4-weeks" | "8-weeks" | "12-weeks" | "all";
 
@@ -33,69 +32,121 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
     const thisSaturday = new Date(thisMonday);
     thisSaturday.setDate(thisMonday.getDate() + 5);
 
-    if (trendRange === "this-week") {
-      return { start: thisMonday, end: thisSaturday };
-    }
+    if (trendRange === "this-week") return { start: thisMonday, end: thisSaturday };
     if (trendRange === "prev-week") {
       const prevMonday = subWeeks(thisMonday, 1);
       const prevSaturday = new Date(prevMonday);
       prevSaturday.setDate(prevMonday.getDate() + 5);
       return { start: prevMonday, end: prevSaturday };
     }
-    if (trendRange === "all") {
-      return { start: new Date(0), end: thisSaturday };
-    }
+    if (trendRange === "all") return { start: new Date(0), end: thisSaturday };
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
     return { start: rangeStart, end: thisSaturday };
   }, [trendRange]);
 
-  const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
-      const created = new Date(c.createdAt);
-      return created >= dateRange.start && created <= dateRange.end;
-    });
-  }, [candidates, dateRange]);
-
+  // History-driven stage counts: count how many candidates passed through each stage within date range
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
-    filteredCandidates.forEach((c) => {
-      const currentIdx = STAGES_ORDER.indexOf(c.stage);
-      if (currentIdx >= 0) {
-        for (let i = 0; i <= currentIdx; i++) {
-          counts[STAGES_ORDER[i]]++;
-        }
+
+    candidates.forEach((c) => {
+      // Count 2nd-round entries by createdAt
+      const created = new Date(c.createdAt);
+      if (created >= dateRange.start && created <= dateRange.end) {
+        counts["2nd-round"]++;
       }
+
+      // Count stage transitions from history
+      c.history.forEach((h) => {
+        const d = parseISO(h.date);
+        if (d >= dateRange.start && d <= dateRange.end) {
+          counts[h.to]++;
+        }
+      });
     });
     return counts;
-  }, [filteredCandidates]);
+  }, [candidates, dateRange]);
 
-
+  // Weekly trend data from actual history
   const trendData = useMemo(() => {
-    if (startEmpty) {
-      const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
-      return Array.from({ length: option.weeks }, (_, i) => ({
-        week: `W${option.weeks - i}`,
-        interviews: 0,
-        starts: 0,
-      })).reverse();
-    }
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const count = option.weeks;
-    return Array.from({ length: count }, (_, i) => ({
-      week: `W${count - i}`,
-      interviews: 5 + Math.floor(Math.random() * 8),
-      starts: 1 + Math.floor(Math.random() * 4),
-    })).reverse();
-  }, [trendRange, startEmpty]);
+    const now = new Date();
+    const thisMonday = startOfWeek(now, { weekStartsOn: 1 });
 
-  const kpis = useMemo(() => {
+    return Array.from({ length: count }, (_, i) => {
+      const weekStart = subWeeks(thisMonday, count - 1 - i);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      let interviews = 0;
+      let starts = 0;
+      let promotions = 0;
+
+      candidates.forEach((c) => {
+        const created = new Date(c.createdAt);
+        if (isWithinInterval(created, { start: weekStart, end: weekEnd })) {
+          interviews++;
+        }
+        c.history.forEach((h) => {
+          const d = parseISO(h.date);
+          if (isWithinInterval(d, { start: weekStart, end: weekEnd })) {
+            if (h.to === "start") starts++;
+            if (h.to === "promoted") promotions++;
+          }
+        });
+      });
+
+      return {
+        week: `W${format(weekStart, "w")}`,
+        interviews,
+        starts,
+        promotions,
+      };
+    });
+  }, [candidates, trendRange]);
+
+  // History-driven KPIs
+  const kpis = useMemo((): KPITarget[] => {
     if (startEmpty) {
-      return mockKPITargets.map((kpi) => ({ ...kpi, actual: 0 }));
+      return [
+        { label: "2nd Round Interviews", target: 10, actual: 0 },
+        { label: "Starts", target: 6, actual: 0 },
+        { label: "Offers Made", target: 8, actual: 0 },
+        { label: "Promotions", target: 2, actual: 0 },
+      ];
     }
-    return mockKPITargets;
-  }, [startEmpty]);
+
+    const interviewsInRange = candidates.filter((c) => {
+      const d = new Date(c.createdAt);
+      return d >= dateRange.start && d <= dateRange.end;
+    }).length;
+
+    let startsInRange = 0;
+    let promotionsInRange = 0;
+    let offersInRange = 0;
+
+    candidates.forEach((c) => {
+      c.history.forEach((h) => {
+        const d = parseISO(h.date);
+        if (d >= dateRange.start && d <= dateRange.end) {
+          if (h.to === "start") startsInRange++;
+          if (h.to === "promoted") promotionsInRange++;
+        }
+      });
+      if (c.status === "Offered") {
+        offersInRange++;
+      }
+    });
+
+    return [
+      { label: "2nd Round Interviews", target: 10, actual: interviewsInRange },
+      { label: "Starts", target: 6, actual: startsInRange },
+      { label: "Offers Made", target: 8, actual: offersInRange },
+      { label: "Promotions", target: 2, actual: promotionsInRange },
+    ];
+  }, [candidates, dateRange, startEmpty]);
 
   const worstGap = useMemo(() => {
     return kpis.reduce((worst, kpi) => {
@@ -110,16 +161,13 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
     const thisSaturday = new Date(thisMonday);
     thisSaturday.setDate(thisMonday.getDate() + 5);
 
-    if (trendRange === "this-week") {
-      return `${format(thisMonday, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
-    }
+    if (trendRange === "this-week") return `${format(thisMonday, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
     if (trendRange === "prev-week") {
       const prevMonday = subWeeks(thisMonday, 1);
       const prevSaturday = new Date(prevMonday);
       prevSaturday.setDate(prevMonday.getDate() + 5);
       return `${format(prevMonday, "do MMM")} – ${format(prevSaturday, "do MMM")}`;
     }
-    // Multi-week ranges: from N weeks ago Monday to this Saturday
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
     return `${format(rangeStart, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
@@ -142,7 +190,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
       {!collapsed && (
         <div className="px-4 pb-4 space-y-4 animate-fade-in">
           {/* Stage counts */}
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2">
+          <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
             {STAGES_ORDER.map((stage) => {
               const base = stageCounts["2nd-round"];
               const pct = base > 0 && stage !== "2nd-round"
@@ -163,7 +211,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Trend chart */}
             <div className="bg-muted/20 rounded-lg p-3">
-              <h4 className="text-xs font-medium text-muted-foreground mb-2">Weekly Trends</h4>
+              <h4 className="text-xs font-medium text-muted-foreground mb-2">Weekly Trends (from history)</h4>
               <ResponsiveContainer width="100%" height={120}>
                 <LineChart data={trendData}>
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
@@ -172,18 +220,18 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
                     contentStyle={{ background: "hsl(222 44% 8%)", border: "1px solid hsl(222 30% 16%)", borderRadius: "8px", fontSize: "12px" }}
                     labelStyle={{ color: "hsl(210 40% 96%)" }}
                   />
-                  <Line type="monotone" dataKey="interviews" stroke="hsl(172 66% 50%)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="starts" stroke="hsl(152 69% 40%)" strokeWidth={2} dot={false} />
-                  
+                  <Line type="monotone" dataKey="interviews" stroke="hsl(172 66% 50%)" strokeWidth={2} dot={false} name="Interviews" />
+                  <Line type="monotone" dataKey="starts" stroke="hsl(152 69% 40%)" strokeWidth={2} dot={false} name="Starts" />
+                  <Line type="monotone" dataKey="promotions" stroke="hsl(280 67% 55%)" strokeWidth={2} dot={false} name="Promotions" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            {/* KPI vs Actual + Focus Area */}
+            {/* KPI vs Actual */}
             <div className="bg-muted/20 rounded-lg p-3">
               <h4 className="text-xs font-medium text-muted-foreground mb-2">KPI vs Actual</h4>
               <div className="space-y-1.5 mb-3">
-                {kpis.slice(0, 4).map((kpi, i) => (
+                {kpis.map((kpi, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground truncate mr-2">{kpi.label}</span>
                     <div className="flex items-center gap-1">

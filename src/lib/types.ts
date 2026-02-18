@@ -7,7 +7,8 @@ export type PipelineStage =
   | "bell"
   | "promoted";
 
-export type CandidateStatus = "Waiting" | "Passed" | "Offered" | "Declined";
+export type CandidateStatus = "Offered" | "Declined" | "Dropped";
+
 export type CandidateSource = "LinkedIn" | "Office";
 
 export interface StageChange {
@@ -24,9 +25,10 @@ export interface Candidate {
   notes: string;
   source: CandidateSource;
   stage: PipelineStage;
-  status: CandidateStatus;
+  status?: CandidateStatus;
   potentialStartDate?: string;
   hasSalesPitchAccess: boolean;
+  hasEvoAppAccess: boolean;
   closeToPromotion: boolean;
   history: StageChange[];
   createdAt: string;

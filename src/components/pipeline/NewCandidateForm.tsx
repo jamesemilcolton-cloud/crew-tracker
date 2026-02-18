@@ -72,11 +72,11 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
       notes: data.notes,
       source: data.source,
       stage: "2nd-round",
-      status: "Waiting",
       potentialStartDate: data.potentialStartDate
         ? data.potentialStartDate.toISOString().split("T")[0]
         : undefined,
       hasSalesPitchAccess: false,
+      hasEvoAppAccess: false,
       closeToPromotion: false,
       history: [],
       createdAt: new Date().toISOString(),
