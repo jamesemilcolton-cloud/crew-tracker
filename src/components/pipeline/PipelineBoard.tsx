@@ -5,28 +5,21 @@ import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange, TREND_OPTIONS } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
-import { Calendar, Clock, ChevronDown, RotateCcw } from "lucide-react";
+import { Calendar, Clock, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-export function PipelineBoard() {
-  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+interface PipelineBoardProps {
+  startEmpty?: boolean;
+}
+
+export function PipelineBoard({ startEmpty = false }: PipelineBoardProps) {
+  const [candidates, setCandidates] = useState<Candidate[]>(startEmpty ? [] : mockCandidates);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
 
@@ -79,35 +72,6 @@ export function PipelineBoard() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive hover:text-destructive">
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset Data
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Reset all pipeline data?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will restore all candidates to the original mock data. Any candidates you've added or changes you've made will be lost. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    setCandidates([]);
-                    setSelectedCandidate(null);
-                  }}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Reset Data
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
         <NewCandidateForm onAdd={handleAdd} />
       </div>
