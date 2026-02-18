@@ -1,5 +1,5 @@
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
-import { X, Phone, Calendar, Star, TrendingUp, Clock, Edit2, Save, CalendarIcon } from "lucide-react";
+import { X, Phone, Calendar, Edit2, Save, CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -115,11 +115,6 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
               "bg-status-dropped/20 text-status-dropped"
             }`}>
               {candidate.status}
-            </Badge>
-          )}
-          {candidate.closeToPromotion && (
-            <Badge className="bg-stage-bell/20 text-stage-bell">
-              <Star className="w-3 h-3 mr-1" fill="currentColor" />Near Promotion
             </Badge>
           )}
         </div>
