@@ -85,14 +85,24 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
   }, [kpis]);
 
   const dateRangeLabel = useMemo(() => {
-    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const now = new Date();
-    // End on the Saturday of the current week (week starts Monday)
-    const currentWeekSat = endOfWeek(now, { weekStartsOn: 1 });
-    currentWeekSat.setDate(currentWeekSat.getDate() - 1); // endOfWeek gives Sunday, go back to Saturday
-    // Start on the Monday, N weeks back
+    const thisMonday = startOfWeek(now, { weekStartsOn: 1 });
+    const thisSaturday = new Date(thisMonday);
+    thisSaturday.setDate(thisMonday.getDate() + 5);
+
+    if (trendRange === "this-week") {
+      return `${format(thisMonday, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
+    }
+    if (trendRange === "prev-week") {
+      const prevMonday = subWeeks(thisMonday, 1);
+      const prevSaturday = new Date(prevMonday);
+      prevSaturday.setDate(prevMonday.getDate() + 5);
+      return `${format(prevMonday, "do MMM")} – ${format(prevSaturday, "do MMM")}`;
+    }
+    // Multi-week ranges: from N weeks ago Monday to this Saturday
+    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
-    return `${format(rangeStart, "do MMM")} – ${format(currentWeekSat, "do MMM")}`;
+    return `${format(rangeStart, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
   }, [trendRange]);
 
   return (
