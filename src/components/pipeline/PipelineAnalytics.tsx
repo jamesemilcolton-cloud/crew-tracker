@@ -6,12 +6,24 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import { TrendingUp, TrendingDown, Target, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 
+type TrendRange = "this-week" | "prev-week" | "4-weeks" | "8-weeks" | "12-weeks" | "all";
+
+const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[] = [
+  { value: "this-week", label: "This Week", weeks: 1 },
+  { value: "prev-week", label: "Previous Week", weeks: 2 },
+  { value: "4-weeks", label: "Last 4 Weeks", weeks: 4 },
+  { value: "8-weeks", label: "Last 8 Weeks", weeks: 8 },
+  { value: "12-weeks", label: "Last 12 Weeks", weeks: 12 },
+  { value: "all", label: "All Time", weeks: 24 },
+];
+
 interface PipelineAnalyticsProps {
   candidates: Candidate[];
 }
 
 export function PipelineAnalytics({ candidates }: PipelineAnalyticsProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -37,16 +49,16 @@ export function PipelineAnalytics({ candidates }: PipelineAnalyticsProps) {
     });
   }, [candidates, stageCounts]);
 
-  // Mock trend data
   const trendData = useMemo(() => {
-    const weeks = ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"];
-    return weeks.map((w, i) => ({
-      week: w,
+    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
+    const count = option.weeks;
+    return Array.from({ length: count }, (_, i) => ({
+      week: `W${count - i}`,
       interviews: 5 + Math.floor(Math.random() * 8),
       starts: 1 + Math.floor(Math.random() * 4),
       drops: Math.floor(Math.random() * 3),
-    }));
-  }, []);
+    })).reverse();
+  }, [trendRange]);
 
   const kpis = mockKPITargets;
   const worstGap = useMemo(() => {
@@ -99,7 +111,24 @@ export function PipelineAnalytics({ candidates }: PipelineAnalyticsProps) {
 
             {/* Trend chart */}
             <div className="bg-muted/20 rounded-lg p-3">
-              <h4 className="text-xs font-medium text-muted-foreground mb-2">Weekly Trends</h4>
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+                <h4 className="text-xs font-medium text-muted-foreground">Weekly Trends</h4>
+                <div className="flex gap-1 flex-wrap">
+                  {TREND_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setTrendRange(opt.value)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded-md font-medium transition-colors ${
+                        trendRange === opt.value
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={120}>
                 <LineChart data={trendData}>
                   <XAxis dataKey="week" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
