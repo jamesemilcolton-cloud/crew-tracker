@@ -3,7 +3,7 @@ import { mockLinkedInActivity } from "@/lib/mock-data";
 import { LinkedInActivity } from "@/lib/types";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Plus, TrendingUp, BarChart3, Calendar } from "lucide-react";
+import { Plus, TrendingUp, BarChart3, Calendar, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LinkedInDashboardProps {
@@ -26,39 +26,67 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
 
   const rangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label ?? "";
 
-  // Weekly aggregation
-  const weeklyData = useMemo(() => {
-    const weeks: Record<string, { week: string; free: number; paid: number; cvs: number; attending: number }> = {};
+  const isThisWeek = trendRange === "this-week";
+
+  // Chart data — daily for "This Week", weekly aggregation otherwise
+  const chartData = useMemo(() => {
+    if (isThisWeek) {
+      const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((dayOfWeek === 0 ? 7 : dayOfWeek) - 1));
+      monday.setHours(0, 0, 0, 0);
+
+      return dayNames.map((name, i) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const key = date.toISOString().split("T")[0];
+        const activity = filteredActivities.find((a) => a.date === key);
+        const hasAd = activity ? (activity.freeAdsUploaded + activity.paidAdsUploaded) > 0 : false;
+        return {
+          week: name,
+          free: activity?.freeAdsUploaded ?? 0,
+          paid: activity?.paidAdsUploaded ?? 0,
+          cvs: activity?.cvsDownloaded ?? 0,
+          attending: activity?.candidatesAttending2ndRound ?? 0,
+          hasAd,
+        };
+      });
+    }
+
+    const weeks: Record<string, { week: string; free: number; paid: number; cvs: number; attending: number; hasAd: boolean }> = {};
     filteredActivities.forEach((a) => {
       const d = new Date(a.date);
       const weekStart = new Date(d);
       weekStart.setDate(d.getDate() - d.getDay() + 1);
       const key = weekStart.toISOString().split("T")[0];
-      if (!weeks[key]) weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: 0, attending: 0 };
+      if (!weeks[key]) weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: 0, attending: 0, hasAd: false };
       weeks[key].free += a.freeAdsUploaded;
       weeks[key].paid += a.paidAdsUploaded;
       weeks[key].cvs += a.cvsDownloaded;
       weeks[key].attending += a.candidatesAttending2ndRound;
     });
     return Object.values(weeks);
-  }, [filteredActivities]);
+  }, [filteredActivities, isThisWeek]);
 
-  // Best day analysis
-  const bestDay = useMemo(() => {
-    const dayTotals: Record<number, { cvs: number; count: number }> = {};
+  // Best day analysis — based on TOTAL CVs collected per day, with tie support
+  const bestDays = useMemo(() => {
+    const dayTotals: Record<number, number> = {};
     filteredActivities.forEach((a) => {
       const day = new Date(a.date).getDay();
-      if (!dayTotals[day]) dayTotals[day] = { cvs: 0, count: 0 };
-      dayTotals[day].cvs += a.cvsDownloaded;
-      dayTotals[day].count++;
+      dayTotals[day] = (dayTotals[day] || 0) + a.cvsDownloaded;
     });
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    let best = { day: "N/A", avg: 0 };
-    Object.entries(dayTotals).forEach(([d, v]) => {
-      const avg = v.cvs / v.count;
-      if (avg > best.avg) best = { day: dayNames[Number(d)], avg };
+    let maxCvs = 0;
+    Object.values(dayTotals).forEach((total) => {
+      if (total > maxCvs) maxCvs = total;
     });
-    return best;
+    if (maxCvs === 0) return { days: "N/A", total: 0 };
+    const winners = Object.entries(dayTotals)
+      .filter(([, total]) => total === maxCvs)
+      .map(([d]) => dayNames[Number(d)]);
+    return { days: winners.join(" & "), total: maxCvs };
   }, [filteredActivities]);
 
   // Totals
@@ -122,15 +150,15 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
             { type: "free", label: "Free Ad Uploaded", icon: "📢" },
             { type: "paid", label: "Paid Ad Uploaded", icon: "💰" },
             { type: "cv", label: "CV Downloaded", icon: "📄" },
-            { type: "attend", label: "2nd Round from LI", icon: "👤" },
+            { type: "attend", label: "2nd Round from LinkedIn", icon: "👤" },
           ].map(({ type, label, icon }) => (
             <button
               key={type}
               onClick={() => handleQuickAdd(type)}
-              className="flex items-center gap-2 p-3 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors text-left"
+              className="flex items-center gap-2 p-3 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors text-left min-w-0"
             >
               <span className="text-lg">{icon}</span>
-              <span className="text-xs text-muted-foreground">{label}</span>
+              <span className="text-xs text-muted-foreground leading-tight">{label}</span>
             </button>
           ))}
         </div>
@@ -154,30 +182,50 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Free vs Paid */}
         <div className="glass-panel p-4">
-          <h4 className="text-xs font-medium text-muted-foreground mb-3">Free vs Paid Ads (Weekly)</h4>
+          <h4 className="text-xs font-medium text-muted-foreground mb-3">
+            Free vs Paid Ads ({isThisWeek ? "Daily" : "Weekly"})
+          </h4>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={weeklyData}>
+            <LineChart data={chartData}>
               <XAxis dataKey="week" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
               <Legend wrapperStyle={{ fontSize: "11px" }} />
-              <Line type="monotone" dataKey="free" name="Free" stroke="hsl(172 66% 50%)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="paid" name="Paid" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="free" name="Free" stroke="hsl(172 66% 50%)" strokeWidth={2} dot={isThisWeek ? (props: any) => {
+                const { cx, cy, payload } = props;
+                if (!payload.hasAd) return null;
+                return <circle cx={cx} cy={cy} r={5} fill="hsl(172 66% 50%)" stroke="hsl(222 47% 6%)" strokeWidth={2} />;
+              } : false} />
+              <Line type="monotone" dataKey="paid" name="Paid" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={isThisWeek ? (props: any) => {
+                const { cx, cy, payload } = props;
+                if (!payload.hasAd) return null;
+                return <circle cx={cx} cy={cy} r={5} fill="hsl(217 91% 60%)" stroke="hsl(222 47% 6%)" strokeWidth={2} />;
+              } : false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* CVs & Attendance */}
         <div className="glass-panel p-4">
-          <h4 className="text-xs font-medium text-muted-foreground mb-3">CVs Downloaded & 2nd Round Attendance (Weekly)</h4>
+          <h4 className="text-xs font-medium text-muted-foreground mb-3">
+            CVs Downloaded & 2nd Round Attendance ({isThisWeek ? "Daily" : "Weekly"})
+          </h4>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={weeklyData}>
+            <LineChart data={chartData}>
               <XAxis dataKey="week" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
               <Legend wrapperStyle={{ fontSize: "11px" }} />
-              <Line type="monotone" dataKey="cvs" name="CVs" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="attending" name="2nd Round" stroke="hsl(152 69% 40%)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="cvs" name="CVs" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={isThisWeek ? (props: any) => {
+                const { cx, cy, payload } = props;
+                if (!payload.hasAd) return null;
+                return <circle cx={cx} cy={cy} r={5} fill="hsl(38 92% 50%)" stroke="hsl(222 47% 6%)" strokeWidth={2} />;
+              } : false} />
+              <Line type="monotone" dataKey="attending" name="2nd Round" stroke="hsl(152 69% 40%)" strokeWidth={2} dot={isThisWeek ? (props: any) => {
+                const { cx, cy, payload } = props;
+                if (!payload.hasAd) return null;
+                return <circle cx={cx} cy={cy} r={5} fill="hsl(152 69% 40%)" stroke="hsl(222 47% 6%)" strokeWidth={2} />;
+              } : false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -190,8 +238,8 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
             <Calendar className="w-4 h-4 text-primary" />
             <h4 className="text-xs font-medium text-muted-foreground">Best Day for CVs</h4>
           </div>
-          <p className="text-3xl font-bold text-foreground">{bestDay.day}</p>
-          <p className="text-xs text-muted-foreground mt-1">{bestDay.avg.toFixed(1)} avg CVs per {bestDay.day}</p>
+          <p className="text-3xl font-bold text-foreground">{bestDays.days}</p>
+          <p className="text-xs text-muted-foreground mt-1">{bestDays.total} total CVs collected</p>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
