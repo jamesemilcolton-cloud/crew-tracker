@@ -5,7 +5,7 @@ import { mockKPITargets } from "@/lib/mock-data";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp, TrendingDown, Target, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import { format, subWeeks } from "date-fns";
+import { format, subWeeks, startOfWeek, endOfWeek } from "date-fns";
 
 export type TrendRange = "this-week" | "prev-week" | "4-weeks" | "8-weeks" | "12-weeks" | "all";
 
@@ -87,8 +87,12 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
   const dateRangeLabel = useMemo(() => {
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const now = new Date();
-    const start = subWeeks(now, option.weeks);
-    return `${format(start, "do MMM")} – ${format(now, "do MMM")}`;
+    // End on the Saturday of the current week (week starts Monday)
+    const currentWeekSat = endOfWeek(now, { weekStartsOn: 1 });
+    currentWeekSat.setDate(currentWeekSat.getDate() - 1); // endOfWeek gives Sunday, go back to Saturday
+    // Start on the Monday, N weeks back
+    const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
+    return `${format(rangeStart, "do MMM")} – ${format(currentWeekSat, "do MMM")}`;
   }, [trendRange]);
 
   return (
