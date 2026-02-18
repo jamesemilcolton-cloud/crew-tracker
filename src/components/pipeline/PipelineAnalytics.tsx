@@ -27,19 +27,49 @@ interface PipelineAnalyticsProps {
 export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }: PipelineAnalyticsProps) {
   const [collapsed, setCollapsed] = useState(false);
 
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const thisMonday = startOfWeek(now, { weekStartsOn: 1 });
+    const thisSaturday = new Date(thisMonday);
+    thisSaturday.setDate(thisMonday.getDate() + 5);
+
+    if (trendRange === "this-week") {
+      return { start: thisMonday, end: thisSaturday };
+    }
+    if (trendRange === "prev-week") {
+      const prevMonday = subWeeks(thisMonday, 1);
+      const prevSaturday = new Date(prevMonday);
+      prevSaturday.setDate(prevMonday.getDate() + 5);
+      return { start: prevMonday, end: prevSaturday };
+    }
+    if (trendRange === "all") {
+      return { start: new Date(0), end: thisSaturday };
+    }
+    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
+    const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
+    return { start: rangeStart, end: thisSaturday };
+  }, [trendRange]);
+
+  const filteredCandidates = useMemo(() => {
+    return candidates.filter((c) => {
+      const created = new Date(c.createdAt);
+      return created >= dateRange.start && created <= dateRange.end;
+    });
+  }, [candidates, dateRange]);
+
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
-    candidates.forEach((c) => { counts[c.stage]++; });
+    filteredCandidates.forEach((c) => { counts[c.stage]++; });
     return counts;
-  }, [candidates]);
+  }, [filteredCandidates]);
 
   const conversionRates = useMemo(() => {
     const stages = STAGES_ORDER.filter((s) => s !== "dropped");
     return stages.slice(0, -1).map((stage, i) => {
       const nextStage = stages[i + 1];
       const current = stageCounts[stage] || 1;
-      const movedForward = candidates.filter((c) =>
+      const movedForward = filteredCandidates.filter((c) =>
         c.history.some((h) => h.from === stage && h.to === nextStage)
       ).length;
       return {
@@ -48,7 +78,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
         rate: Math.round((movedForward / Math.max(current + movedForward, 1)) * 100),
       };
     });
-  }, [candidates, stageCounts]);
+  }, [filteredCandidates, stageCounts]);
 
   const trendData = useMemo(() => {
     if (startEmpty) {
