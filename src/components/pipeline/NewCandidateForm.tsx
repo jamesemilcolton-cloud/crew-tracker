@@ -77,7 +77,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
         : undefined,
       hasSalesPitchAccess: false,
       hasEvoAppAccess: false,
-      closeToPromotion: false,
+      
       history: [],
       createdAt: new Date().toISOString(),
     };

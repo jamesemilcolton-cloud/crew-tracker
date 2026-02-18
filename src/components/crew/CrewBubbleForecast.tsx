@@ -59,15 +59,11 @@ function TreeNode({ member, x, y, parentX, parentY }: { member: CrewMember; x: n
         fontSize="12"
         fontWeight={isLeader ? "600" : "400"}
         fontFamily="Inter, system-ui, sans-serif"
-        textDecoration={member.closeToPromotion ? "underline" : "none"}
-        style={{ textDecorationColor: "hsl(45 93% 47%)", textUnderlineOffset: "3px" }}
+        textDecoration="none"
       >
         {member.name}
       </text>
 
-      {member.closeToPromotion && (
-        <circle cx={x + nodeWidth / 2 - 8} cy={y - nodeHeight / 2 + 8} r="4" fill="hsl(45 93% 47%)" />
-      )}
 
       {/* Children */}
       {member.children.map((child, i) => {
@@ -83,7 +79,7 @@ interface CrewBubbleForecastProps {
   startEmpty?: boolean;
 }
 
-const emptyTree: CrewMember = { id: "empty", name: "No Data", role: "leader", closeToPromotion: false, children: [] };
+const emptyTree: CrewMember = { id: "empty", name: "No Data", role: "leader", children: [] };
 
 export function CrewBubbleForecast({ startEmpty = false }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);

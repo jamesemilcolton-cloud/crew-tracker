@@ -29,7 +29,6 @@ export interface Candidate {
   potentialStartDate?: string;
   hasSalesPitchAccess: boolean;
   hasEvoAppAccess: boolean;
-  closeToPromotion: boolean;
   history: StageChange[];
   createdAt: string;
 }
@@ -53,7 +52,6 @@ export interface CrewMember {
   id: string;
   name: string;
   role: "leader" | "brand-ambassador";
-  closeToPromotion: boolean;
   children: CrewMember[];
 }
 
