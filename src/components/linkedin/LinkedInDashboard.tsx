@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { mockLinkedInActivity } from "@/lib/mock-data";
 import { LinkedInActivity } from "@/lib/types";
-import { TrendRange } from "@/components/pipeline/PipelineAnalytics";
+import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Plus, TrendingUp, BarChart3, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,22 @@ interface LinkedInDashboardProps {
 export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDashboardProps) {
   const [activities, setActivities] = useState<LinkedInActivity[]>(startEmpty ? [] : mockLinkedInActivity);
 
+  // Filter activities by selected time range
+  const filteredActivities = useMemo(() => {
+    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
+    if (trendRange === "all") return activities;
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - option.weeks * 7);
+    return activities.filter((a) => new Date(a.date) >= cutoff);
+  }, [activities, trendRange]);
+
+  const rangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label ?? "";
+
   // Weekly aggregation
   const weeklyData = useMemo(() => {
     const weeks: Record<string, { week: string; free: number; paid: number; cvs: number; attending: number }> = {};
-    activities.forEach((a) => {
+    filteredActivities.forEach((a) => {
       const d = new Date(a.date);
       const weekStart = new Date(d);
       weekStart.setDate(d.getDate() - d.getDay() + 1);
@@ -29,36 +41,35 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
       weeks[key].attending += a.candidatesAttending2ndRound;
     });
     return Object.values(weeks);
-  }, [activities]);
+  }, [filteredActivities]);
 
   // Best day analysis
   const bestDay = useMemo(() => {
     const dayTotals: Record<number, { cvs: number; count: number }> = {};
-    activities.forEach((a) => {
+    filteredActivities.forEach((a) => {
       const day = new Date(a.date).getDay();
       if (!dayTotals[day]) dayTotals[day] = { cvs: 0, count: 0 };
       dayTotals[day].cvs += a.cvsDownloaded;
       dayTotals[day].count++;
     });
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    let best = { day: "Mon", avg: 0 };
+    let best = { day: "N/A", avg: 0 };
     Object.entries(dayTotals).forEach(([d, v]) => {
       const avg = v.cvs / v.count;
       if (avg > best.avg) best = { day: dayNames[Number(d)], avg };
     });
     return best;
-  }, [activities]);
+  }, [filteredActivities]);
 
   // Totals
   const totals = useMemo(() => {
-    const last7 = activities.slice(-7);
     return {
-      freeAds: last7.reduce((s, a) => s + a.freeAdsUploaded, 0),
-      paidAds: last7.reduce((s, a) => s + a.paidAdsUploaded, 0),
-      cvs: last7.reduce((s, a) => s + a.cvsDownloaded, 0),
-      attending: last7.reduce((s, a) => s + a.candidatesAttending2ndRound, 0),
+      freeAds: filteredActivities.reduce((s, a) => s + a.freeAdsUploaded, 0),
+      paidAds: filteredActivities.reduce((s, a) => s + a.paidAdsUploaded, 0),
+      cvs: filteredActivities.reduce((s, a) => s + a.cvsDownloaded, 0),
+      attending: filteredActivities.reduce((s, a) => s + a.candidatesAttending2ndRound, 0),
     };
-  }, [activities]);
+  }, [filteredActivities]);
 
   const handleQuickAdd = (type: string) => {
     const today = new Date().toISOString().split("T")[0];
@@ -128,10 +139,10 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Free Ads (7d)", value: totals.freeAds, color: "text-chart-1" },
-          { label: "Paid Ads (7d)", value: totals.paidAds, color: "text-chart-2" },
-          { label: "CVs Downloaded (7d)", value: totals.cvs, color: "text-chart-4" },
-          { label: "Attending 2nd Round (7d)", value: totals.attending, color: "text-chart-5" },
+          { label: `Free Ads (${rangeLabel})`, value: totals.freeAds, color: "text-chart-1" },
+          { label: `Paid Ads (${rangeLabel})`, value: totals.paidAds, color: "text-chart-2" },
+          { label: `CVs Downloaded (${rangeLabel})`, value: totals.cvs, color: "text-chart-4" },
+          { label: `Attending 2nd Round (${rangeLabel})`, value: totals.attending, color: "text-chart-5" },
         ].map(({ label, value, color }) => (
           <div key={label} className="stat-card">
             <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
@@ -190,7 +201,7 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
           <p className="text-3xl font-bold text-foreground font-mono">
             {totals.cvs > 0 ? Math.round((totals.attending / totals.cvs) * 100) : 0}%
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Last 7 days conversion</p>
+          <p className="text-xs text-muted-foreground mt-1">{rangeLabel} conversion</p>
         </div>
       </div>
     </div>
