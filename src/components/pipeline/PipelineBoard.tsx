@@ -4,7 +4,8 @@ import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface PipelineBoardProps {
   startEmpty?: boolean;
@@ -135,31 +136,39 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
             />
           ) : (
             <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
-              </div>
-              <div className="space-y-2">
-                {upcomingStarts.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No upcoming starts</p>
-                )}
-                {upcomingStarts.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => setSelectedCandidate(c)}
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{c.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-[11px] text-primary">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(c.potentialStartDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                    </div>
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
+                    <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
                   </div>
-                ))}
-              </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-2 mt-3">
+                    {upcomingStarts.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No upcoming starts</p>
+                    )}
+                    {upcomingStarts.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setSelectedCandidate(c)}
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{c.name}</p>
+                          <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-primary">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(c.potentialStartDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           )}
         </div>
