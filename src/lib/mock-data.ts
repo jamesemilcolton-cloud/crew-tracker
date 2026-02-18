@@ -81,27 +81,6 @@ export const mockCandidates: Candidate[] = [
     createdAt: "2025-10-01",
   },
   {
-    id: "c10", name: "Chris Taylor", phone: "+44 7700 906789", notes: "Didn't show up to Sunday call twice.",
-    source: "Office", stage: "dropped", status: "Dropped", dropReason: "No-show to Sunday calls",
-    hasSalesPitchAccess: false, closeToPromotion: false,
-    history: [
-      { from: "2nd-round", to: "final-round", date: "2026-01-20" },
-      { from: "final-round", to: "sunday-call", date: "2026-02-01" },
-      { from: "sunday-call", to: "dropped", date: "2026-02-15", note: "No-showed twice" },
-    ],
-    createdAt: "2026-01-12",
-  },
-  {
-    id: "c11", name: "Amy Foster", phone: "+44 7700 907890", notes: "Great attitude but took another offer.",
-    source: "LinkedIn", stage: "dropped", status: "Declined", dropReason: "Accepted competing offer",
-    hasSalesPitchAccess: false, closeToPromotion: false,
-    history: [
-      { from: "2nd-round", to: "final-round", date: "2026-01-25" },
-      { from: "final-round", to: "dropped", date: "2026-02-08", note: "Declined - other offer" },
-    ],
-    createdAt: "2026-01-18",
-  },
-  {
     id: "c12", name: "Nathan Price", phone: "+44 7700 908901", notes: "Strong sales pitch. Close to promotion.",
     source: "Office", stage: "start", status: "Passed", potentialStartDate: "2026-01-20",
     hasSalesPitchAccess: true, closeToPromotion: true,
@@ -137,17 +116,6 @@ export const mockCandidates: Candidate[] = [
     createdAt: "2025-12-10",
   },
   {
-    id: "c16", name: "Ryan Hughes", phone: "+44 7700 911001", notes: "Dropped after rehash. Couldn't commit to schedule.",
-    source: "Office", stage: "dropped", status: "Dropped", dropReason: "Schedule conflict",
-    hasSalesPitchAccess: false, closeToPromotion: false,
-    history: [
-      { from: "2nd-round", to: "final-round", date: "2025-12-22" },
-      { from: "final-round", to: "rehash", date: "2026-01-05" },
-      { from: "rehash", to: "dropped", date: "2026-01-12", note: "Couldn't do Saturdays" },
-    ],
-    createdAt: "2025-12-15",
-  },
-  {
     id: "c17", name: "Hannah Clarke", phone: "+44 7700 911002", notes: "Fast-tracked through. Hit bell in 3 weeks.",
     source: "LinkedIn", stage: "bell", status: "Passed",
     hasSalesPitchAccess: true, closeToPromotion: true,
@@ -181,15 +149,6 @@ export const mockCandidates: Candidate[] = [
       { from: "bell", to: "promoted", date: "2025-12-28" },
     ],
     createdAt: "2025-11-01",
-  },
-  {
-    id: "c20", name: "Luke Bennett", phone: "+44 7700 911005", notes: "Dropped early — wasn't a good fit for D2D.",
-    source: "Office", stage: "dropped", status: "Dropped", dropReason: "Not suited for D2D",
-    hasSalesPitchAccess: false, closeToPromotion: false,
-    history: [
-      { from: "2nd-round", to: "dropped", date: "2025-11-18", note: "Poor interview performance" },
-    ],
-    createdAt: "2025-11-12",
   },
   {
     id: "c21", name: "Zara Hussain", phone: "+44 7700 911006", notes: "LinkedIn outreach. Strong closer.",
@@ -228,17 +187,6 @@ export const mockCandidates: Candidate[] = [
     createdAt: "2025-09-01",
   },
   {
-    id: "c24", name: "Aiden Murphy", phone: "+44 7700 911009", notes: "Dropped — relocated to another city.",
-    source: "Office", stage: "dropped", status: "Dropped", dropReason: "Relocated",
-    hasSalesPitchAccess: false, closeToPromotion: false,
-    history: [
-      { from: "2nd-round", to: "final-round", date: "2025-09-20" },
-      { from: "final-round", to: "start", date: "2025-10-01" },
-      { from: "start", to: "dropped", date: "2025-10-15", note: "Moving to Manchester" },
-    ],
-    createdAt: "2025-09-10",
-  },
-  {
     id: "c25", name: "Ella Nguyen", phone: "+44 7700 911010", notes: "Strong LinkedIn prospect. Great numbers.",
     source: "LinkedIn", stage: "bell", status: "Passed",
     hasSalesPitchAccess: true, closeToPromotion: true,
@@ -258,17 +206,6 @@ export const mockCandidates: Candidate[] = [
       { from: "final-round", to: "start", date: "2025-10-20" },
     ],
     createdAt: "2025-10-01",
-  },
-  {
-    id: "c27", name: "Grace Kim", phone: "+44 7700 911012", notes: "Dropped during rehash. Lost interest.",
-    source: "LinkedIn", stage: "dropped", status: "Declined", dropReason: "Lost interest",
-    hasSalesPitchAccess: false, closeToPromotion: false,
-    history: [
-      { from: "2nd-round", to: "final-round", date: "2025-10-12" },
-      { from: "final-round", to: "rehash", date: "2025-10-22" },
-      { from: "rehash", to: "dropped", date: "2025-11-01", note: "Stopped responding" },
-    ],
-    createdAt: "2025-10-05",
   },
   {
     id: "c28", name: "Oscar Hall", phone: "+44 7700 911013", notes: "Early recruit from September. Solid BA.",

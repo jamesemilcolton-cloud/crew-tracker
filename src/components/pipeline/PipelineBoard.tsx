@@ -26,7 +26,7 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
 
   const upcomingStarts = useMemo(() => {
     return candidates
-      .filter((c) => c.potentialStartDate && c.stage !== "dropped")
+      .filter((c) => c.potentialStartDate)
       .sort((a, b) => new Date(a.potentialStartDate!).getTime() - new Date(b.potentialStartDate!).getTime())
       .slice(0, 6);
   }, [candidates]);

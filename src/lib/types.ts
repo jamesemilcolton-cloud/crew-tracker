@@ -5,10 +5,9 @@ export type PipelineStage =
   | "sunday-call"
   | "start"
   | "bell"
-  | "promoted"
-  | "dropped";
+  | "promoted";
 
-export type CandidateStatus = "Waiting" | "Passed" | "Offered" | "Declined" | "Dropped";
+export type CandidateStatus = "Waiting" | "Passed" | "Offered" | "Declined";
 export type CandidateSource = "LinkedIn" | "Office";
 
 export interface StageChange {
@@ -30,7 +29,6 @@ export interface Candidate {
   hasSalesPitchAccess: boolean;
   closeToPromotion: boolean;
   history: StageChange[];
-  dropReason?: string;
   createdAt: string;
 }
 
@@ -65,7 +63,6 @@ export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: stri
   start: { label: "Start (Brand Ambassador)", colorVar: "--stage-start" },
   bell: { label: "Bell", colorVar: "--stage-bell" },
   promoted: { label: "Promoted (Leader)", colorVar: "--stage-promoted" },
-  dropped: { label: "Dropped", colorVar: "--stage-dropped" },
 };
 
 export const STAGES_ORDER: PipelineStage[] = [
@@ -76,5 +73,4 @@ export const STAGES_ORDER: PipelineStage[] = [
   "start",
   "bell",
   "promoted",
-  "dropped",
 ];

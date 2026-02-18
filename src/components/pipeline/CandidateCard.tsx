@@ -13,7 +13,6 @@ const statusColors: Record<string, string> = {
   Passed: "bg-status-passed/20 text-status-passed",
   Offered: "bg-status-offered/20 text-status-offered",
   Declined: "bg-status-declined/20 text-status-declined",
-  Dropped: "bg-status-dropped/20 text-status-dropped",
 };
 
 export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
