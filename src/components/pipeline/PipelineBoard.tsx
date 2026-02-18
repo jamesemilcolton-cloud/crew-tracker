@@ -26,12 +26,16 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
     }));
   }, [candidates]);
 
-  // Upcoming Starts: candidates in rehash or sunday-call with a potential start date
+  // Upcoming Starts: all candidates in rehash or sunday-call (regardless of start date)
   const upcomingStarts = useMemo(() => {
     const preStartStages: PipelineStage[] = ["rehash", "sunday-call"];
     return candidates
-      .filter((c) => preStartStages.includes(c.stage) && c.potentialStartDate)
-      .sort((a, b) => new Date(a.potentialStartDate!).getTime() - new Date(b.potentialStartDate!).getTime());
+      .filter((c) => preStartStages.includes(c.stage))
+      .sort((a, b) => {
+        if (a.potentialStartDate && b.potentialStartDate) return new Date(a.potentialStartDate).getTime() - new Date(b.potentialStartDate).getTime();
+        if (a.potentialStartDate) return -1;
+        return 1;
+      });
   }, [candidates]);
 
   const handleUpdate = (updated: Candidate) => {
@@ -135,8 +139,8 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
               onUpdate={handleUpdate}
             />
           ) : (
-            <div className="glass-panel p-4 h-full overflow-y-auto custom-scrollbar">
-              <Collapsible defaultOpen>
+            <Collapsible defaultOpen>
+              <div className="glass-panel p-4 overflow-y-auto custom-scrollbar">
                 <CollapsibleTrigger className="flex items-center justify-between w-full group">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-primary" />
@@ -162,14 +166,16 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-primary">
                           <Calendar className="w-3 h-3" />
-                          {new Date(c.potentialStartDate!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          {c.potentialStartDate
+                            ? new Date(c.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                            : "TBD"}
                         </div>
                       </div>
                     ))}
                   </div>
                 </CollapsibleContent>
-              </Collapsible>
-            </div>
+              </div>
+            </Collapsible>
           )}
         </div>
       </div>
