@@ -4,6 +4,7 @@ import { mockCandidates } from "@/lib/mock-data";
 import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics } from "./PipelineAnalytics";
+import { NewCandidateForm } from "./NewCandidateForm";
 import { Calendar, Clock } from "lucide-react";
 
 export function PipelineBoard() {
@@ -30,8 +31,16 @@ export function PipelineBoard() {
     setSelectedCandidate(updated);
   };
 
+  const handleAdd = (candidate: Candidate) => {
+    setCandidates((prev) => [...prev, candidate]);
+  };
+
   return (
     <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <div />
+        <NewCandidateForm onAdd={handleAdd} />
+      </div>
       <PipelineAnalytics candidates={candidates} />
 
       <div className="flex flex-1 gap-4 overflow-hidden">
