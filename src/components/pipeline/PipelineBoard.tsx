@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { mockCandidates } from "@/lib/mock-data";
 import { CandidateCard } from "./CandidateCard";
@@ -15,6 +15,7 @@ interface PipelineBoardProps {
 export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardProps) {
   const [candidates, setCandidates] = useState<Candidate[]>(startEmpty ? [] : mockCandidates);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -24,11 +25,13 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
     }));
   }, [candidates]);
 
+  // Upcoming Starts: candidates in rehash or sunday-call with a potential start date
   const upcomingStarts = useMemo(() => {
     return candidates
-      .filter((c) => c.potentialStartDate)
-      .sort((a, b) => new Date(a.potentialStartDate!).getTime() - new Date(b.potentialStartDate!).getTime())
-      .slice(0, 6);
+      .filter((c) => 
+        (c.stage === "rehash" || c.stage === "sunday-call") && c.potentialStartDate
+      )
+      .sort((a, b) => new Date(a.potentialStartDate!).getTime() - new Date(b.potentialStartDate!).getTime());
   }, [candidates]);
 
   const handleUpdate = (updated: Candidate) => {
@@ -39,6 +42,46 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
   const handleAdd = (candidate: Candidate) => {
     setCandidates((prev) => [...prev, candidate]);
   };
+
+  const handleDrop = useCallback((targetStage: PipelineStage, e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverStage(null);
+    const candidateId = e.dataTransfer.getData("candidateId");
+    if (!candidateId) return;
+
+    setCandidates((prev) => prev.map((c) => {
+      if (c.id !== candidateId) return c;
+      if (c.stage === targetStage) return c;
+
+      // Enforce strict order: can only move forward
+      const currentIdx = STAGES_ORDER.indexOf(c.stage);
+      const targetIdx = STAGES_ORDER.indexOf(targetStage);
+      if (targetIdx <= currentIdx) return c; // no backward moves
+
+      // Record stage change in history
+      const stageChange = {
+        from: c.stage,
+        to: targetStage,
+        date: new Date().toISOString().split("T")[0],
+      };
+
+      return {
+        ...c,
+        stage: targetStage,
+        history: [...c.history, stageChange],
+      };
+    }));
+  }, []);
+
+  const handleDragOver = useCallback((stage: PipelineStage, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverStage(stage);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverStage(null);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -51,7 +94,15 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
         {/* Pipeline columns */}
         <div className="flex gap-3 overflow-x-auto flex-1 pb-2 custom-scrollbar">
           {columns.map(({ stage, config, candidates: stageCandidates }) => (
-            <div key={stage} className="pipeline-column flex-shrink-0">
+            <div
+              key={stage}
+              className={`pipeline-column flex-shrink-0 transition-all duration-200 ${
+                dragOverStage === stage ? "ring-2 ring-primary/50 bg-primary/5" : ""
+              }`}
+              onDrop={(e) => handleDrop(stage, e)}
+              onDragOver={(e) => handleDragOver(stage, e)}
+              onDragLeave={handleDragLeave}
+            >
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div
                   className="w-2 h-2 rounded-full"
@@ -72,7 +123,7 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
           ))}
         </div>
 
-        {/* Right panel: Upcoming Starts or Candidate Detail */}
+        {/* Right panel */}
         <div className="w-72 flex-shrink-0">
           {selectedCandidate ? (
             <CandidateDetail
@@ -87,6 +138,9 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
                 <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
               </div>
               <div className="space-y-2">
+                {upcomingStarts.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No upcoming starts</p>
+                )}
                 {upcomingStarts.map((c) => (
                   <div
                     key={c.id}
