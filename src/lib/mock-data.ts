@@ -1,4 +1,4 @@
-import { Candidate, LinkedInActivity, CrewMember, KPITarget } from "./types";
+import { Candidate, LinkedInActivity, KPITarget } from "./types";
 
 export const mockCandidates: Candidate[] = [
   {
@@ -50,6 +50,7 @@ export const mockCandidates: Candidate[] = [
     id: "c7", name: "Olivia Brown", phone: "+44 7700 903456", notes: "Started last week. Performing well in training.",
     source: "LinkedIn", stage: "start", potentialStartDate: "2026-02-10",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c9",
     history: [
       { from: "2nd-round", to: "final-round", date: "2026-01-05" },
       { from: "final-round", to: "rehash", date: "2026-01-10" },
@@ -89,6 +90,7 @@ export const mockCandidates: Candidate[] = [
     id: "c12", name: "Nathan Price", phone: "+44 7700 908901", notes: "Strong sales pitch. Close to promotion.",
     source: "Office", stage: "start", potentialStartDate: "2026-01-20",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c9",
     history: [
       { from: "2nd-round", to: "final-round", date: "2025-12-15" },
       { from: "final-round", to: "rehash", date: "2025-12-20" },
@@ -113,6 +115,7 @@ export const mockCandidates: Candidate[] = [
     id: "c15", name: "Sophie Turner", phone: "+44 7700 911000", notes: "Came through LinkedIn ad campaign. Solid interview.",
     source: "LinkedIn", stage: "start", potentialStartDate: "2026-01-06",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c19",
     history: [
       { from: "2nd-round", to: "final-round", date: "2025-12-18" },
       { from: "final-round", to: "rehash", date: "2025-12-22" },
@@ -163,6 +166,7 @@ export const mockCandidates: Candidate[] = [
     id: "c21", name: "Zara Hussain", phone: "+44 7700 911006", notes: "LinkedIn outreach. Strong closer.",
     source: "LinkedIn", stage: "start", potentialStartDate: "2025-12-02",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c23",
     history: [
       { from: "2nd-round", to: "final-round", date: "2025-11-15" },
       { from: "final-round", to: "rehash", date: "2025-11-18" },
@@ -175,6 +179,7 @@ export const mockCandidates: Candidate[] = [
     id: "c22", name: "Ben Walker", phone: "+44 7700 911007", notes: "Referred by Megan. Excellent attitude.",
     source: "Office", stage: "bell",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c19",
     history: [
       { from: "2nd-round", to: "final-round", date: "2025-11-08" },
       { from: "final-round", to: "rehash", date: "2025-11-12" },
@@ -202,6 +207,7 @@ export const mockCandidates: Candidate[] = [
     id: "c25", name: "Ella Nguyen", phone: "+44 7700 911010", notes: "Strong LinkedIn prospect. Great numbers.",
     source: "LinkedIn", stage: "bell",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c23",
     history: [
       { from: "2nd-round", to: "final-round", date: "2025-10-05" },
       { from: "final-round", to: "rehash", date: "2025-10-08" },
@@ -215,6 +221,7 @@ export const mockCandidates: Candidate[] = [
     id: "c26", name: "Sam Dixon", phone: "+44 7700 911011", notes: "Office referral. Quiet but effective.",
     source: "Office", stage: "start", potentialStartDate: "2025-10-20",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
+    recruitedBy: "c23",
     history: [
       { from: "2nd-round", to: "final-round", date: "2025-10-08" },
       { from: "final-round", to: "rehash", date: "2025-10-12" },
@@ -261,61 +268,3 @@ export const mockKPITargets: KPITarget[] = [
   { label: "LinkedIn CVs / Week", target: 25, actual: 19 },
 ];
 
-export const mockCrewTree: CrewMember = {
-  id: "root",
-  name: "You",
-  role: "leader",
-  children: [
-    {
-      id: "l1",
-      name: "Rachel Adams",
-      role: "leader",
-      children: [
-        { id: "ba1", name: "Olivia Brown", role: "brand-ambassador", children: [] },
-        { id: "ba2", name: "Nathan Price", role: "brand-ambassador", children: [] },
-      ],
-    },
-    {
-      id: "ba3", name: "Daniel Lee", role: "brand-ambassador", children: [],
-    },
-    {
-      id: "ba4", name: "Marcus Johnson", role: "brand-ambassador", children: [],
-    },
-  ],
-};
-
-export const mockPredictedCrewTree: CrewMember = {
-  id: "root",
-  name: "You",
-  role: "leader",
-  children: [
-    {
-      id: "l1",
-      name: "Rachel Adams",
-      role: "leader",
-      children: [
-        { id: "ba1", name: "Olivia Brown", role: "brand-ambassador", children: [] },
-        {
-          id: "l2",
-          name: "Nathan Price",
-          role: "leader",
-          children: [
-            { id: "ba-pred1", name: "New BA (Predicted)", role: "brand-ambassador", children: [] },
-            { id: "ba-pred2", name: "New BA (Predicted)", role: "brand-ambassador", children: [] },
-          ],
-        },
-      ],
-    },
-    {
-      id: "l3",
-      name: "Daniel Lee",
-      role: "leader",
-      children: [
-        { id: "ba-pred3", name: "New BA (Predicted)", role: "brand-ambassador", children: [] },
-      ],
-    },
-    { id: "ba4", name: "Marcus Johnson", role: "brand-ambassador", children: [] },
-    { id: "ba-pred4", name: "New BA (Predicted)", role: "brand-ambassador", children: [] },
-    { id: "ba-pred5", name: "New BA (Predicted)", role: "brand-ambassador", children: [] },
-  ],
-};

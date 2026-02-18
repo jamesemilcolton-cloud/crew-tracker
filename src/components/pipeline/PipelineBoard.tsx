@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { mockCandidates } from "@/lib/mock-data";
 import { CandidateCard } from "./CandidateCard";
@@ -10,12 +10,18 @@ import { Calendar, Clock } from "lucide-react";
 interface PipelineBoardProps {
   startEmpty?: boolean;
   trendRange: TrendRange;
+  onCandidatesChange?: (candidates: Candidate[]) => void;
 }
 
-export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardProps) {
+export function PipelineBoard({ startEmpty = false, trendRange, onCandidatesChange }: PipelineBoardProps) {
   const [candidates, setCandidates] = useState<Candidate[]>(startEmpty ? [] : mockCandidates);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
+
+  // Notify parent of candidate changes
+  useEffect(() => {
+    onCandidatesChange?.(candidates);
+  }, [candidates, onCandidatesChange]);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
