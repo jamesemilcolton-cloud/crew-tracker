@@ -5,8 +5,12 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } f
 import { Plus, TrendingUp, BarChart3, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function LinkedInDashboard() {
-  const [activities, setActivities] = useState<LinkedInActivity[]>(mockLinkedInActivity);
+interface LinkedInDashboardProps {
+  startEmpty?: boolean;
+}
+
+export function LinkedInDashboard({ startEmpty = false }: LinkedInDashboardProps) {
+  const [activities, setActivities] = useState<LinkedInActivity[]>(startEmpty ? [] : mockLinkedInActivity);
 
   // Weekly aggregation
   const weeklyData = useMemo(() => {

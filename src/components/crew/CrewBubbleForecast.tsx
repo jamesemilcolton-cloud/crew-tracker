@@ -79,14 +79,20 @@ function TreeNode({ member, x, y, parentX, parentY }: { member: CrewMember; x: n
   );
 }
 
-export function CrewBubbleForecast() {
+interface CrewBubbleForecastProps {
+  startEmpty?: boolean;
+}
+
+const emptyTree: CrewMember = { id: "empty", name: "No Data", role: "leader", closeToPromotion: false, children: [] };
+
+export function CrewBubbleForecast({ startEmpty = false }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const svgRef = useRef<SVGSVGElement>(null);
   const isDragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
-  const tree = showPredicted ? mockPredictedCrewTree : mockCrewTree;
+  const tree = startEmpty ? emptyTree : (showPredicted ? mockPredictedCrewTree : mockCrewTree);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
