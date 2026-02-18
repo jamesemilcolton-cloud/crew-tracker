@@ -77,21 +77,6 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
     return counts;
   }, [filteredCandidates]);
 
-  const conversionRates = useMemo(() => {
-    const stages = STAGES_ORDER.filter((s) => s !== "dropped");
-    return stages.slice(0, -1).map((stage, i) => {
-      const nextStage = stages[i + 1];
-      const current = stageCounts[stage] || 1;
-      const movedForward = filteredCandidates.filter((c) =>
-        c.history.some((h) => h.from === stage && h.to === nextStage)
-      ).length;
-      return {
-        from: STAGE_CONFIG[stage].label.split(" ")[0],
-        to: STAGE_CONFIG[nextStage].label.split(" ")[0],
-        rate: Math.round((movedForward / Math.max(current + movedForward, 1)) * 100),
-      };
-    });
-  }, [filteredCandidates, stageCounts]);
 
   const trendData = useMemo(() => {
     if (startEmpty) {
@@ -183,22 +168,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
             })}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Conversion rates */}
-            <div className="bg-muted/20 rounded-lg p-3">
-              <h4 className="text-xs font-medium text-muted-foreground mb-2">Conversion Rates</h4>
-              <div className="space-y-1.5">
-                {conversionRates.map((cr, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{cr.from} → {cr.to}</span>
-                    <span className={`font-mono font-medium ${cr.rate >= 50 ? "text-status-passed" : "text-status-waiting"}`}>
-                      {cr.rate}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Trend chart */}
             <div className="bg-muted/20 rounded-lg p-3">
               <h4 className="text-xs font-medium text-muted-foreground mb-2">Weekly Trends</h4>
