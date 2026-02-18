@@ -1,6 +1,7 @@
 import { Candidate, LinkedInActivity, CrewMember, KPITarget } from "./types";
 
 export const mockCandidates: Candidate[] = [
+  // --- Current pipeline (recent) ---
   {
     id: "c1", name: "Sarah Mitchell", phone: "+44 7700 900123", notes: "Strong communicator, sales background. Very enthusiastic about the role.",
     source: "LinkedIn", stage: "2nd-round", status: "Waiting", potentialStartDate: "2026-03-10",
@@ -122,8 +123,165 @@ export const mockCandidates: Candidate[] = [
     source: "LinkedIn", stage: "2nd-round", status: "Waiting", potentialStartDate: "2026-04-01",
     hasSalesPitchAccess: false, closeToPromotion: false, history: [], createdAt: "2026-02-16",
   },
-];
 
+  // --- Older candidates (4-8 weeks ago) ---
+  {
+    id: "c15", name: "Sophie Turner", phone: "+44 7700 911000", notes: "Came through LinkedIn ad campaign. Solid interview.",
+    source: "LinkedIn", stage: "start", status: "Passed", potentialStartDate: "2026-01-06",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-12-18" },
+      { from: "final-round", to: "sunday-call", date: "2025-12-28" },
+      { from: "sunday-call", to: "start", date: "2026-01-06" },
+    ],
+    createdAt: "2025-12-10",
+  },
+  {
+    id: "c16", name: "Ryan Hughes", phone: "+44 7700 911001", notes: "Dropped after rehash. Couldn't commit to schedule.",
+    source: "Office", stage: "dropped", status: "Dropped", dropReason: "Schedule conflict",
+    hasSalesPitchAccess: false, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-12-22" },
+      { from: "final-round", to: "rehash", date: "2026-01-05" },
+      { from: "rehash", to: "dropped", date: "2026-01-12", note: "Couldn't do Saturdays" },
+    ],
+    createdAt: "2025-12-15",
+  },
+  {
+    id: "c17", name: "Hannah Clarke", phone: "+44 7700 911002", notes: "Fast-tracked through. Hit bell in 3 weeks.",
+    source: "LinkedIn", stage: "bell", status: "Passed",
+    hasSalesPitchAccess: true, closeToPromotion: true,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-12-08" },
+      { from: "final-round", to: "start", date: "2025-12-16" },
+      { from: "start", to: "bell", date: "2026-01-06" },
+    ],
+    createdAt: "2025-12-01",
+  },
+  {
+    id: "c18", name: "Jake Robinson", phone: "+44 7700 911003", notes: "Office walk-in. Great first impression.",
+    source: "Office", stage: "sunday-call", status: "Waiting", potentialStartDate: "2026-01-27",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2026-01-08" },
+      { from: "final-round", to: "sunday-call", date: "2026-01-18" },
+    ],
+    createdAt: "2026-01-02",
+  },
+
+  // --- Older candidates (8-12 weeks ago) ---
+  {
+    id: "c19", name: "Megan Scott", phone: "+44 7700 911004", notes: "Promoted fast. Now leading a small team.",
+    source: "LinkedIn", stage: "promoted", status: "Passed",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-11-10" },
+      { from: "final-round", to: "start", date: "2025-11-20" },
+      { from: "start", to: "bell", date: "2025-12-10" },
+      { from: "bell", to: "promoted", date: "2025-12-28" },
+    ],
+    createdAt: "2025-11-01",
+  },
+  {
+    id: "c20", name: "Luke Bennett", phone: "+44 7700 911005", notes: "Dropped early — wasn't a good fit for D2D.",
+    source: "Office", stage: "dropped", status: "Dropped", dropReason: "Not suited for D2D",
+    hasSalesPitchAccess: false, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "dropped", date: "2025-11-18", note: "Poor interview performance" },
+    ],
+    createdAt: "2025-11-12",
+  },
+  {
+    id: "c21", name: "Zara Hussain", phone: "+44 7700 911006", notes: "LinkedIn outreach. Strong closer.",
+    source: "LinkedIn", stage: "start", status: "Passed", potentialStartDate: "2025-12-02",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-11-15" },
+      { from: "final-round", to: "sunday-call", date: "2025-11-22" },
+      { from: "sunday-call", to: "start", date: "2025-12-02" },
+    ],
+    createdAt: "2025-11-05",
+  },
+  {
+    id: "c22", name: "Ben Walker", phone: "+44 7700 911007", notes: "Referred by Megan. Excellent attitude.",
+    source: "Office", stage: "bell", status: "Passed",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-11-08" },
+      { from: "final-round", to: "start", date: "2025-11-18" },
+      { from: "start", to: "bell", date: "2025-12-15" },
+    ],
+    createdAt: "2025-11-01",
+  },
+
+  // --- Even older (12-24 weeks ago) ---
+  {
+    id: "c23", name: "Chloe Evans", phone: "+44 7700 911008", notes: "One of the first recruits. Now a top performer.",
+    source: "LinkedIn", stage: "promoted", status: "Passed",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-09-15" },
+      { from: "final-round", to: "start", date: "2025-09-25" },
+      { from: "start", to: "bell", date: "2025-10-20" },
+      { from: "bell", to: "promoted", date: "2025-11-15" },
+    ],
+    createdAt: "2025-09-01",
+  },
+  {
+    id: "c24", name: "Aiden Murphy", phone: "+44 7700 911009", notes: "Dropped — relocated to another city.",
+    source: "Office", stage: "dropped", status: "Dropped", dropReason: "Relocated",
+    hasSalesPitchAccess: false, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-09-20" },
+      { from: "final-round", to: "start", date: "2025-10-01" },
+      { from: "start", to: "dropped", date: "2025-10-15", note: "Moving to Manchester" },
+    ],
+    createdAt: "2025-09-10",
+  },
+  {
+    id: "c25", name: "Ella Nguyen", phone: "+44 7700 911010", notes: "Strong LinkedIn prospect. Great numbers.",
+    source: "LinkedIn", stage: "bell", status: "Passed",
+    hasSalesPitchAccess: true, closeToPromotion: true,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-10-05" },
+      { from: "final-round", to: "start", date: "2025-10-15" },
+      { from: "start", to: "bell", date: "2025-11-10" },
+    ],
+    createdAt: "2025-09-25",
+  },
+  {
+    id: "c26", name: "Sam Dixon", phone: "+44 7700 911011", notes: "Office referral. Quiet but effective.",
+    source: "Office", stage: "start", status: "Passed", potentialStartDate: "2025-10-20",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-10-08" },
+      { from: "final-round", to: "start", date: "2025-10-20" },
+    ],
+    createdAt: "2025-10-01",
+  },
+  {
+    id: "c27", name: "Grace Kim", phone: "+44 7700 911012", notes: "Dropped during rehash. Lost interest.",
+    source: "LinkedIn", stage: "dropped", status: "Declined", dropReason: "Lost interest",
+    hasSalesPitchAccess: false, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-10-12" },
+      { from: "final-round", to: "rehash", date: "2025-10-22" },
+      { from: "rehash", to: "dropped", date: "2025-11-01", note: "Stopped responding" },
+    ],
+    createdAt: "2025-10-05",
+  },
+  {
+    id: "c28", name: "Oscar Hall", phone: "+44 7700 911013", notes: "Early recruit from September. Solid BA.",
+    source: "Office", stage: "start", status: "Passed", potentialStartDate: "2025-09-29",
+    hasSalesPitchAccess: true, closeToPromotion: false,
+    history: [
+      { from: "2nd-round", to: "final-round", date: "2025-09-12" },
+      { from: "final-round", to: "sunday-call", date: "2025-09-20" },
+      { from: "sunday-call", to: "start", date: "2025-09-29" },
+    ],
+    createdAt: "2025-09-05",
+  },
+];
 // Generate weekly LinkedIn activity for past 8 weeks
 export const mockLinkedInActivity: LinkedInActivity[] = Array.from({ length: 56 }, (_, i) => {
   const date = new Date("2026-02-18");
