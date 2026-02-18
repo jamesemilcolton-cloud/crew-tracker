@@ -130,7 +130,7 @@ const Index = () => {
 
       {/* Content */}
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
-        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} onCandidatesChange={handleCandidatesChange} />}
+        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} candidates={candidates} onCandidatesChange={handleCandidatesChange} />}
         {activeTab === "linkedin" && <LinkedInDashboard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} />}
         {activeTab === "crew" && <CrewBubbleForecast candidates={candidates} />}
       </main>
