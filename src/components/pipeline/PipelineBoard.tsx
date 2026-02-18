@@ -27,10 +27,9 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
 
   // Upcoming Starts: candidates in rehash or sunday-call with a potential start date
   const upcomingStarts = useMemo(() => {
+    const preStartStages: PipelineStage[] = ["rehash", "sunday-call"];
     return candidates
-      .filter((c) => 
-        (c.stage === "rehash" || c.stage === "sunday-call") && c.potentialStartDate
-      )
+      .filter((c) => preStartStages.includes(c.stage) && c.potentialStartDate)
       .sort((a, b) => new Date(a.potentialStartDate!).getTime() - new Date(b.potentialStartDate!).getTime());
   }, [candidates]);
 

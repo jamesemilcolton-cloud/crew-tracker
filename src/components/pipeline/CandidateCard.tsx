@@ -1,5 +1,5 @@
-import { Candidate, STAGE_CONFIG, PipelineStage } from "@/lib/types";
-import { Star, Calendar, TrendingUp, HelpCircle } from "lucide-react";
+import { Candidate } from "@/lib/types";
+import { Star, Calendar, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface CandidateCardProps {
@@ -44,37 +44,31 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
         </Badge>
       </div>
 
-      {candidate.potentialStartDate && (
-        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-          <Calendar className="w-3 h-3" />
-          <span>{new Date(candidate.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-        </div>
-      )}
+      {/* Potential start date indicator */}
+      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+        <Calendar className="w-3 h-3" />
+        <span>
+          {candidate.potentialStartDate
+            ? new Date(candidate.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+            : "Start date ?"}
+        </span>
+      </div>
 
-      {/* Rehash stage indicators */}
-      {isRehash && (
-        <div className="flex items-center gap-2 mt-1.5">
-          <div className="flex items-center gap-0.5 text-[10px]">
-            <HelpCircle className="w-3 h-3 text-muted-foreground" />
-            <span className={candidate.hasSalesPitchAccess ? "text-status-passed" : "text-muted-foreground"}>
-              Sales Pitch{candidate.hasSalesPitchAccess ? " ✓" : " ?"}
-            </span>
-          </div>
-          <div className="flex items-center gap-0.5 text-[10px]">
-            <HelpCircle className="w-3 h-3 text-muted-foreground" />
-            <span className={candidate.hasEvoAppAccess ? "text-status-passed" : "text-muted-foreground"}>
-              EVO App{candidate.hasEvoAppAccess ? " ✓" : " ?"}
-            </span>
-          </div>
+      {/* Access indicators - always visible */}
+      <div className="flex items-center gap-2 mt-1.5">
+        <div className="flex items-center gap-0.5 text-[10px]">
+          <HelpCircle className="w-3 h-3 text-muted-foreground" />
+          <span className={candidate.hasSalesPitchAccess ? "text-status-passed" : "text-muted-foreground"}>
+            Sales Pitch{candidate.hasSalesPitchAccess ? " ✓" : " ?"}
+          </span>
         </div>
-      )}
-
-      {candidate.hasSalesPitchAccess && !isRehash && (
-        <div className="flex items-center gap-1 text-[11px] text-accent-foreground mt-1">
-          <TrendingUp className="w-3 h-3" />
-          <span>Sales pitch access</span>
+        <div className="flex items-center gap-0.5 text-[10px]">
+          <HelpCircle className="w-3 h-3 text-muted-foreground" />
+          <span className={candidate.hasEvoAppAccess ? "text-status-passed" : "text-muted-foreground"}>
+            EVO App{candidate.hasEvoAppAccess ? " ✓" : " ?"}
+          </span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
