@@ -5,6 +5,7 @@ import { mockKPITargets } from "@/lib/mock-data";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp, TrendingDown, Target, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { format, subWeeks } from "date-fns";
 
 export type TrendRange = "this-week" | "prev-week" | "4-weeks" | "8-weeks" | "12-weeks" | "all";
 
@@ -83,6 +84,13 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
     }, kpis[0]);
   }, [kpis]);
 
+  const dateRangeLabel = useMemo(() => {
+    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
+    const now = new Date();
+    const start = subWeeks(now, option.weeks);
+    return `${format(start, "do MMM")} – ${format(now, "do MMM")}`;
+  }, [trendRange]);
+
   return (
     <div className="glass-panel mb-4">
       <button
@@ -92,6 +100,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
         <span className="flex items-center gap-2">
           <Target className="w-4 h-4 text-primary" />
           Pipeline Analytics
+          <span className="text-xs font-normal text-muted-foreground">({dateRangeLabel})</span>
         </span>
         {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
       </button>
