@@ -166,12 +166,21 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
         <div className="px-4 pb-4 space-y-4 animate-fade-in">
           {/* Stage counts */}
           <div className="grid grid-cols-4 lg:grid-cols-8 gap-2">
-            {STAGES_ORDER.map((stage) => (
-              <div key={stage} className="text-center p-2 rounded-lg bg-muted/30">
-                <div className="text-lg font-bold text-foreground">{stageCounts[stage]}</div>
-                <div className="text-[10px] text-muted-foreground leading-tight">{STAGE_CONFIG[stage].label.split("(")[0].trim()}</div>
-              </div>
-            ))}
+            {STAGES_ORDER.map((stage) => {
+              const base = stageCounts["2nd-round"];
+              const pct = base > 0 && stage !== "2nd-round"
+                ? Math.round((stageCounts[stage] / base) * 100)
+                : null;
+              return (
+                <div key={stage} className="text-center p-2 rounded-lg bg-muted/30">
+                  <div className="text-lg font-bold text-foreground">{stageCounts[stage]}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{STAGE_CONFIG[stage].label.split("(")[0].trim()}</div>
+                  {pct !== null && (
+                    <div className="text-[9px] font-medium text-primary mt-0.5">{pct}%</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
