@@ -5,7 +5,7 @@ import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
 import { Calendar, Clock, ChevronDown } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 interface PipelineBoardProps {
   startEmpty?: boolean;
@@ -17,6 +17,7 @@ interface PipelineBoardProps {
 export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCandidatesChange }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
+  const [upcomingOpen, setUpcomingOpen] = useState(true);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -130,52 +131,60 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
           ))}
         </div>
 
-        {/* Right panel */}
-        <div className="w-72 flex-shrink-0">
+        {/* Right panel — collapses to slim strip */}
+        <div className={`flex-shrink-0 transition-all duration-300 ${selectedCandidate ? "w-72" : upcomingOpen ? "w-72" : "w-10"}`}>
           {selectedCandidate ? (
             <CandidateDetail
               candidate={selectedCandidate}
               onClose={() => setSelectedCandidate(null)}
               onUpdate={handleUpdate}
             />
-          ) : (
-            <Collapsible defaultOpen>
-              <div className="glass-panel p-4 overflow-y-auto custom-scrollbar">
-                <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary" />
-                    <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
-                    <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="space-y-2 mt-3">
-                    {upcomingStarts.length === 0 && (
-                      <p className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No upcoming starts</p>
-                    )}
-                    {upcomingStarts.map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => setSelectedCandidate(c)}
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{c.name}</p>
-                          <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-primary">
-                          <Calendar className="w-3 h-3" />
-                          {c.potentialStartDate
-                            ? new Date(c.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-                            : "TBD"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleContent>
+          ) : upcomingOpen ? (
+            <div className="glass-panel p-4 overflow-y-auto custom-scrollbar h-full">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
+                  <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
+                </div>
+                <button onClick={() => setUpcomingOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronDown className="w-3.5 h-3.5 rotate-90" />
+                </button>
               </div>
-            </Collapsible>
+              <div className="space-y-2">
+                {upcomingStarts.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No upcoming starts</p>
+                )}
+                {upcomingStarts.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setSelectedCandidate(c)}
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{c.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-primary">
+                      <Calendar className="w-3 h-3" />
+                      {c.potentialStartDate
+                        ? new Date(c.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                        : "TBD"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setUpcomingOpen(true)}
+              className="glass-panel w-10 h-full flex flex-col items-center pt-3 gap-2 hover:bg-card/90 transition-colors"
+              title="Open Upcoming Starts"
+            >
+              <Clock className="w-4 h-4 text-primary" />
+              <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground -rotate-90" />
+            </button>
           )}
         </div>
       </div>
