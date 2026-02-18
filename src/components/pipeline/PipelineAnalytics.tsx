@@ -59,18 +59,12 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    const stagesNoDropped = STAGES_ORDER.filter((s) => s !== "dropped");
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
     filteredCandidates.forEach((c) => {
-      if (c.stage === "dropped") {
-        counts["dropped"]++;
-        return;
-      }
-      // Count this candidate for their current stage and all prior stages in the funnel
-      const currentIdx = stagesNoDropped.indexOf(c.stage);
+      const currentIdx = STAGES_ORDER.indexOf(c.stage);
       if (currentIdx >= 0) {
         for (let i = 0; i <= currentIdx; i++) {
-          counts[stagesNoDropped[i]]++;
+          counts[STAGES_ORDER[i]]++;
         }
       }
     });
@@ -85,7 +79,6 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
         week: `W${option.weeks - i}`,
         interviews: 0,
         starts: 0,
-        drops: 0,
       })).reverse();
     }
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
@@ -94,7 +87,6 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
       week: `W${count - i}`,
       interviews: 5 + Math.floor(Math.random() * 8),
       starts: 1 + Math.floor(Math.random() * 4),
-      drops: Math.floor(Math.random() * 3),
     })).reverse();
   }, [trendRange, startEmpty]);
 
@@ -182,7 +174,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
                   />
                   <Line type="monotone" dataKey="interviews" stroke="hsl(172 66% 50%)" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="starts" stroke="hsl(152 69% 40%)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="drops" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
+                  
                 </LineChart>
               </ResponsiveContainer>
             </div>

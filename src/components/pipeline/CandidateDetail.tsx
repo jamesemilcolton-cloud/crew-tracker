@@ -64,15 +64,6 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
           )}
         </div>
 
-        {candidate.dropReason && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-destructive text-sm font-medium mb-1">
-              <AlertTriangle className="w-4 h-4" />
-              Drop Reason
-            </div>
-            <p className="text-sm text-destructive/80">{candidate.dropReason}</p>
-          </div>
-        )}
 
         <div>
           <div className="flex items-center justify-between mb-2">
