@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { Candidate } from "@/lib/types";
+import { mockCandidates } from "@/lib/mock-data";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
@@ -35,10 +37,16 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("pipeline");
   const [resetKey, setResetKey] = useState(0);
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
+  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
 
   const handleReset = () => {
     setResetKey((k) => k + 1);
+    setCandidates([]);
   };
+
+  const handleCandidatesChange = useCallback((updated: Candidate[]) => {
+    setCandidates(updated);
+  }, []);
 
   const currentRangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label;
 
@@ -122,9 +130,9 @@ const Index = () => {
 
       {/* Content */}
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
-        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} />}
+        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} onCandidatesChange={handleCandidatesChange} />}
         {activeTab === "linkedin" && <LinkedInDashboard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} />}
-        {activeTab === "crew" && <CrewBubbleForecast key={resetKey} startEmpty={resetKey > 0} />}
+        {activeTab === "crew" && <CrewBubbleForecast candidates={candidates} />}
       </main>
     </div>
   );

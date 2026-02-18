@@ -31,6 +31,7 @@ export interface Candidate {
   hasEvoAppAccess: boolean;
   history: StageChange[];
   createdAt: string;
+  recruitedBy?: string; // id of the promoted leader who recruited this person
 }
 
 export interface KPITarget {
@@ -48,12 +49,7 @@ export interface LinkedInActivity {
   candidatesAttending2ndRound: number;
 }
 
-export interface CrewMember {
-  id: string;
-  name: string;
-  role: "leader" | "brand-ambassador";
-  children: CrewMember[];
-}
+
 
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: string }> = {
   "2nd-round": { label: "2nd Round Interview", colorVar: "--stage-2nd-round" },
