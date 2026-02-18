@@ -3,7 +3,7 @@ import { mockLinkedInActivity } from "@/lib/mock-data";
 import { LinkedInActivity } from "@/lib/types";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Plus, TrendingUp, BarChart3, Calendar, Upload } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, BarChart3, Calendar, Upload, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LinkedInDashboardProps {
@@ -88,6 +88,71 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
       .map(([d]) => dayNames[Number(d)]);
     return { days: winners.join(" & "), total: maxCvs };
   }, [filteredActivities]);
+
+  // Correlation chart data — CVs vs 2nd Round on same graph
+  const correlationData = useMemo(() => {
+    if (isThisWeek) {
+      const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((dayOfWeek === 0 ? 7 : dayOfWeek) - 1));
+      monday.setHours(0, 0, 0, 0);
+      return dayNames.map((name, i) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const key = date.toISOString().split("T")[0];
+        const activity = filteredActivities.find((a) => a.date === key);
+        return {
+          period: name,
+          cvs: activity?.cvsDownloaded ?? 0,
+          interviews: activity?.candidatesAttending2ndRound ?? 0,
+        };
+      });
+    }
+    const weeks: Record<string, { period: string; cvs: number; interviews: number }> = {};
+    filteredActivities.forEach((a) => {
+      const d = new Date(a.date);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay() + 1);
+      const key = weekStart.toISOString().split("T")[0];
+      if (!weeks[key]) weeks[key] = { period: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, cvs: 0, interviews: 0 };
+      weeks[key].cvs += a.cvsDownloaded;
+      weeks[key].interviews += a.candidatesAttending2ndRound;
+    });
+    return Object.values(weeks);
+  }, [filteredActivities, isThisWeek]);
+
+  // Trend insight analysis
+  const trendInsight = useMemo(() => {
+    if (correlationData.length < 2) return null;
+    const half = Math.floor(correlationData.length / 2);
+    const firstHalfCvs = correlationData.slice(0, half).reduce((s, d) => s + d.cvs, 0);
+    const secondHalfCvs = correlationData.slice(half).reduce((s, d) => s + d.cvs, 0);
+    const firstHalfInt = correlationData.slice(0, half).reduce((s, d) => s + d.interviews, 0);
+    const secondHalfInt = correlationData.slice(half).reduce((s, d) => s + d.interviews, 0);
+
+    const cvTrend = secondHalfCvs > firstHalfCvs ? "up" : secondHalfCvs < firstHalfCvs ? "down" : "flat";
+    const intTrend = secondHalfInt > firstHalfInt ? "up" : secondHalfInt < firstHalfInt ? "down" : "flat";
+
+    // Detect delayed correlation: CV spike in first half followed by interview spike in second half
+    let delayedCorrelation = false;
+    if (correlationData.length >= 4) {
+      // Check if CVs were higher earlier and interviews higher later
+      const earlyPeriods = correlationData.slice(0, half);
+      const latePeriods = correlationData.slice(half);
+      const avgEarlyCv = earlyPeriods.reduce((s, d) => s + d.cvs, 0) / earlyPeriods.length;
+      const avgLateCv = latePeriods.reduce((s, d) => s + d.cvs, 0) / latePeriods.length;
+      const avgEarlyInt = earlyPeriods.reduce((s, d) => s + d.interviews, 0) / earlyPeriods.length;
+      const avgLateInt = latePeriods.reduce((s, d) => s + d.interviews, 0) / latePeriods.length;
+      // CV spike early + interview spike late suggests delayed correlation
+      if (avgEarlyCv > avgLateCv * 0.8 && avgLateInt > avgEarlyInt * 1.2) {
+        delayedCorrelation = true;
+      }
+    }
+
+    return { cvTrend, intTrend, delayedCorrelation };
+  }, [correlationData]);
 
   // Totals
   const totals = useMemo(() => {
@@ -230,6 +295,77 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* CV vs 2nd Round Correlation Graph */}
+      <div className="glass-panel p-4">
+        <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-primary" />
+          CV Downloads vs 2nd Round Interviews — Trend Correlation ({isThisWeek ? "Daily" : "Weekly"})
+        </h4>
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={correlationData}>
+            <XAxis dataKey="period" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
+            <Legend wrapperStyle={{ fontSize: "11px" }} />
+            <Line type="monotone" dataKey="cvs" name="CVs Downloaded" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+            <Line type="monotone" dataKey="interviews" name="2nd Round Interviews" stroke="hsl(280 70% 60%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(280 70% 60%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Trend Insight Panel */}
+      {trendInsight && (
+        <div className="glass-panel p-4">
+          <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="w-3.5 h-3.5 text-primary" />
+            Trend Insights ({rangeLabel})
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="bg-muted/20 rounded-lg p-3 flex items-start gap-2">
+              {trendInsight.cvTrend === "up" ? (
+                <TrendingUp className="w-4 h-4 text-chart-4 mt-0.5 flex-shrink-0" />
+              ) : trendInsight.cvTrend === "down" ? (
+                <TrendingDown className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+              ) : (
+                <Activity className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              )}
+              <div>
+                <p className="text-xs font-medium text-foreground">CV Downloads</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {trendInsight.cvTrend === "up" ? "Trending upward" : trendInsight.cvTrend === "down" ? "Trending downward" : "Holding steady"}
+                </p>
+              </div>
+            </div>
+            <div className="bg-muted/20 rounded-lg p-3 flex items-start gap-2">
+              {trendInsight.intTrend === "up" ? (
+                <TrendingUp className="w-4 h-4 text-chart-4 mt-0.5 flex-shrink-0" />
+              ) : trendInsight.intTrend === "down" ? (
+                <TrendingDown className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+              ) : (
+                <Activity className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              )}
+              <div>
+                <p className="text-xs font-medium text-foreground">2nd Round Interviews</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {trendInsight.intTrend === "up" ? "Trending upward" : trendInsight.intTrend === "down" ? "Trending downward" : "Holding steady"}
+                </p>
+              </div>
+            </div>
+            <div className="bg-muted/20 rounded-lg p-3 flex items-start gap-2">
+              <Activity className={`w-4 h-4 mt-0.5 flex-shrink-0 ${trendInsight.delayedCorrelation ? "text-chart-4" : "text-muted-foreground"}`} />
+              <div>
+                <p className="text-xs font-medium text-foreground">Delayed Correlation</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {trendInsight.delayedCorrelation
+                    ? "CV spikes appear to precede interview increases within 7–14 days"
+                    : "No clear delayed pattern detected in this period"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Best day & trends */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
