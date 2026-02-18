@@ -8,9 +8,11 @@ interface CandidateCardProps {
 }
 
 const REHASH_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("rehash"));
+const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 
 export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
   const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
+  const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
 
   return (
     <div
@@ -32,13 +34,15 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
         </Badge>
       </div>
 
-      {/* Potential start date indicator */}
+      {/* Start date: show "Started [date]" if at start+, otherwise show potential date or "?" */}
       <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
         <Calendar className="w-3 h-3" />
         <span>
-          {candidate.potentialStartDate
-            ? new Date(candidate.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-            : "Start date ?"}
+          {hasStarted
+            ? `Started ${candidate.potentialStartDate ? new Date(candidate.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "today"}`
+            : candidate.potentialStartDate
+              ? new Date(candidate.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+              : "Start date ?"}
         </span>
       </div>
 

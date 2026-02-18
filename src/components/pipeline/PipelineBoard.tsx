@@ -64,9 +64,15 @@ export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardP
         date: new Date().toISOString().split("T")[0],
       };
 
+      // Auto-fill start date when moving to "start" stage
+      const updatedStartDate = (targetStage === "start" && !c.potentialStartDate)
+        ? new Date().toISOString().split("T")[0]
+        : c.potentialStartDate;
+
       return {
         ...c,
         stage: targetStage,
+        potentialStartDate: targetStage === "start" ? (c.potentialStartDate || new Date().toISOString().split("T")[0]) : updatedStartDate,
         history: [...c.history, stageChange],
       };
     }));
