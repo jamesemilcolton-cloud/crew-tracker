@@ -1,15 +1,17 @@
 import { useState, useMemo } from "react";
 import { mockLinkedInActivity } from "@/lib/mock-data";
 import { LinkedInActivity } from "@/lib/types";
+import { TrendRange } from "@/components/pipeline/PipelineAnalytics";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Plus, TrendingUp, BarChart3, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LinkedInDashboardProps {
   startEmpty?: boolean;
+  trendRange: TrendRange;
 }
 
-export function LinkedInDashboard({ startEmpty = false }: LinkedInDashboardProps) {
+export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDashboardProps) {
   const [activities, setActivities] = useState<LinkedInActivity[]>(startEmpty ? [] : mockLinkedInActivity);
 
   // Weekly aggregation

@@ -20,9 +20,10 @@ export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[
 interface PipelineAnalyticsProps {
   candidates: Candidate[];
   trendRange: TrendRange;
+  startEmpty?: boolean;
 }
 
-export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsProps) {
+export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }: PipelineAnalyticsProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const stageCounts = useMemo(() => {
@@ -37,7 +38,6 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
     return stages.slice(0, -1).map((stage, i) => {
       const nextStage = stages[i + 1];
       const current = stageCounts[stage] || 1;
-      const next = stageCounts[nextStage] || 0;
       const movedForward = candidates.filter((c) =>
         c.history.some((h) => h.from === stage && h.to === nextStage)
       ).length;
@@ -50,6 +50,15 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
   }, [candidates, stageCounts]);
 
   const trendData = useMemo(() => {
+    if (startEmpty) {
+      const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
+      return Array.from({ length: option.weeks }, (_, i) => ({
+        week: `W${option.weeks - i}`,
+        interviews: 0,
+        starts: 0,
+        drops: 0,
+      })).reverse();
+    }
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const count = option.weeks;
     return Array.from({ length: count }, (_, i) => ({
@@ -58,9 +67,15 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
       starts: 1 + Math.floor(Math.random() * 4),
       drops: Math.floor(Math.random() * 3),
     })).reverse();
-  }, [trendRange]);
+  }, [trendRange, startEmpty]);
 
-  const kpis = mockKPITargets;
+  const kpis = useMemo(() => {
+    if (startEmpty) {
+      return mockKPITargets.map((kpi) => ({ ...kpi, actual: 0 }));
+    }
+    return mockKPITargets;
+  }, [startEmpty]);
+
   const worstGap = useMemo(() => {
     return kpis.reduce((worst, kpi) => {
       const gap = kpi.target - kpi.actual;
