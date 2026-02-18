@@ -2,7 +2,8 @@ import { useState } from "react";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
-import { Users, Linkedin, GitBranch, RotateCcw } from "lucide-react";
+import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
+import { Users, Linkedin, GitBranch, RotateCcw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -15,6 +16,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Tab = "pipeline" | "linkedin" | "crew";
 
@@ -27,10 +34,13 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("pipeline");
   const [resetKey, setResetKey] = useState(0);
+  const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
 
   const handleReset = () => {
     setResetKey((k) => k + 1);
   };
+
+  const currentRangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -60,39 +70,60 @@ const Index = () => {
                 </button>
               ))}
             </nav>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive hover:text-destructive">
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Reset All Data
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Clear all data?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently clear all data across the entire system — candidates, LinkedIn activity, crew data, and analytics. Everything will be reset as if you're starting fresh. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleReset}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Clear All Data
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    {currentRangeLabel}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover z-50">
+                  {TREND_OPTIONS.map((opt) => (
+                    <DropdownMenuItem
+                      key={opt.value}
+                      onClick={() => setTrendRange(opt.value)}
+                      className={trendRange === opt.value ? "bg-accent" : ""}
+                    >
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive hover:text-destructive">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Reset All Data
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear all data?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently clear all data across the entire system — candidates, LinkedIn activity, crew data, and analytics. Everything will be reset as if you're starting fresh. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleReset}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Clear All Data
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
-        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} />}
-        {activeTab === "linkedin" && <LinkedInDashboard key={resetKey} startEmpty={resetKey > 0} />}
+        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} />}
+        {activeTab === "linkedin" && <LinkedInDashboard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} />}
         {activeTab === "crew" && <CrewBubbleForecast key={resetKey} startEmpty={resetKey > 0} />}
       </main>
     </div>

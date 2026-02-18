@@ -3,25 +3,18 @@ import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/type
 import { mockCandidates } from "@/lib/mock-data";
 import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
-import { PipelineAnalytics, TrendRange, TREND_OPTIONS } from "./PipelineAnalytics";
+import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
-import { Calendar, Clock, ChevronDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { Calendar, Clock } from "lucide-react";
 
 interface PipelineBoardProps {
   startEmpty?: boolean;
+  trendRange: TrendRange;
 }
 
-export function PipelineBoard({ startEmpty = false }: PipelineBoardProps) {
+export function PipelineBoard({ startEmpty = false, trendRange }: PipelineBoardProps) {
   const [candidates, setCandidates] = useState<Candidate[]>(startEmpty ? [] : mockCandidates);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -47,35 +40,12 @@ export function PipelineBoard({ startEmpty = false }: PipelineBoardProps) {
     setCandidates((prev) => [...prev, candidate]);
   };
 
-  const currentRangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label;
-
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                {currentRangeLabel}
-                <ChevronDown className="w-3.5 h-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-popover z-50">
-              {TREND_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setTrendRange(opt.value)}
-                  className={trendRange === opt.value ? "bg-accent" : ""}
-                >
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div className="flex items-center justify-end mb-2 px-1">
         <NewCandidateForm onAdd={handleAdd} />
       </div>
-      <PipelineAnalytics candidates={candidates} trendRange={trendRange} />
+      <PipelineAnalytics candidates={candidates} trendRange={trendRange} startEmpty={startEmpty} />
 
       <div className="flex flex-1 gap-4 overflow-hidden">
         {/* Pipeline columns */}
