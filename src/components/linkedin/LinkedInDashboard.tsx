@@ -317,38 +317,22 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         ))}
       </div>
 
-      {/* Line charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="glass-panel p-4">
-          <h4 className="text-xs font-medium text-muted-foreground mb-3">Free vs Paid Ads ({isThisWeek ? "Daily" : "Weekly"})</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={chartData}>
-              <XAxis dataKey="week" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
-              <Legend wrapperStyle={{ fontSize: "11px" }} />
-              <Line type="monotone" dataKey="free" name="Free" stroke="hsl(172 66% 50%)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="paid" name="Paid" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="glass-panel p-4">
-          <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-primary" />
-            CV Downloads vs 2nd Round Interviews ({isThisWeek ? "Daily" : "Weekly"})
-          </h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={correlationData}>
-              <XAxis dataKey="period" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
-              <Legend wrapperStyle={{ fontSize: "11px" }} />
-              <Line type="monotone" dataKey="cvs" name="CV Downloads" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
-              <Line type="monotone" dataKey="interviews" name="2nd Round (LinkedIn)" stroke="hsl(280 70% 60%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(280 70% 60%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+      {/* CV Downloads vs 2nd Round line chart */}
+      <div className="glass-panel p-4">
+        <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-primary" />
+          CV Downloads vs 2nd Round Interviews ({isThisWeek ? "Daily" : "Weekly"})
+        </h4>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={correlationData}>
+            <XAxis dataKey="period" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
+            <Legend wrapperStyle={{ fontSize: "11px" }} />
+            <Line type="monotone" dataKey="cvs" name="CV Downloads" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+            <Line type="monotone" dataKey="interviews" name="2nd Round (LinkedIn)" stroke="hsl(280 70% 60%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(280 70% 60%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
       {/* New bar charts row */}
