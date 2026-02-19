@@ -47,10 +47,20 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
   }, [adUploads, cutoffDate]);
 
   const filteredCVDownloads = useMemo(() => {
-    const adIds = new Set(filteredAdUploads.map((a) => a.id));
-    return cvDownloads.filter((cv) => adIds.has(cv.adUploadId));
-  }, [cvDownloads, filteredAdUploads]);
+    if (!cutoffDate) return cvDownloads;
+    return cvDownloads.filter((cv) => new Date(cv.downloadDate) >= cutoffDate);
+  }, [cvDownloads, cutoffDate]);
 
+  // CVs grouped by their actual download date (not ad upload date)
+  const cvsPerDownloadDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredCVDownloads.forEach((cv) => {
+      map[cv.downloadDate] = (map[cv.downloadDate] || 0) + cv.count;
+    });
+    return map;
+  }, [filteredCVDownloads]);
+
+  // Also keep ad-date attribution for the ads chart
   const cvsPerAdDate = useMemo(() => {
     const map: Record<string, number> = {};
     filteredCVDownloads.forEach((cv) => {
@@ -100,6 +110,11 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
   }, [filteredActivities, isThisWeek, cvsPerAdDate]);
 
   const correlationData = useMemo(() => {
+    // Collect all real dates from both CV downloads and activity logs
+    const allDates = new Set<string>();
+    Object.keys(cvsPerDownloadDate).forEach((d) => allDates.add(d));
+    filteredActivities.forEach((a) => allDates.add(a.date));
+
     if (isThisWeek) {
       const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const now = new Date();
@@ -112,28 +127,37 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         date.setDate(monday.getDate() + i);
         const key = date.toISOString().split("T")[0];
         const activity = filteredActivities.find((a) => a.date === key);
-        return { period: name, cvs: cvsPerAdDate[key] ?? 0, interviews: activity?.candidatesAttending2ndRound ?? 0 };
+        return { period: name, cvs: cvsPerDownloadDate[key] ?? 0, interviews: activity?.candidatesAttending2ndRound ?? 0 };
       });
     }
-    const weeks: Record<string, any> = {};
-    filteredActivities.forEach((a) => {
-      const d = new Date(a.date);
+
+    // Group by week using real dates
+    const weeks: Record<string, { period: string; cvs: number; interviews: number; sortKey: string }> = {};
+    const getWeekKey = (dateStr: string) => {
+      const d = new Date(dateStr);
       const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay() + 1);
-      const key = weekStart.toISOString().split("T")[0];
-      if (!weeks[key]) weeks[key] = { period: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, cvs: 0, interviews: 0 };
+      weekStart.setDate(d.getDate() - ((d.getDay() === 0 ? 7 : d.getDay()) - 1));
+      return weekStart.toISOString().split("T")[0];
+    };
+
+    // Add CV download data by actual download date
+    Object.entries(cvsPerDownloadDate).forEach(([dateStr, count]) => {
+      const key = getWeekKey(dateStr);
+      const ws = new Date(key);
+      if (!weeks[key]) weeks[key] = { period: `${ws.getDate()}/${ws.getMonth() + 1}`, cvs: 0, interviews: 0, sortKey: key };
+      weeks[key].cvs += count;
+    });
+
+    // Add interview data by actual activity date
+    filteredActivities.forEach((a) => {
+      const key = getWeekKey(a.date);
+      const ws = new Date(key);
+      if (!weeks[key]) weeks[key] = { period: `${ws.getDate()}/${ws.getMonth() + 1}`, cvs: 0, interviews: 0, sortKey: key };
       weeks[key].interviews += a.candidatesAttending2ndRound;
     });
-    Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
-      const d = new Date(adDate);
-      const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay() + 1);
-      const key = weekStart.toISOString().split("T")[0];
-      if (weeks[key]) weeks[key].cvs += count;
-      else weeks[key] = { period: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, cvs: count, interviews: 0 };
-    });
-    return Object.values(weeks);
-  }, [filteredActivities, isThisWeek, cvsPerAdDate]);
+
+    return Object.values(weeks).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ period, cvs, interviews }) => ({ period, cvs, interviews }));
+  }, [filteredActivities, isThisWeek, cvsPerDownloadDate]);
 
   const bestDays = useMemo(() => {
     const dayTotals: Record<number, number> = {};
@@ -269,7 +293,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         <div className="glass-panel p-4">
           <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-primary" />
-            CVs (by Ad Date) vs 2nd Round — Correlation ({isThisWeek ? "Daily" : "Weekly"})
+            CV Downloads vs 2nd Round Interviews ({isThisWeek ? "Daily" : "Weekly"})
           </h4>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={correlationData}>
@@ -277,8 +301,8 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
               <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
               <Legend wrapperStyle={{ fontSize: "11px" }} />
-              <Line type="monotone" dataKey="cvs" name="CVs (Ad Date)" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
-              <Line type="monotone" dataKey="interviews" name="2nd Round Interviews" stroke="hsl(280 70% 60%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(280 70% 60%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+              <Line type="monotone" dataKey="cvs" name="CV Downloads" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+              <Line type="monotone" dataKey="interviews" name="2nd Round (LinkedIn)" stroke="hsl(280 70% 60%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(280 70% 60%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
