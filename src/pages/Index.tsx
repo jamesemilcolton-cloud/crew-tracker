@@ -33,7 +33,19 @@ const Index = () => {
   // Own candidates for pipeline
   const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate } = useCandidates("own");
   // All candidates for crew bubble
-  const { candidates: allCandidates, loading: allLoading } = useCandidates("all");
+  const { candidates: allCandidates, loading: allLoading, refetch: refetchAll } = useCandidates("all");
+
+  // Wrap pipeline mutations to also refresh crew bubble data
+  const handleAddCandidate = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
+    const result = await addCandidate(candidate);
+    refetchAll();
+    return result;
+  };
+  const handleUpdateCandidate = async (id: string, updates: Partial<Candidate>, stageChange?: any) => {
+    const result = await updateCandidate(id, updates, stageChange);
+    refetchAll();
+    return result;
+  };
 
   const currentRangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label;
 
@@ -100,8 +112,8 @@ const Index = () => {
           <PipelineBoard
             trendRange={trendRange}
             candidates={ownCandidates}
-            onAddCandidate={addCandidate}
-            onUpdateCandidate={updateCandidate}
+            onAddCandidate={handleAddCandidate}
+            onUpdateCandidate={handleUpdateCandidate}
             loading={ownLoading}
           />
         )}

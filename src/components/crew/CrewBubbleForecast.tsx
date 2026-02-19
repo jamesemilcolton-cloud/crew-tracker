@@ -217,6 +217,10 @@ function buildRecursiveTree(
   const directCrew = allCandidates.filter(
     (c) => c.recruitedBy === profileId && (c.stage === "start" || c.stage === "bell")
   );
+  // Also include promoted candidates as leader nodes (they have no profile entry but should appear in tree)
+  const promotedCrew = allCandidates.filter(
+    (c) => c.recruitedBy === profileId && c.stage === "promoted" && !allProfiles.some((p) => p.full_name === c.name && p.leader_id === profileId)
+  );
 
   const children: CrewNode[] = [];
 
@@ -224,6 +228,31 @@ function buildRecursiveTree(
     children.push(
       buildRecursiveTree(subProfile.id, subProfile.full_name, allProfiles, allCandidates, visited)
     );
+  });
+
+  // Add promoted candidates as leader nodes (they don't have profile entries but should appear in tree)
+  promotedCrew.forEach((c) => {
+    // Recursively build subtree for promoted candidates (they can recruit too)
+    const promotedChildren: CrewNode[] = [];
+    const promotedDirectCrew = allCandidates.filter(
+      (cc) => cc.recruitedBy === c.id && (cc.stage === "start" || cc.stage === "bell")
+    );
+    promotedDirectCrew.forEach((cc) => {
+      promotedChildren.push({
+        id: cc.id,
+        name: cc.name,
+        isLeader: false,
+        isPredicted: false,
+        children: [],
+      });
+    });
+    children.push({
+      id: c.id,
+      name: c.name,
+      isLeader: true,
+      isPredicted: false,
+      children: promotedChildren,
+    });
   });
 
   directCrew.forEach((c) => {
@@ -267,6 +296,9 @@ function buildPredictedRecursiveTree(
   const subLeaderProfiles = allProfiles.filter((p) => p.leader_id === profileId);
   const recruitedCandidates = allCandidates.filter((c) => c.recruitedBy === profileId);
   const directCrew = recruitedCandidates.filter((c) => c.stage === "start" || c.stage === "bell");
+  const promotedCrew = recruitedCandidates.filter(
+    (c) => c.stage === "promoted" && !allProfiles.some((p) => p.full_name === c.name && p.leader_id === profileId)
+  );
 
   // Promotion eligibility: time in Start >= 70% of weighted average promotion time
   const promotionThreshold = forecast.avgPromotionDays * 0.7;
@@ -342,6 +374,17 @@ function buildPredictedRecursiveTree(
         subProfile.id, subProfile.full_name, allProfiles, allCandidates, forecast, visited
       )
     );
+  });
+
+  // Already promoted candidates as leader nodes
+  promotedCrew.forEach((c) => {
+    children.push({
+      id: c.id,
+      name: c.name,
+      isLeader: true,
+      isPredicted: false,
+      children: [],
+    });
   });
 
   // Direct crew — predicted promotions show as leader nodes but with NO children (flat, no compounding)

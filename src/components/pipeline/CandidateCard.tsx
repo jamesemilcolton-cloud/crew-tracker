@@ -13,16 +13,28 @@ const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
   const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
+  let isDragging = false;
 
   return (
     <div
-      className="candidate-card animate-fade-in"
+      className="candidate-card animate-fade-in cursor-grab active:cursor-grabbing"
       draggable
       onDragStart={(e) => {
+        isDragging = true;
         e.dataTransfer.setData("candidateId", candidate.id);
         e.dataTransfer.effectAllowed = "move";
       }}
-      onClick={() => onClick(candidate)}
+      onDragEnd={() => {
+        // Reset after a short delay so click doesn't fire
+        setTimeout(() => { isDragging = false; }, 0);
+      }}
+      onClick={(e) => {
+        if (isDragging) {
+          e.preventDefault();
+          return;
+        }
+        onClick(candidate);
+      }}
     >
       <div className="flex items-start justify-between mb-2">
         <h4 className="font-medium text-sm text-foreground truncate flex-1">{candidate.name}</h4>
