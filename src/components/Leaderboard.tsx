@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Crown } from "lucide-react";
+import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -125,11 +125,13 @@ export function Leaderboard() {
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         {i === 0 ? (
-                          <Crown className="w-3 h-3 text-primary flex-shrink-0" />
+                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#FFD700" }} />
+                        ) : i === 1 ? (
+                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C0C0C0" }} />
+                        ) : i === 2 ? (
+                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CD7F32" }} />
                         ) : (
-                          <span className={`text-[10px] font-mono font-bold w-3 text-center flex-shrink-0 ${
-                            i === 1 ? "text-chart-4" : i === 2 ? "text-chart-2" : "text-muted-foreground"
-                          }`}>
+                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
                             {i + 1}
                           </span>
                         )}
