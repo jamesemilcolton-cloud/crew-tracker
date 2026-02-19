@@ -1,6 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { GitBranch } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface Profile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  leader_id: string | null;
+}
 
 interface CrewNode {
   id: string;
@@ -32,217 +41,174 @@ function stageEntryDate(c: Candidate, stage: PipelineStage): string | null {
   return entry?.date ?? null;
 }
 
-// Build crew tree from pipeline candidates
-function buildCrewTree(candidates: Candidate[]): CrewNode {
-  const START_FORWARD = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
-  const crewCandidates = candidates.filter((c) => START_FORWARD.includes(c.stage));
+const CREW_STAGES: PipelineStage[] = ["start", "bell", "promoted"];
 
-  const promoted = crewCandidates.filter((c) => c.stage === "promoted");
-  const nonPromoted = crewCandidates.filter((c) => c.stage !== "promoted");
-
-  // Build leader nodes with their recruits
-  const leaderNodes: CrewNode[] = promoted.map((leader) => {
-    const recruits = nonPromoted.filter((c) => c.recruitedBy === leader.id);
-    return {
-      id: leader.id,
-      name: leader.name,
-      isLeader: true,
-      isPredicted: false,
-      children: recruits.map((r) => ({
-        id: r.id,
-        name: r.name,
-        isLeader: false,
-        isPredicted: false,
-        children: [],
-      })),
-    };
-  });
-
-  // Unassigned crew (no recruitedBy or recruitedBy not a promoted leader)
-  const assignedIds = new Set(nonPromoted.filter((c) => promoted.some((l) => l.id === c.recruitedBy)).map((c) => c.id));
-  const unassigned = nonPromoted.filter((c) => !assignedIds.has(c.id));
-
-  const root: CrewNode = {
-    id: "root",
-    name: "You",
-    isLeader: true,
-    isPredicted: false,
-    children: [
-      ...leaderNodes,
-      ...unassigned.map((c) => ({
-        id: c.id,
-        name: c.name,
-        isLeader: false,
-        isPredicted: false,
-        children: [],
-      })),
-    ],
-  };
-
-  return root;
-}
-
-// Build predicted tree (8-week forecast)
-function buildPredictedTree(candidates: Candidate[]): CrewNode {
-  const START_FORWARD = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
-  const now = new Date("2026-02-18");
-  const eightWeeks = new Date(now);
-  eightWeeks.setDate(eightWeeks.getDate() + 56);
-
-  // Calculate historical conversion rates
-  const allCandidates = candidates;
-  const reached2nd = allCandidates.filter((c) => reachedStage(c, "2nd-round")).length;
-  const reachedStart = allCandidates.filter((c) => reachedStage(c, "start")).length;
-  const reachedPromoted = allCandidates.filter((c) => reachedStage(c, "promoted")).length;
-
-  const interviewToStartRate = reached2nd > 0 ? reachedStart / reached2nd : 0;
-  const startToPromotionRate = reachedStart > 0 ? reachedPromoted / reachedStart : 0;
-
-  // Calculate avg days from start to promoted
-  const promotedCandidates = allCandidates.filter((c) => c.stage === "promoted");
-  let avgStartToPromotionDays = 60; // default
-  if (promotedCandidates.length > 0) {
-    const durations = promotedCandidates.map((c) => {
-      const startDate = stageEntryDate(c, "start");
-      const promoDate = stageEntryDate(c, "promoted");
-      if (startDate && promoDate) {
-        return (new Date(promoDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
-      }
-      return null;
-    }).filter((d): d is number => d !== null);
-    if (durations.length > 0) {
-      avgStartToPromotionDays = durations.reduce((a, b) => a + b, 0) / durations.length;
-    }
+/**
+ * Recursively build the crew tree from profile hierarchy + candidate data.
+ *
+ * For a given profile node:
+ *   1. Find sub-leader profiles (profiles where leader_id = this profile's id)
+ *   2. Find candidates recruited_by this profile at start/bell stages (non-promoted crew)
+ *   3. Recurse into each sub-leader profile
+ *
+ * This ensures multi-level propagation: A → B → C all appear correctly nested.
+ */
+function buildRecursiveTree(
+  profileId: string,
+  profileName: string,
+  allProfiles: Profile[],
+  allCandidates: Candidate[],
+  visited: Set<string> = new Set()
+): CrewNode {
+  // Prevent infinite loops
+  if (visited.has(profileId)) {
+    return { id: profileId, name: profileName, isLeader: true, isPredicted: false, children: [] };
   }
+  visited.add(profileId);
 
-  // Current crew
-  const currentCrew = allCandidates.filter((c) => START_FORWARD.includes(c.stage));
+  // Find sub-leader profiles (their leader_id points to this profile)
+  const subLeaderProfiles = allProfiles.filter((p) => p.leader_id === profileId);
 
-  // Predict who will start: candidates in pre-start stages
-  const preStartStages: PipelineStage[] = ["2nd-round", "final-round", "rehash", "sunday-call"];
-  const inPipeline = allCandidates.filter((c) => preStartStages.includes(c.stage) && !c.status);
-  const predictedStarts: { id: string; name: string }[] = [];
+  // Find candidates recruited by this profile that are at crew stages but NOT promoted
+  // (promoted candidates should appear as leaders via their profile)
+  const directCrew = allCandidates.filter(
+    (c) => c.recruitedBy === profileId && (c.stage === "start" || c.stage === "bell")
+  );
 
-  // Weight by how far along they are
-  inPipeline.forEach((c) => {
-    const stageIdx = STAGES_ORDER.indexOf(c.stage);
-    const stepsToStart = STAGES_ORDER.indexOf("start") - stageIdx;
-    // Rough: assume ~7 days per stage
-    const daysToStart = stepsToStart * 7;
-    if (daysToStart <= 56) {
-      // Apply conversion rate based on how close they are
-      const conversionChance = stageIdx >= 2 ? 0.7 : interviewToStartRate;
-      if (conversionChance > 0.3) {
-        predictedStarts.push({ id: `pred-start-${c.id}`, name: c.name });
-      }
-    }
+  const children: CrewNode[] = [];
+
+  // Add sub-leader nodes recursively
+  subLeaderProfiles.forEach((subProfile) => {
+    children.push(
+      buildRecursiveTree(subProfile.id, subProfile.full_name, allProfiles, allCandidates, visited)
+    );
   });
 
-  // Predict who will be promoted: current start/bell candidates
-  const startBellCandidates = currentCrew.filter((c) => c.stage === "start" || c.stage === "bell");
-  const predictedPromotions: string[] = [];
-
-  startBellCandidates.forEach((c) => {
-    const startDate = stageEntryDate(c, "start");
-    if (startDate) {
-      const daysSinceStart = (now.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
-      const daysRemaining = avgStartToPromotionDays - daysSinceStart;
-      if (daysRemaining <= 56 && daysRemaining > 0 && startToPromotionRate > 0.15) {
-        predictedPromotions.push(c.id);
-      }
-    }
-  });
-
-  // Build the predicted tree
-  const promoted = allCandidates.filter((c) => c.stage === "promoted");
-  const nonPromoted = currentCrew.filter((c) => c.stage !== "promoted");
-
-  // Create leader nodes (current promoted + predicted promotions)
-  const allLeaderIds = new Set([...promoted.map((c) => c.id), ...predictedPromotions]);
-
-  const leaderNodes: CrewNode[] = [];
-
-  // Current promoted leaders
-  promoted.forEach((leader) => {
-    const recruits = nonPromoted.filter((c) => c.recruitedBy === leader.id && !predictedPromotions.includes(c.id));
-    const predictedRecruitNodes: CrewNode[] = [];
-    // Predicted promotions that were under this leader become sub-leaders
-    const subLeaders = nonPromoted.filter((c) => c.recruitedBy === leader.id && predictedPromotions.includes(c.id));
-
-    leaderNodes.push({
-      id: leader.id,
-      name: leader.name,
-      isLeader: true,
+  // Add direct non-promoted crew members
+  directCrew.forEach((c) => {
+    children.push({
+      id: c.id,
+      name: c.name,
+      isLeader: false,
       isPredicted: false,
-      children: [
-        ...recruits.map((r) => ({
-          id: r.id,
-          name: r.name,
-          isLeader: false,
-          isPredicted: false,
-          children: [],
-        })),
-        ...subLeaders.map((sl) => ({
-          id: sl.id,
-          name: sl.name,
-          isLeader: true,
-          isPredicted: true,
-          children: [],
-        })),
-      ],
+      children: [],
     });
   });
 
-  // Newly predicted promotions not under any leader
-  const predictedPromotionsUnassigned = predictedPromotions.filter(
-    (id) => !nonPromoted.find((c) => c.id === id)?.recruitedBy || !promoted.some((l) => l.id === nonPromoted.find((c) => c.id === id)?.recruitedBy)
-  );
+  return {
+    id: profileId,
+    name: profileName,
+    isLeader: true,
+    isPredicted: false,
+    children,
+  };
+}
 
-  predictedPromotionsUnassigned.forEach((id) => {
-    const c = allCandidates.find((cc) => cc.id === id);
-    if (c) {
-      leaderNodes.push({
+/**
+ * Build predicted tree with 8-week forecast layered on top of the recursive hierarchy.
+ */
+function buildPredictedRecursiveTree(
+  profileId: string,
+  profileName: string,
+  allProfiles: Profile[],
+  allCandidates: Candidate[],
+  interviewToStartRate: number,
+  startToPromotionRate: number,
+  avgStartToPromotionDays: number,
+  visited: Set<string> = new Set()
+): CrewNode {
+  if (visited.has(profileId)) {
+    return { id: profileId, name: profileName, isLeader: true, isPredicted: false, children: [] };
+  }
+  visited.add(profileId);
+
+  const now = new Date();
+  const subLeaderProfiles = allProfiles.filter((p) => p.leader_id === profileId);
+
+  // Candidates recruited by this profile
+  const recruitedCandidates = allCandidates.filter((c) => c.recruitedBy === profileId);
+  const directCrew = recruitedCandidates.filter((c) => c.stage === "start" || c.stage === "bell");
+
+  // Predict which direct crew will be promoted within 8 weeks
+  const predictedPromotionIds = new Set<string>();
+  directCrew.forEach((c) => {
+    if (c.stage === "start" || c.stage === "bell") {
+      const startDate = stageEntryDate(c, "start");
+      if (startDate) {
+        const daysSinceStart = (now.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
+        const daysRemaining = avgStartToPromotionDays - daysSinceStart;
+        if (daysRemaining <= 56 && daysRemaining > 0 && startToPromotionRate > 0.15) {
+          predictedPromotionIds.add(c.id);
+        }
+      }
+    }
+  });
+
+  // Predict pipeline candidates that may start (recruited by this profile's user)
+  // We need to find candidates in pre-start stages recruited by this profile
+  const preStartStages: PipelineStage[] = ["2nd-round", "final-round", "rehash", "sunday-call"];
+  const inPipeline = recruitedCandidates.filter((c) => preStartStages.includes(c.stage) && !c.status);
+  const predictedStarts: CrewNode[] = [];
+  inPipeline.forEach((c) => {
+    const stageIdx = STAGES_ORDER.indexOf(c.stage);
+    const stepsToStart = STAGES_ORDER.indexOf("start") - stageIdx;
+    const daysToStart = stepsToStart * 7;
+    if (daysToStart <= 56) {
+      const conversionChance = stageIdx >= 2 ? 0.7 : interviewToStartRate;
+      if (conversionChance > 0.3) {
+        predictedStarts.push({
+          id: `pred-start-${c.id}`,
+          name: `${c.name} (Predicted)`,
+          isLeader: false,
+          isPredicted: true,
+          children: [],
+        });
+      }
+    }
+  });
+
+  const children: CrewNode[] = [];
+
+  // Recurse into existing sub-leader profiles
+  subLeaderProfiles.forEach((subProfile) => {
+    children.push(
+      buildPredictedRecursiveTree(
+        subProfile.id, subProfile.full_name, allProfiles, allCandidates,
+        interviewToStartRate, startToPromotionRate, avgStartToPromotionDays, visited
+      )
+    );
+  });
+
+  // Add direct crew — predicted promotions show as leader nodes
+  directCrew.forEach((c) => {
+    if (predictedPromotionIds.has(c.id)) {
+      children.push({
         id: c.id,
         name: c.name,
         isLeader: true,
         isPredicted: true,
         children: [],
       });
-    }
-  });
-
-  // Unassigned non-promoted
-  const assignedIds = new Set([
-    ...nonPromoted.filter((c) => promoted.some((l) => l.id === c.recruitedBy)).map((c) => c.id),
-    ...predictedPromotions,
-  ]);
-  const unassigned = nonPromoted.filter((c) => !assignedIds.has(c.id));
-
-  // Add predicted starts
-  const predictedStartNodes: CrewNode[] = predictedStarts.map((ps) => ({
-    id: ps.id,
-    name: `${ps.name} (Predicted)`,
-    isLeader: false,
-    isPredicted: true,
-    children: [],
-  }));
-
-  return {
-    id: "root",
-    name: "You",
-    isLeader: true,
-    isPredicted: false,
-    children: [
-      ...leaderNodes,
-      ...unassigned.map((c) => ({
+    } else {
+      children.push({
         id: c.id,
         name: c.name,
         isLeader: false,
         isPredicted: false,
         children: [],
-      })),
-      ...predictedStartNodes,
-    ],
+      });
+    }
+  });
+
+  // Add predicted starts
+  children.push(...predictedStarts);
+
+  return {
+    id: profileId,
+    name: profileName,
+    isLeader: true,
+    isPredicted: false,
+    children,
   };
 }
 
@@ -282,7 +248,6 @@ function TreeNode({
   const nodeWidth = 100;
   const nodeHeight = 26;
 
-  // Calculate children positions
   const childMeasures = node.children.map((child) => measureTree(child));
   const totalLeaves = childMeasures.reduce((sum, m) => sum + m.leafCount, 0);
   const totalChildWidth = totalLeaves * nodeSpacing;
@@ -291,7 +256,6 @@ function TreeNode({
 
   return (
     <g>
-      {/* Connection line from parent */}
       {parentX !== undefined && parentY !== undefined && (
         <path
           d={`M ${parentX} ${parentY + nodeHeight / 2} L ${parentX} ${parentY + nodeHeight / 2 + levelHeight * 0.4} L ${x} ${y - levelHeight * 0.1} L ${x} ${y - nodeHeight / 2}`}
@@ -302,7 +266,6 @@ function TreeNode({
         />
       )}
 
-      {/* Node: Leader = outline bubble, BA = plain text */}
       {node.isLeader && (
         <g>
           <rect
@@ -332,7 +295,6 @@ function TreeNode({
         {node.name}
       </text>
 
-      {/* Children */}
       {node.children.map((child, i) => {
         const childLeafCount = childMeasures[i].leafCount;
         const childWidth = childLeafCount * nodeSpacing;
@@ -359,6 +321,17 @@ function TreeNode({
 
 export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);
+  const { profile } = useAuth();
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+
+  // Fetch all profiles for hierarchy building
+  useEffect(() => {
+    async function fetchProfiles() {
+      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id");
+      if (data) setAllProfiles(data);
+    }
+    fetchProfiles();
+  }, []);
 
   // Compute historical Start → Promotion %
   const startToPromotionPct = useMemo(() => {
@@ -368,8 +341,51 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
     return Math.round((reachedPromoted / reachedStart) * 100);
   }, [candidates]);
 
-  const currentTree = useMemo(() => buildCrewTree(candidates), [candidates]);
-  const predictedTree = useMemo(() => buildPredictedTree(candidates), [candidates]);
+  // Forecast rates
+  const forecastRates = useMemo(() => {
+    const reached2nd = candidates.filter((c) => reachedStage(c, "2nd-round")).length;
+    const reachedStart = candidates.filter((c) => reachedStage(c, "start")).length;
+    const reachedPromoted = candidates.filter((c) => reachedStage(c, "promoted")).length;
+
+    const interviewToStartRate = reached2nd > 0 ? reachedStart / reached2nd : 0;
+    const startToPromotionRate = reachedStart > 0 ? reachedPromoted / reachedStart : 0;
+
+    const promotedCandidates = candidates.filter((c) => c.stage === "promoted");
+    let avgStartToPromotionDays = 60;
+    if (promotedCandidates.length > 0) {
+      const durations = promotedCandidates.map((c) => {
+        const startDate = stageEntryDate(c, "start");
+        const promoDate = stageEntryDate(c, "promoted");
+        if (startDate && promoDate) {
+          return (new Date(promoDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
+        }
+        return null;
+      }).filter((d): d is number => d !== null);
+      if (durations.length > 0) {
+        avgStartToPromotionDays = durations.reduce((a, b) => a + b, 0) / durations.length;
+      }
+    }
+    return { interviewToStartRate, startToPromotionRate, avgStartToPromotionDays };
+  }, [candidates]);
+
+  const currentTree = useMemo(() => {
+    if (!profile || allProfiles.length === 0) {
+      return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] };
+    }
+    return buildRecursiveTree(profile.id, profile.full_name, allProfiles, candidates);
+  }, [candidates, allProfiles, profile]);
+
+  const predictedTree = useMemo(() => {
+    if (!profile || allProfiles.length === 0) {
+      return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] };
+    }
+    return buildPredictedRecursiveTree(
+      profile.id, profile.full_name, allProfiles, candidates,
+      forecastRates.interviewToStartRate,
+      forecastRates.startToPromotionRate,
+      forecastRates.avgStartToPromotionDays
+    );
+  }, [candidates, allProfiles, profile, forecastRates]);
 
   const tree = showPredicted ? predictedTree : currentTree;
 
