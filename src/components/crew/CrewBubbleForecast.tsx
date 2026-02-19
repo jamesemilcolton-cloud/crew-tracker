@@ -50,7 +50,7 @@ function reachedStage(c: Candidate, stage: PipelineStage): boolean {
 
 // Helper: get date when candidate entered a stage
 function stageEntryDate(c: Candidate, stage: PipelineStage): string | null {
-  if (stage === "2nd-round" && c.history.length === 0 && STAGES_ORDER.indexOf(c.stage) >= 0) {
+  if (stage === "obs" && c.history.length === 0 && STAGES_ORDER.indexOf(c.stage) >= 0) {
     return c.createdAt;
   }
   const entry = c.history.find((h) => h.to === stage);
@@ -97,7 +97,7 @@ function computeWeightedForecast(candidates: Candidate[]): WeightedForecast {
 
   candidates.forEach((c) => {
     // 2nd round entries
-    const entryDate2nd = stageEntryDate(c, "2nd-round");
+    const entryDate2nd = stageEntryDate(c, "obs");
     if (entryDate2nd) {
       const d = new Date(entryDate2nd);
       weeks.forEach((w, i) => {
@@ -216,7 +216,7 @@ function buildRecursiveTree(
 
   const subLeaderProfiles = allProfiles.filter((p) => p.leader_id === profileId);
   const directCrew = allCandidates.filter(
-    (c) => c.recruitedBy === profileId && (c.stage === "start" || c.stage === "bell")
+    (c) => c.recruitedBy === profileId && (c.stage === "start" || c.stage === "solo")
   );
   // Also include promoted candidates as leader nodes (they have no profile entry but should appear in tree)
   const promotedCrew = allCandidates.filter(
@@ -236,7 +236,7 @@ function buildRecursiveTree(
     // Recursively build subtree for promoted candidates (they can recruit too)
     const promotedChildren: CrewNode[] = [];
     const promotedDirectCrew = allCandidates.filter(
-      (cc) => cc.recruitedBy === c.id && (cc.stage === "start" || cc.stage === "bell")
+      (cc) => cc.recruitedBy === c.id && (cc.stage === "start" || cc.stage === "solo")
     );
     promotedDirectCrew.forEach((cc) => {
       promotedChildren.push({
@@ -296,7 +296,7 @@ function buildPredictedRecursiveTree(
   const now = new Date();
   const subLeaderProfiles = allProfiles.filter((p) => p.leader_id === profileId);
   const recruitedCandidates = allCandidates.filter((c) => c.recruitedBy === profileId);
-  const directCrew = recruitedCandidates.filter((c) => c.stage === "start" || c.stage === "bell");
+  const directCrew = recruitedCandidates.filter((c) => c.stage === "start" || c.stage === "solo");
   const promotedCrew = recruitedCandidates.filter(
     (c) => c.stage === "promoted" && !allProfiles.some((p) => p.full_name === c.name && p.leader_id === profileId)
   );
@@ -320,7 +320,7 @@ function buildPredictedRecursiveTree(
   });
 
   // Pipeline candidates likely to start (flat rate, no compounding)
-  const preStartStages: PipelineStage[] = ["2nd-round", "final-round", "rehash", "sunday-call"];
+  const preStartStages: PipelineStage[] = ["obs", "final", "offered"];
   const inPipeline = recruitedCandidates.filter((c) => preStartStages.includes(c.stage) && !c.status);
   const predictedStarts: CrewNode[] = [];
   inPipeline.forEach((c) => {
@@ -510,7 +510,7 @@ function simulateManagementTimeline(
   // Also include pipeline candidates with time-in-start info
   const now = new Date();
   const startedCandidates = candidates.filter(
-    (c) => (c.stage === "start" || c.stage === "bell") && !c.status
+    (c) => (c.stage === "start" || c.stage === "solo") && !c.status
   );
   const baWeekMap: Map<string, number> = new Map();
   startedCandidates.forEach((c) => {

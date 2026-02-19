@@ -1,10 +1,9 @@
 export type PipelineStage =
-  | "2nd-round"
-  | "final-round"
-  | "rehash"
-  | "sunday-call"
+  | "obs"
+  | "final"
+  | "offered"
   | "start"
-  | "bell"
+  | "solo"
   | "promoted";
 
 export type CandidateStatus = "Offered" | "Declined" | "Dropped";
@@ -31,7 +30,8 @@ export interface Candidate {
   hasEvoAppAccess: boolean;
   history: StageChange[];
   createdAt: string;
-  recruitedBy?: string; // id of the promoted leader who recruited this person
+  recruitedBy?: string;
+  archivedAt?: string | null;
 }
 
 export interface KPITarget {
@@ -42,14 +42,14 @@ export interface KPITarget {
 
 export interface AdUpload {
   id: string;
-  date: string; // upload date
+  date: string;
   type: "free" | "paid";
 }
 
 export interface CVDownloadEntry {
   id: string;
-  downloadDate: string; // actual date CVs were downloaded
-  adUploadId: string; // links to the ad that generated these CVs
+  downloadDate: string;
+  adUploadId: string;
   count: number;
 }
 
@@ -62,23 +62,29 @@ export interface LinkedInActivity {
   candidatesAttending2ndRound: number;
 }
 
-
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: string }> = {
-  "2nd-round": { label: "2nd Round Interview", colorVar: "--stage-2nd-round" },
-  "final-round": { label: "Final Round Interview", colorVar: "--stage-final-round" },
-  rehash: { label: "Rehash Call", colorVar: "--stage-rehash" },
-  "sunday-call": { label: "Sunday Call", colorVar: "--stage-sunday" },
-  start: { label: "Start (Brand Ambassador)", colorVar: "--stage-start" },
-  bell: { label: "Bell", colorVar: "--stage-bell" },
-  promoted: { label: "Promoted (Leader)", colorVar: "--stage-promoted" },
+  obs: { label: "Obs", colorVar: "--stage-obs" },
+  final: { label: "Final", colorVar: "--stage-final" },
+  offered: { label: "Offered", colorVar: "--stage-offered" },
+  start: { label: "Start", colorVar: "--stage-start" },
+  solo: { label: "Solo", colorVar: "--stage-solo" },
+  promoted: { label: "Promoted", colorVar: "--stage-promoted" },
 };
 
 export const STAGES_ORDER: PipelineStage[] = [
-  "2nd-round",
-  "final-round",
-  "rehash",
-  "sunday-call",
+  "obs",
+  "final",
+  "offered",
   "start",
-  "bell",
+  "solo",
   "promoted",
 ];
+
+// Fixed KPI target percentages for stage-to-stage conversion
+export const KPI_TARGETS: Record<string, number | null> = {
+  "obs→final": 80,
+  "final→offered": 75,
+  "offered→start": 67,
+  "start→solo": 50,
+  "solo→promoted": null, // dynamic, no fixed target
+};

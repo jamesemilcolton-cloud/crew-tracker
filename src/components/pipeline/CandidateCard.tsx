@@ -7,11 +7,11 @@ interface CandidateCardProps {
   onClick: (candidate: Candidate) => void;
 }
 
-const REHASH_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("rehash"));
+const OFFERED_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("offered"));
 const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 
 export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
-  const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
+  const showAccessIndicators = OFFERED_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
   let isDragging = false;
 
@@ -25,7 +25,6 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
         e.dataTransfer.effectAllowed = "move";
       }}
       onDragEnd={() => {
-        // Reset after a short delay so click doesn't fire
         setTimeout(() => { isDragging = false; }, 0);
       }}
       onClick={(e) => {
@@ -46,7 +45,6 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
         </Badge>
       </div>
 
-      {/* Start date: show "Started [date]" if at start+, otherwise show potential date or "?" */}
       <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
         <Calendar className="w-3 h-3" />
         <span>
@@ -58,7 +56,6 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
         </span>
       </div>
 
-      {/* Access indicators - only from rehash forward */}
       {showAccessIndicators && (
         <div className="flex items-center gap-2 mt-1.5">
           <div className="flex items-center gap-0.5 text-[10px]">

@@ -37,12 +37,11 @@
     --radius: 0.75rem;
 
     /* Pipeline stage colors */
-    --stage-2nd-round: 217 91% 60%;
-    --stage-final-round: 239 84% 67%;
-    --stage-rehash: 38 92% 50%;
-    --stage-sunday: 25 95% 53%;
+    --stage-obs: 217 91% 60%;
+    --stage-final: 239 84% 67%;
+    --stage-offered: 38 92% 50%;
     --stage-start: 152 69% 40%;
-    --stage-bell: 45 93% 47%;
+    --stage-solo: 45 93% 47%;
     --stage-promoted: 280 67% 55%;
     --stage-dropped: 0 72% 51%;
 
@@ -113,7 +112,7 @@
   }
 
   .pipeline-column {
-    @apply rounded-xl p-3 min-w-[260px];
+    @apply rounded-xl p-3 min-w-[220px];
     background: hsl(var(--card) / 0.5);
     border: 1px solid hsl(var(--border) / 0.3);
   }

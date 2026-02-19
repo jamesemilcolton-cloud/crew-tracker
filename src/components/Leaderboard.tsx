@@ -25,8 +25,8 @@ type Metric = keyof Omit<LeaderboardEntry, "profileId" | "name">;
 const METRICS: { key: Metric; label: string; icon: React.ReactNode; suffix?: string }[] = [
   { key: "adsUploaded", label: "Ads Uploaded", icon: <Upload className="w-4 h-4" /> },
   { key: "cvsDownloaded", label: "CVs Downloaded", icon: <FileText className="w-4 h-4" /> },
-  { key: "secondRoundsLinkedIn", label: "2nd Rounds (LinkedIn)", icon: <UserCheck className="w-4 h-4" /> },
-  { key: "totalSecondRounds", label: "Total 2nd Rounds", icon: <Users className="w-4 h-4" /> },
+  { key: "secondRoundsLinkedIn", label: "Obs (LinkedIn)", icon: <UserCheck className="w-4 h-4" /> },
+  { key: "totalSecondRounds", label: "Total Obs", icon: <Users className="w-4 h-4" /> },
   { key: "interviewToStartPct", label: "Retention %", icon: <TrendingUp className="w-4 h-4" />, suffix: "%" },
   { key: "startToPromotionPct", label: "Promotion %", icon: <TrendingUp className="w-4 h-4" />, suffix: "%" },
   { key: "activeTeamSize", label: "Active Team", icon: <Users className="w-4 h-4" /> },
@@ -51,7 +51,7 @@ export function Leaderboard() {
       const ads = adsRes.data ?? [];
       const cvs = cvsRes.data ?? [];
 
-      const START_FORWARD = ["start", "bell", "promoted"];
+      const START_FORWARD = ["start", "solo", "promoted"];
 
       const result: LeaderboardEntry[] = profiles.map((p) => {
         const userCandidates = candidates.filter((c) => c.user_id === p.user_id);
@@ -81,7 +81,6 @@ export function Leaderboard() {
     fetchData();
   }, []);
 
-  // For each metric, get sorted rankings
   const metricRankings = useMemo(() => {
     const map: Record<Metric, LeaderboardEntry[]> = {} as any;
     METRICS.forEach((m) => {
@@ -92,7 +91,6 @@ export function Leaderboard() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="glass-panel p-4">
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-primary" />
@@ -100,7 +98,6 @@ export function Leaderboard() {
         </div>
       </div>
 
-      {/* Metric grid — each box shows full rankings */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {METRICS.map((m) => {
           const ranked = metricRankings[m.key];

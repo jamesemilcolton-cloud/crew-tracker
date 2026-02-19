@@ -51,7 +51,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
       phone: data.phone,
       notes: data.notes,
       source: data.source,
-      stage: "2nd-round",
+      stage: "obs",
       potentialStartDate: data.potentialStartDate ? data.potentialStartDate.toISOString().split("T")[0] : undefined,
       hasSalesPitchAccess: false,
       hasEvoAppAccess: false,

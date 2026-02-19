@@ -1,5 +1,5 @@
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
-import { X, Phone, Calendar, Edit2, Save, CalendarIcon } from "lucide-react";
+import { X, Phone, Calendar, Edit2, Save, CalendarIcon, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -17,9 +17,10 @@ interface CandidateDetailProps {
   candidate: Candidate;
   onClose: () => void;
   onUpdate: (updated: Candidate) => void;
+  onArchive: (id: string) => void;
 }
 
-export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetailProps) {
+export function CandidateDetail({ candidate, onClose, onUpdate, onArchive }: CandidateDetailProps) {
   const [editing, setEditing] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [stage, setStage] = useState(candidate.stage);
@@ -67,12 +68,21 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
   };
 
   return (
-    <div className="glass-panel-elevated p-6 animate-slide-in-right h-full overflow-y-auto custom-scrollbar">
+    <div className="glass-panel-elevated p-6 animate-slide-in-right h-full overflow-y-auto custom-scrollbar max-h-[65vh]">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-foreground">{candidate.name}</h3>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onArchive(candidate.id)}
+            className="text-destructive hover:text-destructive/80 transition-colors"
+            title="Delete candidate"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -81,7 +91,6 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
           <span>{candidate.phone}</span>
         </div>
 
-        {/* Editable potential start date */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Calendar className="w-4 h-4" />
           <span>Start: </span>
@@ -119,7 +128,6 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
           )}
         </div>
 
-        {/* Rehash confirmations */}
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-foreground">Access Confirmations</h4>
           <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
@@ -132,7 +140,6 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
           </div>
         </div>
 
-        {/* Status selector */}
         <div>
           <h4 className="text-sm font-medium text-foreground mb-2">Status</h4>
           <select
@@ -215,7 +222,7 @@ export function CandidateDetail({ candidate, onClose, onUpdate }: CandidateDetai
                         </PopoverContent>
                       </Popover>
                       <span className="text-foreground mx-1">
-                        {STAGE_CONFIG[h.from].label} → {STAGE_CONFIG[h.to].label}
+                        {STAGE_CONFIG[h.from]?.label ?? h.from} → {STAGE_CONFIG[h.to]?.label ?? h.to}
                       </span>
                     </div>
                     {h.note && <p className="text-muted-foreground mt-0.5">{h.note}</p>}
