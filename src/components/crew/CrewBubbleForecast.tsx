@@ -279,8 +279,8 @@ function TreeNode({
   nodeSpacing: number;
   levelHeight: number;
 }) {
-  const nodeWidth = 130;
-  const nodeHeight = 36;
+  const nodeWidth = 100;
+  const nodeHeight = 26;
 
   // Calculate children positions
   const childMeasures = node.children.map((child) => measureTree(child));
@@ -325,7 +325,7 @@ function TreeNode({
         textAnchor="middle"
         dominantBaseline="middle"
         fill={node.isPredicted ? "hsl(215 20% 45%)" : "hsl(210 40% 92%)"}
-        fontSize="11"
+        fontSize="9"
         fontWeight={node.isLeader ? "600" : "400"}
         fontFamily="Inter, system-ui, sans-serif"
       >
@@ -375,9 +375,9 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   // Calculate viewBox to auto-fit
   const treeMeasure = measureTree(tree);
-  const nodeSpacing = 150;
-  const levelHeight = 90;
-  const padding = 80;
+  const nodeSpacing = 110;
+  const levelHeight = 60;
+  const padding = 40;
 
   const svgWidth = Math.max(treeMeasure.leafCount * nodeSpacing + padding * 2, 400);
   const svgHeight = treeMeasure.height * levelHeight + padding * 2;
