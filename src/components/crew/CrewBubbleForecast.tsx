@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Target } from "lucide-react";
 import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { GitBranch, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -428,6 +429,167 @@ function countNodes(node: CrewNode): number {
   return 1 + node.children.reduce((sum, c) => sum + countNodes(c), 0);
 }
 
+// --- Management Criteria Simulation ---
+// Management = ≥4 leaders in full tree AND ≥1 leader has a sub-leader (2-level depth)
+
+interface ManagementResult {
+  status: "achieved" | "predicted" | "beyond";
+  weeksToManagement: number | null;
+  confidence: ForecastConfidence;
+}
+
+function countLeadersInTree(node: CrewNode): number {
+  let count = node.isLeader ? 1 : 0;
+  for (const c of node.children) count += countLeadersInTree(c);
+  return count;
+}
+
+function hasLeaderWithSubLeader(node: CrewNode): boolean {
+  if (!node.isLeader) return false;
+  for (const child of node.children) {
+    if (child.isLeader) {
+      // child is a leader - check if child has a leader child (2-level depth)
+      for (const grandchild of child.children) {
+        if (grandchild.isLeader) return true;
+      }
+    }
+  }
+  // Recurse into children
+  for (const child of node.children) {
+    if (hasLeaderWithSubLeader(child)) return true;
+  }
+  return false;
+}
+
+function checkManagementCriteria(tree: CrewNode): boolean {
+  const totalLeaders = countLeadersInTree(tree) - 1; // exclude root (me)
+  return totalLeaders >= 4 && hasLeaderWithSubLeader(tree);
+}
+
+interface SimBA {
+  weekStarted: number; // week number they started
+  recruitedByLeaderId: string;
+}
+
+interface SimLeader {
+  id: string;
+  parentId: string | null;
+  hasSubLeader: boolean;
+}
+
+/**
+ * Simulate week-by-week to determine when management criteria is met.
+ * Uses weighted 4-week forecast data. Flat pace, no compounding.
+ */
+function simulateManagementTimeline(
+  currentTree: CrewNode,
+  forecast: WeightedForecast,
+  candidates: Candidate[]
+): ManagementResult {
+  // Check if already achieved with current tree
+  if (checkManagementCriteria(currentTree)) {
+    return { status: "achieved", weeksToManagement: null, confidence: forecast.confidence };
+  }
+
+  // Gather current state from tree
+  const currentLeaders: SimLeader[] = [];
+  const currentBAs: SimBA[] = [];
+
+  function walkTree(node: CrewNode, parentId: string | null) {
+    if (node.isLeader && !node.isPredicted) {
+      const hasSubLeader = node.children.some((c) => c.isLeader && !c.isPredicted);
+      currentLeaders.push({ id: node.id, parentId, hasSubLeader });
+    }
+    if (!node.isLeader && !node.isPredicted) {
+      currentBAs.push({ weekStarted: -99, recruitedByLeaderId: parentId ?? "root" }); // already started long ago
+    }
+    for (const c of node.children) walkTree(c, node.id);
+  }
+  walkTree(currentTree, null);
+
+  // Also include pipeline candidates with time-in-start info
+  const now = new Date();
+  const startedCandidates = candidates.filter(
+    (c) => (c.stage === "start" || c.stage === "bell") && !c.status
+  );
+  const baWeekMap: Map<string, number> = new Map();
+  startedCandidates.forEach((c) => {
+    const startDate = stageEntryDate(c, "start");
+    if (startDate) {
+      const weeksInRole = (now.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 7);
+      baWeekMap.set(c.id, -Math.floor(weeksInRole)); // negative = started X weeks ago
+    }
+  });
+
+  // Simulation state
+  let leaders = [...currentLeaders];
+  const bas: SimBA[] = [];
+  // Populate BAs with actual time data
+  startedCandidates.forEach((c) => {
+    const weekStarted = baWeekMap.get(c.id) ?? -99;
+    bas.push({ weekStarted, recruitedByLeaderId: c.recruitedBy ?? leaders[0]?.id ?? "root" });
+  });
+
+  const avgPromotionWeeks = Math.max(1, Math.round(forecast.avgPromotionDays / 7));
+  const promotionThresholdWeeks = Math.floor(avgPromotionWeeks * 0.7);
+  const weeklyNewStarts = forecast.weeklyStarts; // flat pace
+  const promoRate = forecast.startToPromotionPct;
+
+  // Simulate up to 12 weeks
+  for (let week = 1; week <= 12; week++) {
+    // 1. Add new starts (flat pace, distributed to root leader)
+    const newStartCount = Math.round(weeklyNewStarts);
+    for (let i = 0; i < newStartCount; i++) {
+      bas.push({ weekStarted: week, recruitedByLeaderId: leaders[0]?.id ?? "root" });
+    }
+
+    // 2. Check promotion eligibility for existing BAs
+    const toPromote: number[] = [];
+    bas.forEach((ba, idx) => {
+      const weeksInRole = week - ba.weekStarted;
+      if (weeksInRole >= promotionThresholdWeeks && promoRate > 0) {
+        // Probabilistic: only promote if expected by rate
+        // Simple: promote ceil(rate * eligible) per week, but cap to avoid inflation
+        toPromote.push(idx);
+      }
+    });
+
+    // Apply promotion rate: only promote (promoRate * eligible) rounded
+    const promoteCount = Math.min(toPromote.length, Math.max(0, Math.round(toPromote.length * promoRate)));
+    const promoted = toPromote.slice(0, promoteCount);
+
+    // Process promotions (remove from BAs, add as leaders)
+    const promotedSet = new Set(promoted);
+    promoted.forEach((idx) => {
+      const ba = bas[idx];
+      const newLeaderId = `sim-leader-${week}-${idx}`;
+      // Check if parent leader now has a sub-leader
+      const parentLeader = leaders.find((l) => l.id === ba.recruitedByLeaderId);
+      if (parentLeader) parentLeader.hasSubLeader = true;
+      leaders.push({ id: newLeaderId, parentId: ba.recruitedByLeaderId, hasSubLeader: false });
+    });
+
+    // Remove promoted BAs (reverse order to preserve indices)
+    const sortedPromoted = [...promotedSet].sort((a, b) => b - a);
+    sortedPromoted.forEach((idx) => bas.splice(idx, 1));
+
+    // 3. Check management criteria
+    const totalLeaders = leaders.length - 1; // exclude root
+    const anyLeaderWithSubLeader = leaders.some((l) => l.parentId !== null && l.hasSubLeader);
+    // Also check: does root have a sub-leader who has a sub-leader?
+    const rootHasDepth2 = leaders.some((l) => {
+      if (l.parentId !== leaders[0]?.id) return false; // not direct child of root
+      return l.hasSubLeader;
+    });
+
+    if (totalLeaders >= 4 && (anyLeaderWithSubLeader || rootHasDepth2)) {
+      return { status: "predicted", weeksToManagement: week, confidence: forecast.confidence };
+    }
+  }
+
+  return { status: "beyond", weeksToManagement: null, confidence: forecast.confidence };
+}
+
 // HTML-based tree node component with fixed sizes
 function TreeNode({
   node,
@@ -558,6 +720,7 @@ const CONFIDENCE_STYLES: Record<ForecastConfidence, { color: string; bg: string 
 
 export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);
+  // Note: line numbers shifted due to inserted code above
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const { profile } = useAuth();
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
@@ -596,6 +759,14 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
       profile.id, profile.full_name, allProfiles, candidates, forecast
     );
   }, [candidates, allProfiles, profile, forecast]);
+
+  // Management criteria: only for top leader (no leader_id)
+  const isTopLeader = profile ? !profile.leader_id : false;
+
+  const managementResult = useMemo<ManagementResult | null>(() => {
+    if (!isTopLeader || !profile) return null;
+    return simulateManagementTimeline(currentTree, forecast, candidates);
+  }, [isTopLeader, profile, currentTree, forecast, candidates]);
 
   const tree = showPredicted ? predictedTree : currentTree;
   const totalNodes = countNodes(tree);
@@ -694,7 +865,51 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
         </div>
       )}
 
-      {/* Legend + Expand/Collapse controls */}
+      {/* Management Criteria — only for top leader */}
+      {managementResult && (
+        <div className="glass-panel p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-primary" />
+              <span className="text-xs font-medium text-foreground">Management Criteria</span>
+            </div>
+            <div className="flex-1" />
+            {managementResult.status === "achieved" ? (
+              <span className="text-xs font-semibold text-green-400 bg-green-400/10 px-2.5 py-1 rounded-md">
+                ✓ Management Criteria Achieved
+              </span>
+            ) : managementResult.status === "predicted" ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">Predicted Time to Management:</span>
+                <span className="text-sm font-mono font-bold text-foreground">
+                  {managementResult.weeksToManagement} week{managementResult.weeksToManagement !== 1 ? "s" : ""}
+                </span>
+                {managementResult.confidence === "Low" && (
+                  <span className="text-[10px] text-red-400/80 bg-red-400/10 px-2 py-0.5 rounded">
+                    Low confidence due to limited recent data
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground/70 bg-muted/20 px-2.5 py-1 rounded-md">
+                  Beyond 12-week forecast window
+                </span>
+                {managementResult.confidence === "Low" && (
+                  <span className="text-[10px] text-red-400/80 bg-red-400/10 px-2 py-0.5 rounded">
+                    Low confidence due to limited recent data
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mt-2 text-[10px] text-muted-foreground/60">
+            Requires ≥4 leaders in your team + at least 1 leader with a promoted sub-leader
+          </div>
+        </div>
+      )}
+
+
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
