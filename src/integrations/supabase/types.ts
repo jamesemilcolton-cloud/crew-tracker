@@ -208,6 +208,7 @@ export type Database = {
           leader_id: string | null
           updated_at: string
           user_id: string
+          weekly_email_enabled: boolean
         }
         Insert: {
           created_at?: string
@@ -216,6 +217,7 @@ export type Database = {
           leader_id?: string | null
           updated_at?: string
           user_id: string
+          weekly_email_enabled?: boolean
         }
         Update: {
           created_at?: string
@@ -224,6 +226,7 @@ export type Database = {
           leader_id?: string | null
           updated_at?: string
           user_id?: string
+          weekly_email_enabled?: boolean
         }
         Relationships: [
           {
