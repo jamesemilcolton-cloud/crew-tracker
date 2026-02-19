@@ -31,12 +31,9 @@ const Index = () => {
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
   const { profile, signOut } = useAuth();
 
-  // Own candidates for pipeline
-  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate } = useCandidates("own");
-  // All candidates for crew bubble
+  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, archiveCandidate } = useCandidates("own");
   const { candidates: allCandidates, loading: allLoading, refetch: refetchAll } = useCandidates("all");
 
-  // Wrap pipeline mutations to also refresh crew bubble data
   const handleAddCandidate = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
     const result = await addCandidate(candidate);
     refetchAll();
@@ -46,6 +43,10 @@ const Index = () => {
     const result = await updateCandidate(id, updates, stageChange);
     refetchAll();
     return result;
+  };
+  const handleArchiveCandidate = async (id: string) => {
+    await archiveCandidate(id);
+    refetchAll();
   };
 
   const currentRangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label;
@@ -118,6 +119,7 @@ const Index = () => {
             candidates={ownCandidates}
             onAddCandidate={handleAddCandidate}
             onUpdateCandidate={handleUpdateCandidate}
+            onArchiveCandidate={handleArchiveCandidate}
             loading={ownLoading}
           />
         )}

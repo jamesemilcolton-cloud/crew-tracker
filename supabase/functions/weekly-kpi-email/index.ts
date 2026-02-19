@@ -15,10 +15,8 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Get current week boundaries (Monday–Saturday)
   const now = new Date();
-  const day = now.getUTCDay(); // 0=Sun..6=Sat
-  // Find this week's Monday
+  const day = now.getUTCDay();
   const monday = new Date(now);
   const diffToMonday = day === 0 ? -6 : 1 - day;
   monday.setUTCDate(now.getUTCDate() + diffToMonday);
@@ -34,7 +32,6 @@ Deno.serve(async (req) => {
   const formatDate = (d: Date) =>
     d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-  // Fetch all profiles with email enabled
   const { data: profiles, error: profilesErr } = await supabase
     .from("profiles")
     .select("id, user_id, full_name, weekly_email_enabled");
@@ -56,7 +53,6 @@ Deno.serve(async (req) => {
 
   for (const profile of enabledProfiles) {
     try {
-      // Get user email from auth
       const { data: userData } = await supabase.auth.admin.getUserById(
         profile.user_id
       );
@@ -64,7 +60,6 @@ Deno.serve(async (req) => {
       const email = userData.user.email;
 
       // --- PIPELINE DATA ---
-      // Candidates created or moved this week by this user
       const { data: candidates } = await supabase
         .from("candidates")
         .select("id, stage, status, potential_start_date, created_at")
@@ -76,7 +71,6 @@ Deno.serve(async (req) => {
         .gte("changed_at", monday.toISOString())
         .lte("changed_at", saturday.toISOString());
 
-      // Build set of this user's candidate IDs
       const userCandidateIds = new Set(
         (candidates || []).map((c: any) => c.id)
       );
@@ -84,22 +78,19 @@ Deno.serve(async (req) => {
         userCandidateIds.has(h.candidate_id)
       );
 
-      // Count candidates that entered each stage this week
       const stageEntries: Record<string, number> = {
-        "2nd-round": 0,
-        "final-round": 0,
-        rehash: 0,
-        "sunday-call": 0,
+        obs: 0,
+        final: 0,
+        offered: 0,
         start: 0,
-        bell: 0,
+        solo: 0,
         promoted: 0,
       };
 
-      // Candidates created this week default to 2nd-round
       for (const c of candidates || []) {
         const created = new Date(c.created_at);
         if (created >= monday && created <= saturday) {
-          stageEntries["2nd-round"]++;
+          stageEntries["obs"]++;
         }
       }
 
@@ -109,21 +100,12 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Non-dropped candidates
       const activeCandidates = (candidates || []).filter(
         (c: any) => c.status !== "Dropped"
       );
       const totalTeam = activeCandidates.length;
 
-      const stagesOrder = [
-        "2nd-round",
-        "final-round",
-        "rehash",
-        "sunday-call",
-        "start",
-        "bell",
-        "promoted",
-      ];
+      const stagesOrder = ["obs", "final", "offered", "start", "solo", "promoted"];
       const leaders = activeCandidates.filter(
         (c: any) => c.stage === "promoted"
       ).length;
@@ -132,14 +114,12 @@ Deno.serve(async (req) => {
         return idx >= stagesOrder.indexOf("start") && c.stage !== "promoted";
       }).length;
 
-      // Conversion rates
-      const totalInterviews =
-        stageEntries["2nd-round"] + stageEntries["final-round"];
+      const obsCount = stageEntries["obs"];
       const starts = stageEntries["start"];
       const promotions = stageEntries["promoted"];
-      const interviewToStartPct =
-        totalInterviews > 0
-          ? ((starts / totalInterviews) * 100).toFixed(1)
+      const obsToStartPct =
+        obsCount > 0
+          ? ((starts / obsCount) * 100).toFixed(1)
           : "0.0";
       const startToPromotionPct =
         starts > 0
@@ -165,19 +145,18 @@ Deno.serve(async (req) => {
         li2ndRounds += l.candidates_attending_2nd_round || 0;
       }
 
-      // Build email HTML
       const html = buildEmailHTML({
         name: profile.full_name,
         weekStart: formatDate(monday),
         weekEnd: formatDate(saturday),
         pipeline: {
-          secondRound: stageEntries["2nd-round"],
-          finalInterviews: stageEntries["final-round"],
-          rehashCalls: stageEntries["rehash"],
-          sundayCalls: stageEntries["sunday-call"],
+          obs: stageEntries["obs"],
+          finals: stageEntries["final"],
+          offered: stageEntries["offered"],
           starts,
+          solos: stageEntries["solo"],
           promotions,
-          interviewToStartPct,
+          obsToStartPct,
           startToPromotionPct,
           teamSize: totalTeam,
           totalLeaders: leaders,
@@ -191,31 +170,11 @@ Deno.serve(async (req) => {
         },
       });
 
-      // Send via Supabase Auth admin (resend integration)
-      // Use the built-in SMTP / email sending
-      const res = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${serviceRoleKey}`,
-          apikey: serviceRoleKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "magiclink",
-          email,
-        }),
-      });
-
-      // Since Supabase doesn't have a direct "send arbitrary email" API,
-      // we'll use a simple fetch to a mail endpoint. For now, log the email.
-      // In production, integrate with Resend, SendGrid, or similar.
       console.log(`[KPI Email] Would send to ${email}:`, {
         subject: `Weekly Recruitment Summary – ${formatDate(monday)} to ${formatDate(saturday)}`,
         htmlLength: html.length,
       });
 
-      // For actual sending, we need an email service API key.
-      // Log success for now and mark as sent.
       sentCount++;
     } catch (err) {
       console.error(`Error processing ${profile.full_name}:`, err);
@@ -242,13 +201,13 @@ interface EmailData {
   weekStart: string;
   weekEnd: string;
   pipeline: {
-    secondRound: number;
-    finalInterviews: number;
-    rehashCalls: number;
-    sundayCalls: number;
+    obs: number;
+    finals: number;
+    offered: number;
     starts: number;
+    solos: number;
     promotions: number;
-    interviewToStartPct: string;
+    obsToStartPct: string;
     startToPromotionPct: string;
     teamSize: number;
     totalLeaders: number;
@@ -291,13 +250,13 @@ function buildEmailHTML(data: EmailData): string {
         <h2 style="color: #2dd4bf; font-size: 14px; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Recruitment Pipeline</h2>
       </div>
       <table style="width: 100%; border-collapse: collapse;">
-        ${row("2nd Round Interviews", p.secondRound)}
-        ${row("Final Interviews", p.finalInterviews)}
-        ${row("Rehash Calls", p.rehashCalls)}
-        ${row("Sunday Calls", p.sundayCalls)}
-        ${row("Starts (Brand Ambassadors)", p.starts)}
+        ${row("Obs", p.obs)}
+        ${row("Finals", p.finals)}
+        ${row("Offered", p.offered)}
+        ${row("Starts", p.starts)}
+        ${row("Solos", p.solos)}
         ${row("Promotions", p.promotions)}
-        ${row("Interview → Start %", p.interviewToStartPct + "%")}
+        ${row("Obs → Start %", p.obsToStartPct + "%")}
         ${row("Start → Promotion %", p.startToPromotionPct + "%")}
         ${row("Current Team Size", p.teamSize)}
         ${row("Total Leaders", p.totalLeaders)}
@@ -314,7 +273,7 @@ function buildEmailHTML(data: EmailData): string {
         ${row("Free Ads Uploaded", l.freeAds)}
         ${row("Paid Ads Uploaded", l.paidAds)}
         ${row("CVs Downloaded", l.cvs)}
-        ${row("2nd Round Interviews from LinkedIn", l.li2ndRounds)}
+        ${row("Obs from LinkedIn", l.li2ndRounds)}
       </table>
     </div>
 

@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Candidate, PipelineStage, StageChange } from "@/lib/types";
 
-// Convert DB row to Candidate type
 function rowToCandidate(row: any, history: any[]): Candidate {
   return {
     id: row.id,
@@ -17,6 +16,7 @@ function rowToCandidate(row: any, history: any[]): Candidate {
     hasSalesPitchAccess: row.has_sales_pitch_access,
     hasEvoAppAccess: row.has_evo_app_access,
     recruitedBy: row.recruited_by,
+    archivedAt: row.archived_at,
     history: history.map((h) => ({
       from: h.from_stage as PipelineStage,
       to: h.to_stage as PipelineStage,
@@ -40,11 +40,12 @@ export function useCandidates(scope: "own" | "all" = "own") {
     if (scope === "own") {
       query = query.eq("user_id", user.id);
     }
+    // Exclude archived candidates from active views
+    query = query.is("archived_at", null);
     const { data: rows } = await query.order("created_at", { ascending: true });
 
     if (!rows) { setLoading(false); return; }
 
-    // Fetch all history for these candidates
     const ids = rows.map((r) => r.id);
     const { data: historyRows } = await supabase
       .from("candidate_stage_history")
@@ -99,6 +100,7 @@ export function useCandidates(scope: "own" | "all" = "own") {
     if (updates.hasSalesPitchAccess !== undefined) dbUpdates.has_sales_pitch_access = updates.hasSalesPitchAccess;
     if (updates.hasEvoAppAccess !== undefined) dbUpdates.has_evo_app_access = updates.hasEvoAppAccess;
     if (updates.recruitedBy !== undefined) dbUpdates.recruited_by = updates.recruitedBy || null;
+    if (updates.archivedAt !== undefined) dbUpdates.archived_at = updates.archivedAt;
 
     await supabase.from("candidates").update(dbUpdates).eq("id", id);
 
@@ -114,5 +116,11 @@ export function useCandidates(scope: "own" | "all" = "own") {
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
-  return { candidates, loading, addCandidate, updateCandidate, refetch: fetchCandidates };
+  const archiveCandidate = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from("candidates").update({ archived_at: new Date().toISOString() }).eq("id", id);
+    await fetchCandidates();
+  }, [user, fetchCandidates]);
+
+  return { candidates, loading, addCandidate, updateCandidate, archiveCandidate, refetch: fetchCandidates };
 }

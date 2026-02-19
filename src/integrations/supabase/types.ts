@@ -75,6 +75,7 @@ export type Database = {
       }
       candidates: {
         Row: {
+          archived_at: string | null
           created_at: string
           has_evo_app_access: boolean
           has_sales_pitch_access: boolean
@@ -91,6 +92,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           has_evo_app_access?: boolean
           has_sales_pitch_access?: boolean
@@ -107,6 +109,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           has_evo_app_access?: boolean
           has_sales_pitch_access?: boolean

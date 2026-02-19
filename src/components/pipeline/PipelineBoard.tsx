@@ -4,20 +4,20 @@ import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
-import { Calendar, Clock, ChevronDown } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 
 interface PipelineBoardProps {
   trendRange: TrendRange;
   candidates: Candidate[];
   onAddCandidate: (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => Promise<any>;
   onUpdateCandidate: (id: string, updates: Partial<Candidate>, stageChange?: StageChange) => Promise<any>;
+  onArchiveCandidate: (id: string) => Promise<void>;
   loading?: boolean;
 }
 
-export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, loading }: PipelineBoardProps) {
+export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, loading }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
-  const [upcomingOpen, setUpcomingOpen] = useState(true);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -28,7 +28,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   }, [candidates]);
 
   const upcomingStarts = useMemo(() => {
-    const preStartStages: PipelineStage[] = ["rehash", "sunday-call"];
+    const preStartStages: PipelineStage[] = ["offered"];
     return candidates
       .filter((c) => preStartStages.includes(c.stage))
       .sort((a, b) => {
@@ -55,6 +55,11 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
 
   const handleAdd = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
     await onAddCandidate(candidate);
+  };
+
+  const handleArchive = async (id: string) => {
+    await onArchiveCandidate(id);
+    setSelectedCandidate(null);
   };
 
   const handleDrop = useCallback(async (targetStage: PipelineStage, e: React.DragEvent) => {
@@ -101,13 +106,14 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-end mb-2 px-1">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-end px-1">
         <NewCandidateForm onAdd={handleAdd} />
       </div>
-      <PipelineAnalytics candidates={candidates} trendRange={trendRange} />
 
-      <div className="flex flex-1 gap-4 overflow-hidden">
+      {/* TOP SECTION: Pipeline Board + Upcoming Starts */}
+      <div className="flex gap-4 overflow-hidden">
+        {/* Pipeline columns */}
         <div className="flex gap-3 overflow-x-auto flex-1 pb-2 custom-scrollbar">
           {columns.map(({ stage, config, candidates: stageCandidates }) => (
             <div
@@ -124,7 +130,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
                 <h3 className="text-xs font-medium text-foreground">{config.label}</h3>
                 <span className="text-[10px] text-muted-foreground font-mono ml-auto">{stageCandidates.length}</span>
               </div>
-              <div className="space-y-0 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-0 max-h-[55vh] overflow-y-auto custom-scrollbar">
                 {stageCandidates.map((candidate) => (
                   <CandidateCard key={candidate.id} candidate={candidate} onClick={setSelectedCandidate} />
                 ))}
@@ -136,24 +142,21 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
           ))}
         </div>
 
-        <div className={`flex-shrink-0 transition-all duration-300 ${selectedCandidate ? "w-72" : upcomingOpen ? "w-72" : "w-10"}`}>
+        {/* Right: Upcoming Starts (always visible, fixed width) or Candidate Detail */}
+        <div className="flex-shrink-0 w-72">
           {selectedCandidate ? (
             <CandidateDetail
               candidate={selectedCandidate}
               onClose={() => setSelectedCandidate(null)}
               onUpdate={handleUpdate}
+              onArchive={handleArchive}
             />
-          ) : upcomingOpen ? (
-            <div className="glass-panel p-4 overflow-y-auto custom-scrollbar h-full">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
-                  <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
-                </div>
-                <button onClick={() => setUpcomingOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
-                  <ChevronDown className="w-3.5 h-3.5 rotate-90" />
-                </button>
+          ) : (
+            <div className="glass-panel p-4 overflow-y-auto custom-scrollbar h-full max-h-[65vh]">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
+                <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
               </div>
               <div className="space-y-2">
                 {upcomingStarts.length === 0 && (
@@ -179,19 +182,12 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
                 ))}
               </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setUpcomingOpen(true)}
-              className="glass-panel w-10 h-full flex flex-col items-center pt-3 gap-2 hover:bg-card/90 transition-colors"
-              title="Open Upcoming Starts"
-            >
-              <Clock className="w-4 h-4 text-primary" />
-              <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground -rotate-90" />
-            </button>
           )}
         </div>
       </div>
+
+      {/* BOTTOM SECTION: Funnel Chart */}
+      <PipelineAnalytics candidates={candidates} trendRange={trendRange} />
     </div>
   );
 }

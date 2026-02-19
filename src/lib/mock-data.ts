@@ -3,46 +3,45 @@ import { Candidate, LinkedInActivity, KPITarget, AdUpload, CVDownloadEntry } fro
 export const mockCandidates: Candidate[] = [
   {
     id: "c1", name: "Sarah Mitchell", phone: "+44 7700 900123", notes: "Strong communicator, sales background. Very enthusiastic about the role.",
-    source: "LinkedIn", stage: "2nd-round", potentialStartDate: "2026-03-10",
+    source: "LinkedIn", stage: "obs", potentialStartDate: "2026-03-10",
     hasSalesPitchAccess: false, hasEvoAppAccess: false, history: [], createdAt: "2026-02-01",
   },
   {
     id: "c2", name: "James Carter", phone: "+44 7700 900456", notes: "Referred by team lead. Confident presenter.",
-    source: "Office", stage: "2nd-round", potentialStartDate: "2026-03-15",
+    source: "Office", stage: "obs", potentialStartDate: "2026-03-15",
     hasSalesPitchAccess: false, hasEvoAppAccess: false, history: [], createdAt: "2026-02-03",
   },
   {
     id: "c3", name: "Priya Sharma", phone: "+44 7700 900789", notes: "Great energy, needs some coaching on objection handling.",
-    source: "LinkedIn", stage: "final-round",
+    source: "LinkedIn", stage: "final",
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
-    history: [{ from: "2nd-round", to: "final-round", date: "2026-02-10", note: "Passed 2nd round easily" }],
+    history: [{ from: "obs", to: "final", date: "2026-02-10", note: "Passed obs round easily" }],
     createdAt: "2026-01-28",
   },
   {
     id: "c4", name: "Tom Williams", phone: "+44 7700 901234", notes: "Experienced in D2D. Ready for fast track.",
-    source: "Office", stage: "final-round", potentialStartDate: "2026-03-03",
+    source: "Office", stage: "final", potentialStartDate: "2026-03-03",
     hasSalesPitchAccess: true, hasEvoAppAccess: false,
-    history: [{ from: "2nd-round", to: "final-round", date: "2026-02-08" }],
+    history: [{ from: "obs", to: "final", date: "2026-02-08" }],
     createdAt: "2026-01-25",
   },
   {
     id: "c5", name: "Emily Chen", phone: "+44 7700 901567", notes: "Unsure about hours. Needs follow-up call.",
-    source: "LinkedIn", stage: "rehash",
+    source: "LinkedIn", stage: "offered",
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2026-01-20" },
-      { from: "final-round", to: "rehash", date: "2026-02-05", note: "Wanted time to think" },
+      { from: "obs", to: "final", date: "2026-01-20" },
+      { from: "final", to: "offered", date: "2026-02-05", note: "Wanted time to think" },
     ],
     createdAt: "2026-01-15",
   },
   {
-    id: "c6", name: "Marcus Johnson", phone: "+44 7700 902345", notes: "Sunday call confirmed. Very keen.",
-    source: "Office", stage: "sunday-call", potentialStartDate: "2026-03-08",
+    id: "c6", name: "Marcus Johnson", phone: "+44 7700 902345", notes: "Offer confirmed. Very keen.",
+    source: "Office", stage: "offered", potentialStartDate: "2026-03-08",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2026-01-18" },
-      { from: "final-round", to: "rehash", date: "2026-01-25" },
-      { from: "rehash", to: "sunday-call", date: "2026-02-12" },
+      { from: "obs", to: "final", date: "2026-01-18" },
+      { from: "final", to: "offered", date: "2026-02-12" },
     ],
     createdAt: "2026-01-10",
   },
@@ -52,23 +51,21 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c9",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2026-01-05" },
-      { from: "final-round", to: "rehash", date: "2026-01-10" },
-      { from: "rehash", to: "sunday-call", date: "2026-01-15" },
-      { from: "sunday-call", to: "start", date: "2026-02-10" },
+      { from: "obs", to: "final", date: "2026-01-05" },
+      { from: "final", to: "offered", date: "2026-01-10" },
+      { from: "offered", to: "start", date: "2026-02-10" },
     ],
     createdAt: "2025-12-20",
   },
   {
-    id: "c8", name: "Daniel Lee", phone: "+44 7700 904567", notes: "Excellent first two weeks. Hit first bell.",
-    source: "Office", stage: "bell",
+    id: "c8", name: "Daniel Lee", phone: "+44 7700 904567", notes: "Excellent first two weeks. Working solo.",
+    source: "Office", stage: "solo",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-12-10" },
-      { from: "final-round", to: "rehash", date: "2025-12-14" },
-      { from: "rehash", to: "sunday-call", date: "2025-12-17" },
-      { from: "sunday-call", to: "start", date: "2025-12-20" },
-      { from: "start", to: "bell", date: "2026-01-15" },
+      { from: "obs", to: "final", date: "2025-12-10" },
+      { from: "final", to: "offered", date: "2025-12-14" },
+      { from: "offered", to: "start", date: "2025-12-20" },
+      { from: "start", to: "solo", date: "2026-01-15" },
     ],
     createdAt: "2025-12-01",
   },
@@ -77,12 +74,11 @@ export const mockCandidates: Candidate[] = [
     source: "LinkedIn", stage: "promoted",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-10-15" },
-      { from: "final-round", to: "rehash", date: "2025-10-20" },
-      { from: "rehash", to: "sunday-call", date: "2025-10-25" },
-      { from: "sunday-call", to: "start", date: "2025-11-01" },
-      { from: "start", to: "bell", date: "2025-12-01" },
-      { from: "bell", to: "promoted", date: "2026-01-10" },
+      { from: "obs", to: "final", date: "2025-10-15" },
+      { from: "final", to: "offered", date: "2025-10-20" },
+      { from: "offered", to: "start", date: "2025-11-01" },
+      { from: "start", to: "solo", date: "2025-12-01" },
+      { from: "solo", to: "promoted", date: "2026-01-10" },
     ],
     createdAt: "2025-10-01",
   },
@@ -92,23 +88,22 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c9",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-12-15" },
-      { from: "final-round", to: "rehash", date: "2025-12-20" },
-      { from: "rehash", to: "sunday-call", date: "2025-12-28" },
-      { from: "sunday-call", to: "start", date: "2026-01-20" },
+      { from: "obs", to: "final", date: "2025-12-15" },
+      { from: "final", to: "offered", date: "2025-12-20" },
+      { from: "offered", to: "start", date: "2026-01-20" },
     ],
     createdAt: "2025-12-10",
   },
   {
     id: "c13", name: "Lisa Morgan", phone: "+44 7700 909012", notes: "Waiting to hear back after final round.",
-    source: "LinkedIn", stage: "final-round", status: "Offered", potentialStartDate: "2026-03-20",
+    source: "LinkedIn", stage: "final", status: "Offered", potentialStartDate: "2026-03-20",
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
-    history: [{ from: "2nd-round", to: "final-round", date: "2026-02-14" }],
+    history: [{ from: "obs", to: "final", date: "2026-02-14" }],
     createdAt: "2026-02-05",
   },
   {
     id: "c14", name: "Kevin Park", phone: "+44 7700 910123", notes: "Very interested. Following up Monday.",
-    source: "LinkedIn", stage: "2nd-round", potentialStartDate: "2026-04-01",
+    source: "LinkedIn", stage: "obs", potentialStartDate: "2026-04-01",
     hasSalesPitchAccess: false, hasEvoAppAccess: false, history: [], createdAt: "2026-02-16",
   },
   {
@@ -117,34 +112,31 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c19",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-12-18" },
-      { from: "final-round", to: "rehash", date: "2025-12-22" },
-      { from: "rehash", to: "sunday-call", date: "2025-12-28" },
-      { from: "sunday-call", to: "start", date: "2026-01-06" },
+      { from: "obs", to: "final", date: "2025-12-18" },
+      { from: "final", to: "offered", date: "2025-12-22" },
+      { from: "offered", to: "start", date: "2026-01-06" },
     ],
     createdAt: "2025-12-10",
   },
   {
-    id: "c17", name: "Hannah Clarke", phone: "+44 7700 911002", notes: "Fast-tracked through. Hit bell in 3 weeks.",
-    source: "LinkedIn", stage: "bell",
+    id: "c17", name: "Hannah Clarke", phone: "+44 7700 911002", notes: "Fast-tracked through. Working solo in 3 weeks.",
+    source: "LinkedIn", stage: "solo",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-12-08" },
-      { from: "final-round", to: "rehash", date: "2025-12-11" },
-      { from: "rehash", to: "sunday-call", date: "2025-12-13" },
-      { from: "sunday-call", to: "start", date: "2025-12-16" },
-      { from: "start", to: "bell", date: "2026-01-06" },
+      { from: "obs", to: "final", date: "2025-12-08" },
+      { from: "final", to: "offered", date: "2025-12-11" },
+      { from: "offered", to: "start", date: "2025-12-16" },
+      { from: "start", to: "solo", date: "2026-01-06" },
     ],
     createdAt: "2025-12-01",
   },
   {
     id: "c18", name: "Jake Robinson", phone: "+44 7700 911003", notes: "Office walk-in. Great first impression.",
-    source: "Office", stage: "sunday-call", potentialStartDate: "2026-01-27",
+    source: "Office", stage: "offered", potentialStartDate: "2026-01-27",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2026-01-08" },
-      { from: "final-round", to: "rehash", date: "2026-01-12" },
-      { from: "rehash", to: "sunday-call", date: "2026-01-18" },
+      { from: "obs", to: "final", date: "2026-01-08" },
+      { from: "final", to: "offered", date: "2026-01-18" },
     ],
     createdAt: "2026-01-02",
   },
@@ -153,12 +145,11 @@ export const mockCandidates: Candidate[] = [
     source: "LinkedIn", stage: "promoted",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-11-10" },
-      { from: "final-round", to: "rehash", date: "2025-11-14" },
-      { from: "rehash", to: "sunday-call", date: "2025-11-17" },
-      { from: "sunday-call", to: "start", date: "2025-11-20" },
-      { from: "start", to: "bell", date: "2025-12-10" },
-      { from: "bell", to: "promoted", date: "2025-12-28" },
+      { from: "obs", to: "final", date: "2025-11-10" },
+      { from: "final", to: "offered", date: "2025-11-14" },
+      { from: "offered", to: "start", date: "2025-11-20" },
+      { from: "start", to: "solo", date: "2025-12-10" },
+      { from: "solo", to: "promoted", date: "2025-12-28" },
     ],
     createdAt: "2025-11-01",
   },
@@ -168,24 +159,22 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c23",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-11-15" },
-      { from: "final-round", to: "rehash", date: "2025-11-18" },
-      { from: "rehash", to: "sunday-call", date: "2025-11-22" },
-      { from: "sunday-call", to: "start", date: "2025-12-02" },
+      { from: "obs", to: "final", date: "2025-11-15" },
+      { from: "final", to: "offered", date: "2025-11-18" },
+      { from: "offered", to: "start", date: "2025-12-02" },
     ],
     createdAt: "2025-11-05",
   },
   {
     id: "c22", name: "Ben Walker", phone: "+44 7700 911007", notes: "Referred by Megan. Excellent attitude.",
-    source: "Office", stage: "bell",
+    source: "Office", stage: "solo",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c19",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-11-08" },
-      { from: "final-round", to: "rehash", date: "2025-11-12" },
-      { from: "rehash", to: "sunday-call", date: "2025-11-15" },
-      { from: "sunday-call", to: "start", date: "2025-11-18" },
-      { from: "start", to: "bell", date: "2025-12-15" },
+      { from: "obs", to: "final", date: "2025-11-08" },
+      { from: "final", to: "offered", date: "2025-11-12" },
+      { from: "offered", to: "start", date: "2025-11-18" },
+      { from: "start", to: "solo", date: "2025-12-15" },
     ],
     createdAt: "2025-11-01",
   },
@@ -194,26 +183,24 @@ export const mockCandidates: Candidate[] = [
     source: "LinkedIn", stage: "promoted",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-09-15" },
-      { from: "final-round", to: "rehash", date: "2025-09-18" },
-      { from: "rehash", to: "sunday-call", date: "2025-09-22" },
-      { from: "sunday-call", to: "start", date: "2025-09-25" },
-      { from: "start", to: "bell", date: "2025-10-20" },
-      { from: "bell", to: "promoted", date: "2025-11-15" },
+      { from: "obs", to: "final", date: "2025-09-15" },
+      { from: "final", to: "offered", date: "2025-09-18" },
+      { from: "offered", to: "start", date: "2025-09-25" },
+      { from: "start", to: "solo", date: "2025-10-20" },
+      { from: "solo", to: "promoted", date: "2025-11-15" },
     ],
     createdAt: "2025-09-01",
   },
   {
     id: "c25", name: "Ella Nguyen", phone: "+44 7700 911010", notes: "Strong LinkedIn prospect. Great numbers.",
-    source: "LinkedIn", stage: "bell",
+    source: "LinkedIn", stage: "solo",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c23",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-10-05" },
-      { from: "final-round", to: "rehash", date: "2025-10-08" },
-      { from: "rehash", to: "sunday-call", date: "2025-10-12" },
-      { from: "sunday-call", to: "start", date: "2025-10-15" },
-      { from: "start", to: "bell", date: "2025-11-10" },
+      { from: "obs", to: "final", date: "2025-10-05" },
+      { from: "final", to: "offered", date: "2025-10-08" },
+      { from: "offered", to: "start", date: "2025-10-15" },
+      { from: "start", to: "solo", date: "2025-11-10" },
     ],
     createdAt: "2025-09-25",
   },
@@ -223,10 +210,9 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c23",
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-10-08" },
-      { from: "final-round", to: "rehash", date: "2025-10-12" },
-      { from: "rehash", to: "sunday-call", date: "2025-10-16" },
-      { from: "sunday-call", to: "start", date: "2025-10-20" },
+      { from: "obs", to: "final", date: "2025-10-08" },
+      { from: "final", to: "offered", date: "2025-10-12" },
+      { from: "offered", to: "start", date: "2025-10-20" },
     ],
     createdAt: "2025-10-01",
   },
@@ -235,10 +221,9 @@ export const mockCandidates: Candidate[] = [
     source: "Office", stage: "start", potentialStartDate: "2025-09-29",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
-      { from: "2nd-round", to: "final-round", date: "2025-09-12" },
-      { from: "final-round", to: "rehash", date: "2025-09-16" },
-      { from: "rehash", to: "sunday-call", date: "2025-09-20" },
-      { from: "sunday-call", to: "start", date: "2025-09-29" },
+      { from: "obs", to: "final", date: "2025-09-12" },
+      { from: "final", to: "offered", date: "2025-09-16" },
+      { from: "offered", to: "start", date: "2025-09-29" },
     ],
     createdAt: "2025-09-05",
   },
@@ -259,7 +244,6 @@ export const mockLinkedInActivity: LinkedInActivity[] = Array.from({ length: 56 
   };
 });
 
-// Generate ad uploads from activity data (one entry per ad uploaded)
 export const mockAdUploads: AdUpload[] = (() => {
   const ads: AdUpload[] = [];
   let adId = 0;
@@ -274,14 +258,11 @@ export const mockAdUploads: AdUpload[] = (() => {
   return ads;
 })();
 
-// Generate CV download entries attributed to ad uploads
-// CVs are attributed to ads uploaded 0-3 days before the download date
 export const mockCVDownloads: CVDownloadEntry[] = (() => {
   const entries: CVDownloadEntry[] = [];
   let entryId = 0;
   mockLinkedInActivity.forEach((a) => {
     if (a.cvsDownloaded <= 0) return;
-    // Find ads uploaded in the 0-3 days before this activity date
     const downloadDate = new Date(a.date);
     const candidateAds = mockAdUploads.filter((ad) => {
       const adDate = new Date(ad.date);
@@ -289,7 +270,6 @@ export const mockCVDownloads: CVDownloadEntry[] = (() => {
       return diffDays >= 0 && diffDays <= 3;
     });
     if (candidateAds.length === 0) return;
-    // Distribute CVs across candidate ads
     let remaining = a.cvsDownloaded;
     candidateAds.forEach((ad, idx) => {
       const count = idx === candidateAds.length - 1 ? remaining : Math.ceil(remaining / (candidateAds.length - idx));
@@ -303,11 +283,9 @@ export const mockCVDownloads: CVDownloadEntry[] = (() => {
 })();
 
 export const mockKPITargets: KPITarget[] = [
-  { label: "2nd Round Interviews / Week", target: 10, actual: 7 },
-  { label: "Final Round Pass Rate", target: 75, actual: 62 },
-  { label: "Sunday Call Attendance", target: 90, actual: 78 },
-  { label: "Starts / Month", target: 6, actual: 4 },
-  { label: "Promotion Rate", target: 30, actual: 22 },
+  { label: "Obs → Final", target: 80, actual: 70 },
+  { label: "Final → Offered", target: 75, actual: 62 },
+  { label: "Offered → Start", target: 67, actual: 55 },
+  { label: "Start → Solo", target: 50, actual: 40 },
   { label: "LinkedIn CVs / Week", target: 25, actual: 19 },
 ];
-
