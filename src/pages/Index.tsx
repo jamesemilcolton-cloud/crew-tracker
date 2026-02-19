@@ -4,6 +4,7 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
+import { WeeklyEmailToggle } from "@/components/settings/WeeklyEmailToggle";
 import { Leaderboard } from "@/components/Leaderboard";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import { Users, Linkedin, GitBranch, Trophy, ChevronDown, LogOut } from "lucide-react";
@@ -96,6 +97,9 @@ const Index = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <div className="flex items-center gap-2 ml-2 border-l border-border/50 pl-2">
+                <WeeklyEmailToggle />
+              </div>
               <div className="flex items-center gap-2 ml-2">
                 <span className="text-xs text-muted-foreground">{profile?.full_name}</span>
                 <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
