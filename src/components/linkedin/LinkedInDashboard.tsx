@@ -49,19 +49,18 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     return adUploads.filter((a) => new Date(a.date) >= cutoffDate);
   }, [adUploads, cutoffDate]);
 
+  // Filter CV downloads by their attributed ad upload date, NOT download date
   const filteredCVDownloads = useMemo(() => {
     if (!cutoffDate) return cvDownloads;
-    return cvDownloads.filter((cv) => new Date(cv.downloadDate) >= cutoffDate);
-  }, [cvDownloads, cutoffDate]);
-
-  // CVs grouped by their actual download date
-  const cvsPerDownloadDate = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredCVDownloads.forEach((cv) => {
-      map[cv.downloadDate] = (map[cv.downloadDate] || 0) + cv.count;
+    return cvDownloads.filter((cv) => {
+      const ad = adUploads.find((a) => a.id === cv.adUploadId);
+      if (!ad) return false;
+      return new Date(ad.date) >= cutoffDate;
     });
-    return map;
-  }, [filteredCVDownloads]);
+  }, [cvDownloads, adUploads, cutoffDate]);
+
+  // CVs grouped by ad upload date (attribution) — this is the PRIMARY source for all graphs
+  // No longer using download date for any graph aggregation
 
   // CVs grouped by ad upload date (attribution)
   const cvsPerAdDate = useMemo(() => {
@@ -112,10 +111,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
   }, [filteredActivities, isThisWeek, cvsPerAdDate]);
 
   const correlationData = useMemo(() => {
-    const allDates = new Set<string>();
-    Object.keys(cvsPerDownloadDate).forEach((d) => allDates.add(d));
-    filteredActivities.forEach((a) => allDates.add(a.date));
-
     if (isThisWeek) {
       const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const now = new Date();
@@ -128,7 +123,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         date.setDate(monday.getDate() + i);
         const key = date.toISOString().split("T")[0];
         const activity = filteredActivities.find((a) => a.date === key);
-        return { period: name, cvs: cvsPerDownloadDate[key] ?? 0, interviews: activity?.candidatesAttending2ndRound ?? 0 };
+        return { period: name, cvs: cvsPerAdDate[key] ?? 0, interviews: activity?.candidatesAttending2ndRound ?? 0 };
       });
     }
 
@@ -140,8 +135,9 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       return weekStart.toISOString().split("T")[0];
     };
 
-    Object.entries(cvsPerDownloadDate).forEach(([dateStr, count]) => {
-      const key = getWeekKey(dateStr);
+    // Use ad upload date (attribution) for CV aggregation
+    Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
+      const key = getWeekKey(adDate);
       const ws = new Date(key);
       if (!weeks[key]) weeks[key] = { period: `${ws.getDate()}/${ws.getMonth() + 1}`, cvs: 0, interviews: 0, sortKey: key };
       weeks[key].cvs += count;
@@ -155,7 +151,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     });
 
     return Object.values(weeks).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ period, cvs, interviews }) => ({ period, cvs, interviews }));
-  }, [filteredActivities, isThisWeek, cvsPerDownloadDate]);
+  }, [filteredActivities, isThisWeek, cvsPerAdDate]);
 
   // === Best Day to Upload: horizontal bar chart data (Mon-Sun, CVs attributed by ad upload day) ===
   const bestDayBarData = useMemo(() => {
