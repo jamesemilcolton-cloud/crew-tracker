@@ -17,6 +17,24 @@ export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[
   { value: "all", label: "All Time", weeks: 24 },
 ];
 
+const FUNNEL_STAGES: PipelineStage[] = [
+  "2nd-round",
+  "final-round",
+  "rehash",
+  "sunday-call",
+  "start",
+  "promoted",
+];
+
+const FUNNEL_COLORS: Record<string, string> = {
+  "2nd-round": "hsl(217 91% 60%)",
+  "final-round": "hsl(239 84% 67%)",
+  "rehash": "hsl(38 92% 50%)",
+  "sunday-call": "hsl(25 95% 53%)",
+  "start": "hsl(152 69% 40%)",
+  "promoted": "hsl(280 67% 55%)",
+};
+
 interface PipelineAnalyticsProps {
   candidates: Candidate[];
   trendRange: TrendRange;
@@ -50,13 +68,10 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
 
     candidates.forEach((c) => {
-      // Count 2nd-round entries by createdAt
       const created = new Date(c.createdAt);
       if (created >= dateRange.start && created <= dateRange.end) {
         counts["2nd-round"]++;
       }
-
-      // Count stage transitions from history
       c.history.forEach((h) => {
         const d = parseISO(h.date);
         if (d >= dateRange.start && d <= dateRange.end) {
@@ -163,6 +178,24 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
     return `${format(rangeStart, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
   }, [trendRange]);
 
+  // Funnel data for visualization
+  const funnelData = useMemo(() => {
+    const baseCount = stageCounts["2nd-round"];
+    return FUNNEL_STAGES.map((stage) => {
+      const count = stageCounts[stage] || 0;
+      const pct = baseCount > 0 ? Math.round((count / baseCount) * 100) : 0;
+      return {
+        stage,
+        label: STAGE_CONFIG[stage].label.split("(")[0].trim(),
+        count,
+        pct,
+        color: FUNNEL_COLORS[stage],
+      };
+    });
+  }, [stageCounts]);
+
+  const maxFunnelCount = useMemo(() => Math.max(...funnelData.map((d) => d.count), 1), [funnelData]);
+
   return (
     <div className="glass-panel mb-4">
       <button
@@ -179,23 +212,51 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
 
       {!collapsed && (
         <div className="px-4 pb-4 space-y-4 animate-fade-in">
-          {/* Stage counts */}
-          <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
-            {STAGES_ORDER.map((stage) => {
-              const base = stageCounts["2nd-round"];
-              const pct = base > 0 && stage !== "2nd-round"
-                ? Math.round((stageCounts[stage] / base) * 100)
-                : null;
-              return (
-                <div key={stage} className="text-center p-2 rounded-lg bg-muted/30">
-                  <div className="text-lg font-bold text-foreground">{stageCounts[stage]}</div>
-                  <div className="text-[10px] text-muted-foreground leading-tight">{STAGE_CONFIG[stage].label.split("(")[0].trim()}</div>
-                  {pct !== null && (
-                    <div className="text-[9px] font-medium text-primary mt-0.5">{pct}%</div>
-                  )}
-                </div>
-              );
-            })}
+          {/* Funnel Visualisation */}
+          <div className="bg-muted/20 rounded-lg p-4">
+            <h4 className="text-xs font-medium text-muted-foreground mb-3">Recruitment Funnel</h4>
+            <div className="space-y-2">
+              {funnelData.map((item, i) => {
+                const widthPct = Math.max((item.count / maxFunnelCount) * 100, 8);
+                const prevCount = i > 0 ? funnelData[i - 1].count : null;
+                const stepConversion = prevCount && prevCount > 0 ? Math.round((item.count / prevCount) * 100) : null;
+                return (
+                  <div key={item.stage} className="flex items-center gap-3">
+                    <div className="w-28 shrink-0 text-right">
+                      <span className="text-[11px] text-muted-foreground leading-tight">{item.label}</span>
+                    </div>
+                    <div className="flex-1 relative">
+                      <div
+                        className="h-7 rounded-md flex items-center px-2.5 transition-all duration-500"
+                        style={{
+                          width: `${widthPct}%`,
+                          backgroundColor: item.color,
+                          opacity: 0.85,
+                          minWidth: "40px",
+                        }}
+                      >
+                        <span className="text-xs font-bold text-background whitespace-nowrap">{item.count}</span>
+                      </div>
+                    </div>
+                    <div className="w-16 shrink-0 text-right">
+                      {i === 0 ? (
+                        <span className="text-[10px] font-medium text-muted-foreground">baseline</span>
+                      ) : stepConversion !== null ? (
+                        <span className="text-[10px] font-medium text-primary">{stepConversion}%</span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {funnelData[0].count > 0 && (
+              <div className="mt-3 pt-2 border-t border-border/30 flex items-center gap-4 text-[10px] text-muted-foreground">
+                <span>Overall: {funnelData[0].count} → {funnelData[funnelData.length - 1].count}</span>
+                <span className="text-primary font-medium">
+                  {Math.round((funnelData[funnelData.length - 1].count / funnelData[0].count) * 100)}% end-to-end
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

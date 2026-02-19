@@ -1,8 +1,11 @@
 import { useState, useMemo } from "react";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Plus, Activity } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, Cell,
+} from "recharts";
+import { Plus, Activity, BarChart3 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -51,7 +54,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     return cvDownloads.filter((cv) => new Date(cv.downloadDate) >= cutoffDate);
   }, [cvDownloads, cutoffDate]);
 
-  // CVs grouped by their actual download date (not ad upload date)
+  // CVs grouped by their actual download date
   const cvsPerDownloadDate = useMemo(() => {
     const map: Record<string, number> = {};
     filteredCVDownloads.forEach((cv) => {
@@ -60,7 +63,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     return map;
   }, [filteredCVDownloads]);
 
-  // Also keep ad-date attribution for the ads chart
+  // CVs grouped by ad upload date (attribution)
   const cvsPerAdDate = useMemo(() => {
     const map: Record<string, number> = {};
     filteredCVDownloads.forEach((cv) => {
@@ -83,8 +86,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         date.setDate(monday.getDate() + i);
         const key = date.toISOString().split("T")[0];
         const activity = filteredActivities.find((a) => a.date === key);
-        const hasAd = activity ? (activity.freeAdsUploaded + activity.paidAdsUploaded) > 0 : false;
-        return { week: name, free: activity?.freeAdsUploaded ?? 0, paid: activity?.paidAdsUploaded ?? 0, cvs: cvsPerAdDate[key] ?? 0, attending: activity?.candidatesAttending2ndRound ?? 0, hasAd };
+        return { week: name, free: activity?.freeAdsUploaded ?? 0, paid: activity?.paidAdsUploaded ?? 0, cvs: cvsPerAdDate[key] ?? 0, attending: activity?.candidatesAttending2ndRound ?? 0 };
       });
     }
     const weeks: Record<string, any> = {};
@@ -93,7 +95,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       const weekStart = new Date(d);
       weekStart.setDate(d.getDate() - d.getDay() + 1);
       const key = weekStart.toISOString().split("T")[0];
-      if (!weeks[key]) weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: 0, attending: 0, hasAd: false };
+      if (!weeks[key]) weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: 0, attending: 0 };
       weeks[key].free += a.freeAdsUploaded;
       weeks[key].paid += a.paidAdsUploaded;
       weeks[key].attending += a.candidatesAttending2ndRound;
@@ -104,13 +106,12 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       weekStart.setDate(d.getDate() - d.getDay() + 1);
       const key = weekStart.toISOString().split("T")[0];
       if (weeks[key]) weeks[key].cvs += count;
-      else weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: count, attending: 0, hasAd: false };
+      else weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: count, attending: 0 };
     });
     return Object.values(weeks);
   }, [filteredActivities, isThisWeek, cvsPerAdDate]);
 
   const correlationData = useMemo(() => {
-    // Collect all real dates from both CV downloads and activity logs
     const allDates = new Set<string>();
     Object.keys(cvsPerDownloadDate).forEach((d) => allDates.add(d));
     filteredActivities.forEach((a) => allDates.add(a.date));
@@ -131,7 +132,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       });
     }
 
-    // Group by week using real dates
     const weeks: Record<string, { period: string; cvs: number; interviews: number; sortKey: string }> = {};
     const getWeekKey = (dateStr: string) => {
       const d = new Date(dateStr);
@@ -140,7 +140,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       return weekStart.toISOString().split("T")[0];
     };
 
-    // Add CV download data by actual download date
     Object.entries(cvsPerDownloadDate).forEach(([dateStr, count]) => {
       const key = getWeekKey(dateStr);
       const ws = new Date(key);
@@ -148,7 +147,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       weeks[key].cvs += count;
     });
 
-    // Add interview data by actual activity date
     filteredActivities.forEach((a) => {
       const key = getWeekKey(a.date);
       const ws = new Date(key);
@@ -159,19 +157,60 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     return Object.values(weeks).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ period, cvs, interviews }) => ({ period, cvs, interviews }));
   }, [filteredActivities, isThisWeek, cvsPerDownloadDate]);
 
-  const bestDays = useMemo(() => {
-    const dayTotals: Record<number, number> = {};
-    Object.entries(cvsPerAdDate).forEach(([dateStr, count]) => {
-      const day = new Date(dateStr).getDay();
-      dayTotals[day] = (dayTotals[day] || 0) + count;
+  // === Best Day to Upload: horizontal bar chart data (Mon-Sun, CVs attributed by ad upload day) ===
+  const bestDayBarData = useMemo(() => {
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const dayMap = [0, 0, 0, 0, 0, 0, 0]; // Mon=0 ... Sun=6
+
+    filteredCVDownloads.forEach((cv) => {
+      const ad = adUploads.find((a) => a.id === cv.adUploadId);
+      if (ad) {
+        const jsDay = new Date(ad.date).getDay(); // 0=Sun
+        const idx = jsDay === 0 ? 6 : jsDay - 1; // convert to Mon=0
+        dayMap[idx] += cv.count;
+      }
     });
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    let maxCvs = 0;
-    Object.values(dayTotals).forEach((total) => { if (total > maxCvs) maxCvs = total; });
-    if (maxCvs === 0) return { days: "N/A", total: 0 };
-    const winners = Object.entries(dayTotals).filter(([, total]) => total === maxCvs).map(([d]) => dayNames[Number(d)]);
-    return { days: winners.join(" & "), total: maxCvs };
-  }, [cvsPerAdDate]);
+
+    const maxVal = Math.max(...dayMap);
+    return dayNames.map((name, i) => ({
+      day: name,
+      cvs: dayMap[i],
+      isMax: dayMap[i] === maxVal && maxVal > 0,
+    }));
+  }, [filteredCVDownloads, adUploads]);
+
+  // === Free vs Paid Performance (outcome-based) ===
+  const freeVsPaidData = useMemo(() => {
+    // CVs from free ads vs paid ads
+    let freeCVs = 0;
+    let paidCVs = 0;
+
+    filteredCVDownloads.forEach((cv) => {
+      const ad = adUploads.find((a) => a.id === cv.adUploadId);
+      if (ad) {
+        if (ad.type === "free") freeCVs += cv.count;
+        else paidCVs += cv.count;
+      }
+    });
+
+    // Count ads in range by type
+    const freeAdsCount = filteredAdUploads.filter((a) => a.type === "free").length;
+    const paidAdsCount = filteredAdUploads.filter((a) => a.type === "paid").length;
+
+    const freeCVsPerAd = freeAdsCount > 0 ? Math.round((freeCVs / freeAdsCount) * 10) / 10 : 0;
+    const paidCVsPerAd = paidAdsCount > 0 ? Math.round((paidCVs / paidAdsCount) * 10) / 10 : 0;
+
+    return {
+      bars: [
+        { type: "Free Ads", cvs: freeCVs, color: "hsl(172 66% 50%)" },
+        { type: "Paid Ads", cvs: paidCVs, color: "hsl(217 91% 60%)" },
+      ],
+      freeCVsPerAd,
+      paidCVsPerAd,
+      freeAdsCount,
+      paidAdsCount,
+    };
+  }, [filteredCVDownloads, adUploads, filteredAdUploads]);
 
   const totalAttributedCVs = useMemo(() => filteredCVDownloads.reduce((s, cv) => s + cv.count, 0), [filteredCVDownloads]);
 
@@ -217,6 +256,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
 
   return (
     <div className="space-y-4">
+      {/* Quick Log */}
       <div className="glass-panel p-4">
         <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
           <Plus className="w-4 h-4 text-primary" />
@@ -237,6 +277,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         </div>
       </div>
 
+      {/* CV Modal */}
       <Dialog open={cvModalOpen} onOpenChange={setCvModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Log CV Downloads</DialogTitle></DialogHeader>
@@ -261,6 +302,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: `Free Ads (${rangeLabel})`, value: totals.freeAds, color: "text-chart-1" },
@@ -275,6 +317,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         ))}
       </div>
 
+      {/* Line charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass-panel p-4">
           <h4 className="text-xs font-medium text-muted-foreground mb-3">Free vs Paid Ads ({isThisWeek ? "Daily" : "Weekly"})</h4>
@@ -308,19 +351,57 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         </div>
       </div>
 
-      <div className="glass-panel p-4">
-        <h4 className="text-xs font-medium text-muted-foreground mb-2">Performance Insights</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-muted/20 rounded-lg p-3">
-            <p className="text-[10px] text-muted-foreground mb-1">Best Day to Upload</p>
-            <p className="text-sm font-semibold text-foreground">{bestDays.days}</p>
-            <p className="text-[10px] text-muted-foreground">{bestDays.total} CVs attributed</p>
-          </div>
-          <div className="bg-muted/20 rounded-lg p-3">
-            <p className="text-[10px] text-muted-foreground mb-1">Free vs Paid Ratio</p>
-            <p className="text-sm font-semibold text-foreground">
-              {totals.freeAds > 0 || totals.paidAds > 0 ? `${totals.freeAds} : ${totals.paidAds}` : "N/A"}
-            </p>
+      {/* New bar charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Best Day to Upload - Horizontal Bar Chart */}
+        <div className="glass-panel p-4">
+          <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <BarChart3 className="w-3.5 h-3.5 text-primary" />
+            Best Day to Upload (CVs Attributed)
+          </h4>
+          <ResponsiveContainer width="100%" height={210}>
+            <BarChart data={bestDayBarData} layout="vertical" margin={{ left: 10, right: 16, top: 4, bottom: 4 }}>
+              <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="day" type="category" tick={{ fontSize: 11, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} width={36} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
+              <Bar dataKey="cvs" name="CVs Attributed" radius={[0, 4, 4, 0]} maxBarSize={18}>
+                {bestDayBarData.map((entry, idx) => (
+                  <Cell key={idx} fill={entry.isMax ? "hsl(172 66% 50%)" : "hsl(217 91% 60% / 0.6)"} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Free vs Paid Performance (Outcome-Based) */}
+        <div className="glass-panel p-4">
+          <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
+            <BarChart3 className="w-3.5 h-3.5 text-primary" />
+            Free vs Paid — CVs Generated
+          </h4>
+          <ResponsiveContainer width="100%" height={140}>
+            <BarChart data={freeVsPaidData.bars} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+              <XAxis dataKey="type" tick={{ fontSize: 11, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
+              <Bar dataKey="cvs" name="Total CVs" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                {freeVsPaidData.bars.map((entry, idx) => (
+                  <Cell key={idx} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-2 gap-3 mt-3 pt-2 border-t border-border/30">
+            <div className="text-center">
+              <p className="text-[10px] text-muted-foreground">CVs per Free Ad</p>
+              <p className="text-sm font-bold font-mono text-chart-1">{freeVsPaidData.freeCVsPerAd}</p>
+              <p className="text-[9px] text-muted-foreground">{freeVsPaidData.freeAdsCount} ads</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-muted-foreground">CVs per Paid Ad</p>
+              <p className="text-sm font-bold font-mono text-chart-2">{freeVsPaidData.paidCVsPerAd}</p>
+              <p className="text-[9px] text-muted-foreground">{freeVsPaidData.paidAdsCount} ads</p>
+            </div>
           </div>
         </div>
       </div>
