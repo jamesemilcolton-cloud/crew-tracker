@@ -1,4 +1,4 @@
-import { Candidate, LinkedInActivity, KPITarget } from "./types";
+import { Candidate, LinkedInActivity, KPITarget, AdUpload, CVDownloadEntry } from "./types";
 
 export const mockCandidates: Candidate[] = [
   {
@@ -258,6 +258,49 @@ export const mockLinkedInActivity: LinkedInActivity[] = Array.from({ length: 56 
     candidatesAttending2ndRound: Math.random() > 0.6 ? Math.floor(Math.random() * 3) + 1 : 0,
   };
 });
+
+// Generate ad uploads from activity data (one entry per ad uploaded)
+export const mockAdUploads: AdUpload[] = (() => {
+  const ads: AdUpload[] = [];
+  let adId = 0;
+  mockLinkedInActivity.forEach((a) => {
+    for (let i = 0; i < a.freeAdsUploaded; i++) {
+      ads.push({ id: `ad-${adId++}`, date: a.date, type: "free" });
+    }
+    for (let i = 0; i < a.paidAdsUploaded; i++) {
+      ads.push({ id: `ad-${adId++}`, date: a.date, type: "paid" });
+    }
+  });
+  return ads;
+})();
+
+// Generate CV download entries attributed to ad uploads
+// CVs are attributed to ads uploaded 0-3 days before the download date
+export const mockCVDownloads: CVDownloadEntry[] = (() => {
+  const entries: CVDownloadEntry[] = [];
+  let entryId = 0;
+  mockLinkedInActivity.forEach((a) => {
+    if (a.cvsDownloaded <= 0) return;
+    // Find ads uploaded in the 0-3 days before this activity date
+    const downloadDate = new Date(a.date);
+    const candidateAds = mockAdUploads.filter((ad) => {
+      const adDate = new Date(ad.date);
+      const diffDays = (downloadDate.getTime() - adDate.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays <= 3;
+    });
+    if (candidateAds.length === 0) return;
+    // Distribute CVs across candidate ads
+    let remaining = a.cvsDownloaded;
+    candidateAds.forEach((ad, idx) => {
+      const count = idx === candidateAds.length - 1 ? remaining : Math.ceil(remaining / (candidateAds.length - idx));
+      if (count > 0) {
+        entries.push({ id: `cv-${entryId++}`, downloadDate: a.date, adUploadId: ad.id, count });
+        remaining -= count;
+      }
+    });
+  });
+  return entries;
+})();
 
 export const mockKPITargets: KPITarget[] = [
   { label: "2nd Round Interviews / Week", target: 10, actual: 7 },

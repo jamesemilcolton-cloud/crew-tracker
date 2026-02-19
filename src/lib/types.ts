@@ -40,6 +40,19 @@ export interface KPITarget {
   actual: number;
 }
 
+export interface AdUpload {
+  id: string;
+  date: string; // upload date
+  type: "free" | "paid";
+}
+
+export interface CVDownloadEntry {
+  id: string;
+  downloadDate: string; // actual date CVs were downloaded
+  adUploadId: string; // links to the ad that generated these CVs
+  count: number;
+}
+
 export interface LinkedInActivity {
   id: string;
   date: string;
@@ -48,7 +61,6 @@ export interface LinkedInActivity {
   cvsDownloaded: number;
   candidatesAttending2ndRound: number;
 }
-
 
 
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: string }> = {
