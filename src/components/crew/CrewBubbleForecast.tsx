@@ -423,112 +423,131 @@ function buildPredictedRecursiveTree(
   };
 }
 
-// Calculate tree dimensions for auto-scaling
-function measureTree(node: CrewNode, depth = 0): { width: number; height: number; leafCount: number } {
-  if (node.children.length === 0) {
-    return { width: 1, height: depth + 1, leafCount: 1 };
-  }
-  let totalLeaves = 0;
-  let maxHeight = 0;
-  node.children.forEach((child) => {
-    const m = measureTree(child, depth + 1);
-    totalLeaves += m.leafCount;
-    maxHeight = Math.max(maxHeight, m.height);
-  });
-  return { width: totalLeaves, height: maxHeight, leafCount: totalLeaves };
+// Count total nodes for informational display
+function countNodes(node: CrewNode): number {
+  return 1 + node.children.reduce((sum, c) => sum + countNodes(c), 0);
 }
 
-// Render tree node with dynamic spacing
+// HTML-based tree node component with fixed sizes
 function TreeNode({
   node,
-  x,
-  y,
-  parentX,
-  parentY,
-  nodeSpacing,
-  levelHeight,
+  collapsedIds,
+  onToggle,
 }: {
   node: CrewNode;
-  x: number;
-  y: number;
-  parentX?: number;
-  parentY?: number;
-  nodeSpacing: number;
-  levelHeight: number;
+  collapsedIds: Set<string>;
+  onToggle: (id: string) => void;
 }) {
-  const nodeWidth = 100;
-  const nodeHeight = 26;
-
-  const childMeasures = node.children.map((child) => measureTree(child));
-  const totalLeaves = childMeasures.reduce((sum, m) => sum + m.leafCount, 0);
-  const totalChildWidth = totalLeaves * nodeSpacing;
-
-  let currentX = x - totalChildWidth / 2;
+  const NODE_WIDTH = 140;
+  const NODE_HEIGHT = 32;
+  const isCollapsed = collapsedIds.has(node.id);
+  const hasChildren = node.children.length > 0;
 
   return (
-    <g>
-      {parentX !== undefined && parentY !== undefined && (
-        <path
-          d={`M ${parentX} ${parentY + nodeHeight / 2} L ${parentX} ${parentY + nodeHeight / 2 + levelHeight * 0.4} L ${x} ${y - levelHeight * 0.1} L ${x} ${y - nodeHeight / 2}`}
-          fill="none"
-          stroke="hsl(222 30% 20%)"
-          strokeWidth="1.5"
-          strokeDasharray={node.isPredicted ? "4 4" : "none"}
-        />
-      )}
-
-      {node.isLeader && (
-        <rect
-          x={x - nodeWidth / 2}
-          y={y - nodeHeight / 2}
-          width={nodeWidth}
-          height={nodeHeight}
-          rx="10"
-          fill={node.isPredicted ? "hsl(172 66% 50% / 0.03)" : "hsl(172 66% 50% / 0.06)"}
-          stroke="hsl(172 66% 50%)"
-          strokeWidth="1.5"
-          strokeDasharray={node.isPredicted ? "4 4" : "none"}
-          opacity={node.isPredicted ? 0.5 : 1}
-        />
-      )}
-
-      <text
-        x={x}
-        y={y + 1}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill={node.isPredicted ? "hsl(215 20% 55%)" : "hsl(210 40% 92%)"}
-        fontSize="9"
-        fontWeight={node.isLeader ? "600" : "400"}
-        fontFamily="Inter, system-ui, sans-serif"
-        opacity={node.isPredicted ? 0.6 : 1}
-        fontStyle={node.isPredicted ? "italic" : "normal"}
+    <div className="flex flex-col items-center" style={{ minWidth: NODE_WIDTH }}>
+      {/* Node */}
+      <div
+        className="relative flex items-center justify-center cursor-pointer select-none"
+        style={{
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
+          borderRadius: node.isLeader ? 16 : 8,
+          border: node.isLeader
+            ? `1.5px ${node.isPredicted ? "dashed" : "solid"} hsl(172 66% 50%)`
+            : "none",
+          background: node.isLeader
+            ? node.isPredicted
+              ? "hsl(172 66% 50% / 0.03)"
+              : "hsl(172 66% 50% / 0.08)"
+            : "transparent",
+          opacity: node.isPredicted ? 0.55 : 1,
+        }}
+        onClick={() => hasChildren && onToggle(node.id)}
+        title={hasChildren ? (isCollapsed ? "Expand" : "Collapse") : undefined}
       >
-        {node.name}
-      </text>
+        <span
+          className="truncate px-2"
+          style={{
+            fontSize: 12,
+            fontWeight: node.isLeader ? 600 : 400,
+            fontStyle: node.isPredicted ? "italic" : "normal",
+            color: node.isPredicted
+              ? "hsl(215 20% 55%)"
+              : "hsl(210 40% 92%)",
+          }}
+        >
+          {node.name}
+        </span>
+        {hasChildren && (
+          <span
+            className="absolute -right-1 -bottom-1 text-[9px] font-mono rounded-full flex items-center justify-center"
+            style={{
+              width: 16,
+              height: 16,
+              background: "hsl(222 30% 18%)",
+              border: "1px solid hsl(222 30% 30%)",
+              color: "hsl(215 20% 65%)",
+            }}
+          >
+            {isCollapsed ? "+" : "−"}
+          </span>
+        )}
+      </div>
 
-      {node.children.map((child, i) => {
-        const childLeafCount = childMeasures[i].leafCount;
-        const childWidth = childLeafCount * nodeSpacing;
-        const childX = currentX + childWidth / 2;
-        const childY = y + levelHeight;
-        currentX += childWidth;
-
-        return (
-          <TreeNode
-            key={child.id}
-            node={child}
-            x={childX}
-            y={childY}
-            parentX={x}
-            parentY={y}
-            nodeSpacing={nodeSpacing}
-            levelHeight={levelHeight}
+      {/* Children */}
+      {hasChildren && !isCollapsed && (
+        <div className="flex flex-col items-center">
+          {/* Vertical connector from parent */}
+          <div
+            style={{
+              width: 1.5,
+              height: 24,
+              background: "hsl(222 30% 25%)",
+            }}
           />
-        );
-      })}
-    </g>
+
+          {/* Horizontal bar spanning all children */}
+          {node.children.length > 1 && (
+            <div className="relative w-full" style={{ height: 1.5 }}>
+              {/* We use a flex row to measure, then draw the bar */}
+            </div>
+          )}
+
+          {/* Children row */}
+          <div className="flex items-start" style={{ gap: 12 }}>
+            {node.children.map((child, i) => (
+              <div key={child.id} className="flex flex-col items-center">
+                {/* Vertical connector into child */}
+                <div
+                  style={{
+                    width: 1.5,
+                    height: 24,
+                    background: "hsl(222 30% 25%)",
+                    borderLeft: child.isPredicted ? "1.5px dashed hsl(222 30% 25%)" : undefined,
+                    ...(child.isPredicted
+                      ? { width: 0, borderLeft: "1.5px dashed hsl(222 30% 35%)" }
+                      : {}),
+                  }}
+                />
+                <TreeNode
+                  node={child}
+                  collapsedIds={collapsedIds}
+                  onToggle={onToggle}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
+}
+
+// Collect all IDs that have children (for expand/collapse all)
+function collectExpandableIds(node: CrewNode, ids: Set<string> = new Set()): Set<string> {
+  if (node.children.length > 0) ids.add(node.id);
+  node.children.forEach((c) => collectExpandableIds(c, ids));
+  return ids;
 }
 
 const CONFIDENCE_STYLES: Record<ForecastConfidence, { color: string; bg: string }> = {
@@ -539,6 +558,7 @@ const CONFIDENCE_STYLES: Record<ForecastConfidence, { color: string; bg: string 
 
 export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const { profile } = useAuth();
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
 
@@ -578,15 +598,21 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   }, [candidates, allProfiles, profile, forecast]);
 
   const tree = showPredicted ? predictedTree : currentTree;
+  const totalNodes = countNodes(tree);
 
-  const treeMeasure = measureTree(tree);
-  const nodeSpacing = 110;
-  const levelHeight = 60;
-  const padding = 40;
+  const expandableIds = useMemo(() => collectExpandableIds(tree), [tree]);
 
-  const svgWidth = Math.max(treeMeasure.leafCount * nodeSpacing + padding * 2, 400);
-  const svgHeight = treeMeasure.height * levelHeight + padding * 2;
-  const viewBox = `${-svgWidth / 2} ${-padding} ${svgWidth} ${svgHeight}`;
+  const handleToggle = (id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const expandAll = () => setCollapsedIds(new Set());
+  const collapseAll = () => setCollapsedIds(new Set(expandableIds));
 
   const confStyle = CONFIDENCE_STYLES[forecast.confidence];
 
@@ -616,6 +642,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
+            <span className="text-muted-foreground">{totalNodes} members</span>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Start → Promotion:</span>
               <span className="text-foreground font-mono font-semibold">{startToPromotionPct}%</span>
@@ -667,44 +694,54 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
         </div>
       )}
 
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-muted-foreground px-1">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
-          <span>Leader</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-foreground">Name</span>
-          <span>Brand Ambassador</span>
-        </div>
-        {showPredicted && (
+      {/* Legend + Expand/Collapse controls */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-0 border-t-[1.5px] border-dashed border-muted-foreground" />
-            <span>Predicted</span>
+            <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
+            <span>Leader</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-foreground">Name</span>
+            <span>Brand Ambassador</span>
+          </div>
+          {showPredicted && (
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-0 border-t-[1.5px] border-dashed border-muted-foreground" />
+              <span>Predicted</span>
+            </div>
+          )}
+        </div>
+        {expandableIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={expandAll}
+              className="px-2 py-1 text-[10px] font-medium rounded bg-muted/30 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Expand All
+            </button>
+            <button
+              onClick={collapseAll}
+              className="px-2 py-1 text-[10px] font-medium rounded bg-muted/30 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Collapse All
+            </button>
           </div>
         )}
       </div>
 
-      {/* Tree canvas */}
+      {/* Tree container — scrollable, no shrink */}
       <div
-        className="glass-panel"
-        style={{ height: "calc(100vh - 340px)", overflow: "hidden" }}
+        className="glass-panel overflow-auto"
+        style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}
       >
-        <svg
-          width="100%"
-          height="100%"
-          viewBox={viewBox}
-          preserveAspectRatio="xMidYMin meet"
-          className="select-none"
-        >
+        <div className="p-8 flex justify-center" style={{ minWidth: "fit-content" }}>
           <TreeNode
             node={tree}
-            x={0}
-            y={0}
-            nodeSpacing={nodeSpacing}
-            levelHeight={levelHeight}
+            collapsedIds={collapsedIds}
+            onToggle={handleToggle}
           />
-        </svg>
+        </div>
       </div>
     </div>
   );
