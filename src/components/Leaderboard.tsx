@@ -34,7 +34,6 @@ const METRICS: { key: Metric; label: string; icon: React.ReactNode; suffix?: str
 
 export function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -91,9 +90,6 @@ export function Leaderboard() {
     return map;
   }, [entries]);
 
-  const selectedConfig = selectedMetric ? METRICS.find((m) => m.key === selectedMetric) : null;
-  const selectedRankings = selectedMetric ? metricRankings[selectedMetric] : [];
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -101,107 +97,57 @@ export function Leaderboard() {
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-medium text-foreground">Leaderboard</h3>
-          {selectedMetric && (
-            <button
-              onClick={() => setSelectedMetric(null)}
-              className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ← Back to overview
-            </button>
-          )}
         </div>
       </div>
 
-      {!selectedMetric ? (
-        /* Metric grid */
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {METRICS.map((m) => {
-            const ranked = metricRankings[m.key];
-            const leader = ranked[0];
-            const runnerUp = ranked[1];
+      {/* Metric grid — each box shows full rankings */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {METRICS.map((m) => {
+          const ranked = metricRankings[m.key];
 
-            return (
-              <button
-                key={m.key}
-                onClick={() => setSelectedMetric(m.key)}
-                className="glass-panel p-4 text-left hover:border-primary/40 hover:shadow-[0_0_15px_-3px_hsl(var(--primary)/0.2)] transition-all duration-200 group"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="text-muted-foreground group-hover:text-primary transition-colors">
-                    {m.icon}
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                    {m.label}
-                  </span>
-                </div>
+          return (
+            <div key={m.key} className="glass-panel p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="text-muted-foreground">{m.icon}</div>
+                <span className="text-xs font-medium text-muted-foreground">{m.label}</span>
+              </div>
 
-                {leader ? (
-                  <div className="space-y-2">
-                    {/* #1 */}
-                    <div className="flex items-center gap-2">
-                      <Crown className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                      <span className="text-sm font-semibold text-foreground truncate">{leader.name}</span>
-                      <span className="text-sm font-mono font-bold text-primary ml-auto flex-shrink-0">
-                        {leader[m.key]}{m.suffix ?? ""}
-                      </span>
-                    </div>
-                    {/* #2 */}
-                    {runnerUp && (
-                      <div className="flex items-center gap-2 opacity-60">
-                        <span className="text-[10px] font-mono text-muted-foreground w-3.5 text-center flex-shrink-0">#2</span>
-                        <span className="text-xs text-muted-foreground truncate">{runnerUp.name}</span>
-                        <span className="text-xs font-mono text-muted-foreground ml-auto flex-shrink-0">
-                          {runnerUp[m.key]}{m.suffix ?? ""}
+              {ranked.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No data</p>
+              ) : (
+                <div className="space-y-1">
+                  {ranked.map((entry, i) => (
+                    <div
+                      key={entry.profileId}
+                      className={`flex items-center justify-between py-1.5 px-2 rounded-md ${
+                        i === 0 ? "bg-primary/10" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {i === 0 ? (
+                          <Crown className="w-3 h-3 text-primary flex-shrink-0" />
+                        ) : (
+                          <span className={`text-[10px] font-mono font-bold w-3 text-center flex-shrink-0 ${
+                            i === 1 ? "text-chart-4" : i === 2 ? "text-chart-2" : "text-muted-foreground"
+                          }`}>
+                            {i + 1}
+                          </span>
+                        )}
+                        <span className={`text-xs truncate ${i === 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                          {entry.name}
                         </span>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No data</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        /* Expanded metric rankings */
-        <div className="glass-panel p-4">
-          <div className="flex items-center gap-2 mb-4">
-            {selectedConfig?.icon}
-            <h4 className="text-sm font-medium text-foreground">{selectedConfig?.label}</h4>
-          </div>
-
-          <div className="space-y-1.5">
-            {selectedRankings.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">No recruiters yet.</p>
-            )}
-            {selectedRankings.map((entry, i) => (
-              <div
-                key={entry.profileId}
-                className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                  i === 0 ? "bg-primary/10 border border-primary/20" : "bg-muted/20"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {i === 0 ? (
-                    <Crown className="w-4 h-4 text-primary" />
-                  ) : (
-                    <span className={`text-sm font-mono font-bold w-4 text-center ${
-                      i === 1 ? "text-chart-4" : i === 2 ? "text-chart-2" : "text-muted-foreground"
-                    }`}>
-                      {i + 1}
-                    </span>
-                  )}
-                  <span className="text-sm font-medium text-foreground">{entry.name}</span>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${i === 0 ? "font-bold text-primary" : "text-muted-foreground"}`}>
+                        {entry[m.key]}{m.suffix ?? ""}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-sm font-mono font-semibold text-foreground">
-                  {entry[selectedMetric!]}{selectedConfig?.suffix ?? ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
