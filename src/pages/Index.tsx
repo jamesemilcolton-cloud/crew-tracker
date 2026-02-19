@@ -46,7 +46,7 @@ const Index = () => {
               <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Users className="w-4 h-4 text-primary" />
               </div>
-              <h1 className="text-sm font-semibold text-foreground tracking-tight">RecruitOps</h1>
+              <h1 className="text-sm font-semibold text-foreground tracking-tight">Mission Control</h1>
             </div>
             <nav className="flex items-center gap-1">
               {tabs.map((tab) => (
