@@ -23,6 +23,7 @@ const FUNNEL_STAGES: PipelineStage[] = [
   "rehash",
   "sunday-call",
   "start",
+  "bell",
   "promoted",
 ];
 
@@ -32,6 +33,7 @@ const FUNNEL_COLORS: Record<string, string> = {
   "rehash": "hsl(38 92% 50%)",
   "sunday-call": "hsl(25 95% 53%)",
   "start": "hsl(152 69% 40%)",
+  "bell": "hsl(45 93% 47%)",
   "promoted": "hsl(280 67% 55%)",
 };
 
