@@ -20,10 +20,9 @@ export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[
 interface PipelineAnalyticsProps {
   candidates: Candidate[];
   trendRange: TrendRange;
-  startEmpty?: boolean;
 }
 
-export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }: PipelineAnalyticsProps) {
+export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const dateRange = useMemo(() => {
@@ -109,15 +108,6 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
 
   // History-driven KPIs
   const kpis = useMemo((): KPITarget[] => {
-    if (startEmpty) {
-      return [
-        { label: "2nd Round Interviews", target: 10, actual: 0 },
-        { label: "Starts", target: 6, actual: 0 },
-        { label: "Offers Made", target: 8, actual: 0 },
-        { label: "Promotions", target: 2, actual: 0 },
-      ];
-    }
-
     const interviewsInRange = candidates.filter((c) => {
       const d = new Date(c.createdAt);
       return d >= dateRange.start && d <= dateRange.end;
@@ -146,7 +136,7 @@ export function PipelineAnalytics({ candidates, trendRange, startEmpty = false }
       { label: "Offers Made", target: 8, actual: offersInRange },
       { label: "Promotions", target: 2, actual: promotionsInRange },
     ];
-  }, [candidates, dateRange, startEmpty]);
+  }, [candidates, dateRange]);
 
   const worstGap = useMemo(() => {
     return kpis.reduce((worst, kpi) => {

@@ -1,23 +1,14 @@
 import { useState, useCallback } from "react";
 import { Candidate } from "@/lib/types";
-import { mockCandidates } from "@/lib/mock-data";
+import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
+import { Leaderboard } from "@/components/Leaderboard";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, RotateCcw, ChevronDown } from "lucide-react";
+import { Users, Linkedin, GitBranch, Trophy, ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,34 +16,29 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "pipeline" | "linkedin" | "crew";
+type Tab = "pipeline" | "linkedin" | "crew" | "leaderboard";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "pipeline", label: "Recruitment Pipeline", icon: <Users className="w-4 h-4" /> },
-  { id: "linkedin", label: "LinkedIn Dashboard", icon: <Linkedin className="w-4 h-4" /> },
+  { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
+  { id: "linkedin", label: "LinkedIn", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
+  { id: "leaderboard", label: "Leaderboard", icon: <Trophy className="w-4 h-4" /> },
 ];
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("pipeline");
-  const [resetKey, setResetKey] = useState(0);
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
-  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+  const { profile, signOut } = useAuth();
 
-  const handleReset = () => {
-    setResetKey((k) => k + 1);
-    setCandidates([]);
-  };
-
-  const handleCandidatesChange = useCallback((updated: Candidate[]) => {
-    setCandidates(updated);
-  }, []);
+  // Own candidates for pipeline
+  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate } = useCandidates("own");
+  // All candidates for crew bubble
+  const { candidates: allCandidates, loading: allLoading } = useCandidates("all");
 
   const currentRangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
           <div className="flex items-center justify-between h-14">
@@ -98,41 +84,30 @@ const Index = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive hover:text-destructive">
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Reset All Data
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Clear all data?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently clear all data across the entire system — candidates, LinkedIn activity, crew data, and analytics. Everything will be reset as if you're starting fresh. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleReset}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Clear All Data
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <div className="flex items-center gap-2 ml-2">
+                <span className="text-xs text-muted-foreground">{profile?.full_name}</span>
+                <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Content */}
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
-        {activeTab === "pipeline" && <PipelineBoard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} candidates={candidates} onCandidatesChange={handleCandidatesChange} />}
-        {activeTab === "linkedin" && <LinkedInDashboard key={resetKey} startEmpty={resetKey > 0} trendRange={trendRange} />}
-        {activeTab === "crew" && <CrewBubbleForecast candidates={candidates} />}
+        {activeTab === "pipeline" && (
+          <PipelineBoard
+            trendRange={trendRange}
+            candidates={ownCandidates}
+            onAddCandidate={addCandidate}
+            onUpdateCandidate={updateCandidate}
+            loading={ownLoading}
+          />
+        )}
+        {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} />}
+        {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
+        {activeTab === "leaderboard" && <Leaderboard />}
       </main>
     </div>
   );

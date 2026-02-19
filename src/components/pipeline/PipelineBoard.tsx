@@ -1,20 +1,20 @@
 import { useState, useMemo, useCallback } from "react";
-import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
+import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage, StageChange } from "@/lib/types";
 import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
 import { Calendar, Clock, ChevronDown } from "lucide-react";
 
-
 interface PipelineBoardProps {
-  startEmpty?: boolean;
   trendRange: TrendRange;
   candidates: Candidate[];
-  onCandidatesChange: (candidates: Candidate[]) => void;
+  onAddCandidate: (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => Promise<any>;
+  onUpdateCandidate: (id: string, updates: Partial<Candidate>, stageChange?: StageChange) => Promise<any>;
+  loading?: boolean;
 }
 
-export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCandidatesChange }: PipelineBoardProps) {
+export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, loading }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
   const [upcomingOpen, setUpcomingOpen] = useState(true);
@@ -27,7 +27,6 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
     }));
   }, [candidates]);
 
-  // Upcoming Starts: all candidates in rehash or sunday-call (regardless of start date)
   const upcomingStarts = useMemo(() => {
     const preStartStages: PipelineStage[] = ["rehash", "sunday-call"];
     return candidates
@@ -39,47 +38,53 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
       });
   }, [candidates]);
 
-  const handleUpdate = (updated: Candidate) => {
-    onCandidatesChange(candidates.map((c) => (c.id === updated.id ? updated : c)));
+  const handleUpdate = async (updated: Candidate) => {
+    const original = candidates.find((c) => c.id === updated.id);
+    let stageChange: StageChange | undefined;
+    if (original && original.stage !== updated.stage) {
+      stageChange = {
+        from: original.stage,
+        to: updated.stage,
+        date: new Date().toISOString().split("T")[0],
+        note: "Manually updated",
+      };
+    }
+    await onUpdateCandidate(updated.id, updated, stageChange);
     setSelectedCandidate(updated);
   };
 
-  const handleAdd = (candidate: Candidate) => {
-    onCandidatesChange([...candidates, candidate]);
+  const handleAdd = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
+    await onAddCandidate(candidate);
   };
 
-  const handleDrop = useCallback((targetStage: PipelineStage, e: React.DragEvent) => {
+  const handleDrop = useCallback(async (targetStage: PipelineStage, e: React.DragEvent) => {
     e.preventDefault();
     setDragOverStage(null);
     const candidateId = e.dataTransfer.getData("candidateId");
     if (!candidateId) return;
 
-    onCandidatesChange(candidates.map((c) => {
-      if (c.id !== candidateId) return c;
-      if (c.stage === targetStage) return c;
+    const c = candidates.find((c) => c.id === candidateId);
+    if (!c || c.stage === targetStage) return;
 
-      const currentIdx = STAGES_ORDER.indexOf(c.stage);
-      const targetIdx = STAGES_ORDER.indexOf(targetStage);
-      if (targetIdx <= currentIdx) return c;
+    const currentIdx = STAGES_ORDER.indexOf(c.stage);
+    const targetIdx = STAGES_ORDER.indexOf(targetStage);
+    if (targetIdx <= currentIdx) return;
 
-      const stageChange = {
-        from: c.stage,
-        to: targetStage,
-        date: new Date().toISOString().split("T")[0],
-      };
+    const stageChange: StageChange = {
+      from: c.stage,
+      to: targetStage,
+      date: new Date().toISOString().split("T")[0],
+    };
 
-      const updatedStartDate = (targetStage === "start" && !c.potentialStartDate)
-        ? new Date().toISOString().split("T")[0]
-        : c.potentialStartDate;
+    const updatedStartDate = (targetStage === "start" && !c.potentialStartDate)
+      ? new Date().toISOString().split("T")[0]
+      : c.potentialStartDate;
 
-      return {
-        ...c,
-        stage: targetStage,
-        potentialStartDate: targetStage === "start" ? (c.potentialStartDate || new Date().toISOString().split("T")[0]) : updatedStartDate,
-        history: [...c.history, stageChange],
-      };
-    }));
-  }, [candidates, onCandidatesChange]);
+    await onUpdateCandidate(candidateId, {
+      stage: targetStage,
+      potentialStartDate: targetStage === "start" ? (c.potentialStartDate || new Date().toISOString().split("T")[0]) : updatedStartDate,
+    }, stageChange);
+  }, [candidates, onUpdateCandidate]);
 
   const handleDragOver = useCallback((stage: PipelineStage, e: React.DragEvent) => {
     e.preventDefault();
@@ -91,15 +96,18 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
     setDragOverStage(null);
   }, []);
 
+  if (loading) {
+    return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading pipeline...</div>;
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-end mb-2 px-1">
         <NewCandidateForm onAdd={handleAdd} />
       </div>
-      <PipelineAnalytics candidates={candidates} trendRange={trendRange} startEmpty={startEmpty} />
+      <PipelineAnalytics candidates={candidates} trendRange={trendRange} />
 
       <div className="flex flex-1 gap-4 overflow-hidden">
-        {/* Pipeline columns */}
         <div className="flex gap-3 overflow-x-auto flex-1 pb-2 custom-scrollbar">
           {columns.map(({ stage, config, candidates: stageCandidates }) => (
             <div
@@ -112,10 +120,7 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
               onDragLeave={handleDragLeave}
             >
               <div className="flex items-center gap-2 mb-3 px-1">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: `hsl(var(${config.colorVar}))` }}
-                />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(var(${config.colorVar}))` }} />
                 <h3 className="text-xs font-medium text-foreground">{config.label}</h3>
                 <span className="text-[10px] text-muted-foreground font-mono ml-auto">{stageCandidates.length}</span>
               </div>
@@ -131,7 +136,6 @@ export function PipelineBoard({ startEmpty = false, trendRange, candidates, onCa
           ))}
         </div>
 
-        {/* Right panel — collapses to slim strip */}
         <div className={`flex-shrink-0 transition-all duration-300 ${selectedCandidate ? "w-72" : upcomingOpen ? "w-72" : "w-10"}`}>
           {selectedCandidate ? (
             <CandidateDetail
