@@ -1,10 +1,14 @@
 import { useState, useMemo } from "react";
-import { mockLinkedInActivity } from "@/lib/mock-data";
-import { LinkedInActivity } from "@/lib/types";
+import { mockLinkedInActivity, mockAdUploads, mockCVDownloads } from "@/lib/mock-data";
+import { LinkedInActivity, AdUpload, CVDownloadEntry } from "@/lib/types";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Plus, TrendingUp, BarChart3, Calendar, Upload, Activity } from "lucide-react";
+import { Plus, TrendingUp, Calendar, Activity } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface LinkedInDashboardProps {
   startEmpty?: boolean;
@@ -13,8 +17,14 @@ interface LinkedInDashboardProps {
 
 export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDashboardProps) {
   const [activities, setActivities] = useState<LinkedInActivity[]>(startEmpty ? [] : mockLinkedInActivity);
+  const [adUploads, setAdUploads] = useState<AdUpload[]>(startEmpty ? [] : mockAdUploads);
+  const [cvDownloads, setCvDownloads] = useState<CVDownloadEntry[]>(startEmpty ? [] : mockCVDownloads);
 
-  // Filter activities by selected time range
+  // CV attribution modal state
+  const [cvModalOpen, setCvModalOpen] = useState(false);
+  const [cvModalAdId, setCvModalAdId] = useState("");
+  const [cvModalCount, setCvModalCount] = useState("1");
+
   const filteredActivities = useMemo(() => {
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     if (trendRange === "all") return activities;
@@ -25,10 +35,43 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
   }, [activities, trendRange]);
 
   const rangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label ?? "";
-
   const isThisWeek = trendRange === "this-week";
 
-  // Chart data — daily for "This Week", weekly aggregation otherwise
+  // Get cutoff date for filtering
+  const cutoffDate = useMemo(() => {
+    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
+    if (trendRange === "all") return null;
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - option.weeks * 7);
+    return cutoff;
+  }, [trendRange]);
+
+  // Filtered ad uploads within time range
+  const filteredAdUploads = useMemo(() => {
+    if (!cutoffDate) return adUploads;
+    return adUploads.filter((a) => new Date(a.date) >= cutoffDate);
+  }, [adUploads, cutoffDate]);
+
+  // CVs attributed to filtered ads (by ad upload date)
+  const filteredCVDownloads = useMemo(() => {
+    const adIds = new Set(filteredAdUploads.map((a) => a.id));
+    return cvDownloads.filter((cv) => adIds.has(cv.adUploadId));
+  }, [cvDownloads, filteredAdUploads]);
+
+  // Build attributed CV counts per ad upload date
+  const cvsPerAdDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredCVDownloads.forEach((cv) => {
+      const ad = adUploads.find((a) => a.id === cv.adUploadId);
+      if (ad) {
+        map[ad.date] = (map[ad.date] || 0) + cv.count;
+      }
+    });
+    return map;
+  }, [filteredCVDownloads, adUploads]);
+
+  // Chart data — uses ad upload date for CV attribution
   const chartData = useMemo(() => {
     if (isThisWeek) {
       const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -48,7 +91,7 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
           week: name,
           free: activity?.freeAdsUploaded ?? 0,
           paid: activity?.paidAdsUploaded ?? 0,
-          cvs: activity?.cvsDownloaded ?? 0,
+          cvs: cvsPerAdDate[key] ?? 0,
           attending: activity?.candidatesAttending2ndRound ?? 0,
           hasAd,
         };
@@ -64,32 +107,24 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
       if (!weeks[key]) weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: 0, attending: 0, hasAd: false };
       weeks[key].free += a.freeAdsUploaded;
       weeks[key].paid += a.paidAdsUploaded;
-      weeks[key].cvs += a.cvsDownloaded;
       weeks[key].attending += a.candidatesAttending2ndRound;
     });
+    // Attribute CVs to the week of the ad upload date
+    Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
+      const d = new Date(adDate);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay() + 1);
+      const key = weekStart.toISOString().split("T")[0];
+      if (weeks[key]) {
+        weeks[key].cvs += count;
+      } else {
+        weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: count, attending: 0, hasAd: false };
+      }
+    });
     return Object.values(weeks);
-  }, [filteredActivities, isThisWeek]);
+  }, [filteredActivities, isThisWeek, cvsPerAdDate]);
 
-  // Best day analysis — based on TOTAL CVs collected per day, with tie support
-  const bestDays = useMemo(() => {
-    const dayTotals: Record<number, number> = {};
-    filteredActivities.forEach((a) => {
-      const day = new Date(a.date).getDay();
-      dayTotals[day] = (dayTotals[day] || 0) + a.cvsDownloaded;
-    });
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    let maxCvs = 0;
-    Object.values(dayTotals).forEach((total) => {
-      if (total > maxCvs) maxCvs = total;
-    });
-    if (maxCvs === 0) return { days: "N/A", total: 0 };
-    const winners = Object.entries(dayTotals)
-      .filter(([, total]) => total === maxCvs)
-      .map(([d]) => dayNames[Number(d)]);
-    return { days: winners.join(" & "), total: maxCvs };
-  }, [filteredActivities]);
-
-  // Correlation chart data — CVs vs 2nd Round on same graph
+  // Correlation data — CVs by ad upload date vs interviews
   const correlationData = useMemo(() => {
     if (isThisWeek) {
       const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -105,7 +140,7 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
         const activity = filteredActivities.find((a) => a.date === key);
         return {
           period: name,
-          cvs: activity?.cvsDownloaded ?? 0,
+          cvs: cvsPerAdDate[key] ?? 0,
           interviews: activity?.candidatesAttending2ndRound ?? 0,
         };
       });
@@ -117,24 +152,80 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
       weekStart.setDate(d.getDate() - d.getDay() + 1);
       const key = weekStart.toISOString().split("T")[0];
       if (!weeks[key]) weeks[key] = { period: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, cvs: 0, interviews: 0 };
-      weeks[key].cvs += a.cvsDownloaded;
       weeks[key].interviews += a.candidatesAttending2ndRound;
     });
+    Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
+      const d = new Date(adDate);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay() + 1);
+      const key = weekStart.toISOString().split("T")[0];
+      if (weeks[key]) {
+        weeks[key].cvs += count;
+      } else {
+        weeks[key] = { period: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, cvs: count, interviews: 0 };
+      }
+    });
     return Object.values(weeks);
-  }, [filteredActivities, isThisWeek]);
+  }, [filteredActivities, isThisWeek, cvsPerAdDate]);
+
+  // Best day — based on CVs attributed to ad upload day
+  const bestDays = useMemo(() => {
+    const dayTotals: Record<number, number> = {};
+    Object.entries(cvsPerAdDate).forEach(([dateStr, count]) => {
+      const day = new Date(dateStr).getDay();
+      dayTotals[day] = (dayTotals[day] || 0) + count;
+    });
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let maxCvs = 0;
+    Object.values(dayTotals).forEach((total) => {
+      if (total > maxCvs) maxCvs = total;
+    });
+    if (maxCvs === 0) return { days: "N/A", total: 0 };
+    const winners = Object.entries(dayTotals)
+      .filter(([, total]) => total === maxCvs)
+      .map(([d]) => dayNames[Number(d)]);
+    return { days: winners.join(" & "), total: maxCvs };
+  }, [cvsPerAdDate]);
 
   // Totals
+  const totalAttributedCVs = useMemo(() => {
+    return filteredCVDownloads.reduce((s, cv) => s + cv.count, 0);
+  }, [filteredCVDownloads]);
+
   const totals = useMemo(() => {
     return {
       freeAds: filteredActivities.reduce((s, a) => s + a.freeAdsUploaded, 0),
       paidAds: filteredActivities.reduce((s, a) => s + a.paidAdsUploaded, 0),
-      cvs: filteredActivities.reduce((s, a) => s + a.cvsDownloaded, 0),
+      cvs: totalAttributedCVs,
       attending: filteredActivities.reduce((s, a) => s + a.candidatesAttending2ndRound, 0),
     };
-  }, [filteredActivities]);
+  }, [filteredActivities, totalAttributedCVs]);
+
+  // Available ads for CV attribution modal (sorted recent first)
+  const availableAds = useMemo(() => {
+    return [...adUploads].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+  }, [adUploads]);
 
   const handleQuickAdd = (type: string) => {
+    if (type === "cv") {
+      setCvModalOpen(true);
+      setCvModalAdId("");
+      setCvModalCount("1");
+      return;
+    }
+
     const today = new Date().toISOString().split("T")[0];
+    
+    if (type === "free" || type === "paid") {
+      // Also create an AdUpload entry
+      const newAd: AdUpload = {
+        id: `ad-${Date.now()}`,
+        date: today,
+        type: type as "free" | "paid",
+      };
+      setAdUploads((prev) => [...prev, newAd]);
+    }
+
     setActivities((prev) => {
       const existing = prev.find((a) => a.date === today);
       if (existing) {
@@ -144,7 +235,6 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
                 ...a,
                 freeAdsUploaded: type === "free" ? a.freeAdsUploaded + 1 : a.freeAdsUploaded,
                 paidAdsUploaded: type === "paid" ? a.paidAdsUploaded + 1 : a.paidAdsUploaded,
-                cvsDownloaded: type === "cv" ? a.cvsDownloaded + 1 : a.cvsDownloaded,
                 candidatesAttending2ndRound: type === "attend" ? a.candidatesAttending2ndRound + 1 : a.candidatesAttending2ndRound,
               }
             : a
@@ -157,11 +247,49 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
           date: today,
           freeAdsUploaded: type === "free" ? 1 : 0,
           paidAdsUploaded: type === "paid" ? 1 : 0,
-          cvsDownloaded: type === "cv" ? 1 : 0,
+          cvsDownloaded: 0,
           candidatesAttending2ndRound: type === "attend" ? 1 : 0,
         },
       ];
     });
+  };
+
+  const handleCvSubmit = () => {
+    if (!cvModalAdId || !cvModalCount) return;
+    const count = parseInt(cvModalCount, 10);
+    if (isNaN(count) || count <= 0) return;
+
+    const today = new Date().toISOString().split("T")[0];
+    const newEntry: CVDownloadEntry = {
+      id: `cv-${Date.now()}`,
+      downloadDate: today,
+      adUploadId: cvModalAdId,
+      count,
+    };
+    setCvDownloads((prev) => [...prev, newEntry]);
+
+    // Also update the raw activity cvsDownloaded for legacy tracking
+    setActivities((prev) => {
+      const existing = prev.find((a) => a.date === today);
+      if (existing) {
+        return prev.map((a) =>
+          a.date === today ? { ...a, cvsDownloaded: a.cvsDownloaded + count } : a
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: `la-new-${Date.now()}`,
+          date: today,
+          freeAdsUploaded: 0,
+          paidAdsUploaded: 0,
+          cvsDownloaded: count,
+          candidatesAttending2ndRound: 0,
+        },
+      ];
+    });
+
+    setCvModalOpen(false);
   };
 
   const tooltipStyle = {
@@ -198,12 +326,50 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
         </div>
       </div>
 
+      {/* CV Attribution Modal */}
+      <Dialog open={cvModalOpen} onOpenChange={setCvModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Log CV Downloads</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Which ad are these CVs from?</Label>
+              <Select value={cvModalAdId} onValueChange={setCvModalAdId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an ad upload..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAds.map((ad) => (
+                    <SelectItem key={ad.id} value={ad.id}>
+                      {ad.date} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} Ad
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Number of CVs downloaded</Label>
+              <Input
+                type="number"
+                min="1"
+                value={cvModalCount}
+                onChange={(e) => setCvModalCount(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleCvSubmit} disabled={!cvModalAdId} className="w-full">
+              Log CVs
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: `Free Ads (${rangeLabel})`, value: totals.freeAds, color: "text-chart-1" },
           { label: `Paid Ads (${rangeLabel})`, value: totals.paidAds, color: "text-chart-2" },
-          { label: `CVs Downloaded (${rangeLabel})`, value: totals.cvs, color: "text-chart-4" },
+          { label: `CVs Attributed (${rangeLabel})`, value: totals.cvs, color: "text-chart-4" },
           { label: `Attending 2nd Round (${rangeLabel})`, value: totals.attending, color: "text-chart-5" },
         ].map(({ label, value, color }) => (
           <div key={label} className="stat-card">
@@ -243,7 +409,7 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
         <div className="glass-panel p-4">
           <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-primary" />
-            CV Downloads vs 2nd Round Interviews — Trend Correlation ({isThisWeek ? "Daily" : "Weekly"})
+            CVs (by Ad Date) vs 2nd Round — Correlation ({isThisWeek ? "Daily" : "Weekly"})
           </h4>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={correlationData}>
@@ -251,7 +417,7 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
               <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
               <Legend wrapperStyle={{ fontSize: "11px" }} />
-              <Line type="monotone" dataKey="cvs" name="CVs Downloaded" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
+              <Line type="monotone" dataKey="cvs" name="CVs (Ad Date)" stroke="hsl(38 92% 50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38 92% 50%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
               <Line type="monotone" dataKey="interviews" name="2nd Round Interviews" stroke="hsl(280 70% 60%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(280 70% 60%)", stroke: "hsl(222 47% 6%)", strokeWidth: 1 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -263,10 +429,10 @@ export function LinkedInDashboard({ startEmpty = false, trendRange }: LinkedInDa
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-primary" />
-            <h4 className="text-xs font-medium text-muted-foreground">Best Day for CVs</h4>
+            <h4 className="text-xs font-medium text-muted-foreground">Best Ad Upload Day (by CVs)</h4>
           </div>
           <p className="text-3xl font-bold text-foreground">{bestDays.days}</p>
-          <p className="text-xs text-muted-foreground mt-1">{bestDays.total} total CVs collected</p>
+          <p className="text-xs text-muted-foreground mt-1">{bestDays.total} CVs attributed to ads uploaded on this day</p>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
