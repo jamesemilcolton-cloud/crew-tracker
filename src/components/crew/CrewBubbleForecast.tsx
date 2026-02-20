@@ -10,6 +10,7 @@ interface Profile {
   user_id: string;
   full_name: string;
   leader_id: string | null;
+  crew_name: string;
 }
 
 export interface CrewNode {
@@ -419,27 +420,18 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
 const NODE_WIDTH = 140;
 const NODE_HEIGHT = 32;
 const NODE_GAP = 12;
-const MAX_PER_ROW = 5; // Max children per row before wrapping
 
-function WrappingTreeNode({ node }: { node: CrewNode }) {
+function WrappingTreeNode({ node, crewName }: { node: CrewNode; crewName?: string }) {
   const hasChildren = node.children.length > 0;
-
-  // Split children into rows for wrapping
-  const childRows: CrewNode[][] = [];
-  if (hasChildren) {
-    for (let i = 0; i < node.children.length; i += MAX_PER_ROW) {
-      childRows.push(node.children.slice(i, i + MAX_PER_ROW));
-    }
-  }
 
   return (
     <div className="flex flex-col items-center" style={{ minWidth: NODE_WIDTH }}>
       {/* Node bubble */}
       <div
-        className="relative flex items-center justify-center select-none"
+        className="relative flex flex-col items-center justify-center select-none"
         style={{
           width: NODE_WIDTH,
-          height: NODE_HEIGHT,
+          minHeight: NODE_HEIGHT,
           borderRadius: node.isLeader ? 16 : 8,
           border: node.isLeader
             ? `1.5px ${node.isPredicted ? "dashed" : "solid"} hsl(var(--primary))`
@@ -461,52 +453,47 @@ function WrappingTreeNode({ node }: { node: CrewNode }) {
         >
           {node.name}
         </span>
+        {crewName && (
+          <span className="text-[9px] text-muted-foreground truncate px-2">{crewName}</span>
+        )}
       </div>
 
-      {/* Children with wrapping rows */}
+      {/* Children with dynamic wrapping */}
       {hasChildren && (
         <div className="flex flex-col items-center">
           {/* Vertical connector from parent */}
           <div style={{ width: 1.5, height: 20, background: "hsl(var(--border))" }} />
 
-          {childRows.map((row, rowIdx) => (
-            <div key={rowIdx} className="flex flex-col items-center">
-              {/* Horizontal connector bar for this row */}
-              {row.length > 1 && (
+          {/* Horizontal connector bar */}
+          {node.children.length > 1 && (
+            <div
+              style={{
+                height: 1.5,
+                background: "hsl(var(--border))",
+                width: `${(Math.min(node.children.length, 8) - 1) * (NODE_WIDTH + NODE_GAP)}px`,
+                maxWidth: "90vw",
+                marginBottom: 0,
+              }}
+            />
+          )}
+
+          {/* Children with flex wrap */}
+          <div className="flex flex-wrap items-start justify-center" style={{ gap: NODE_GAP, maxWidth: "90vw" }}>
+            {node.children.map((child) => (
+              <div key={child.id} className="flex flex-col items-center">
+                {/* Vertical connector into child */}
                 <div
                   style={{
-                    height: 1.5,
-                    background: "hsl(var(--border))",
-                    width: `${(row.length - 1) * (NODE_WIDTH + NODE_GAP)}px`,
-                    marginBottom: 0,
+                    width: child.isPredicted ? 0 : 1.5,
+                    height: 16,
+                    background: child.isPredicted ? "transparent" : "hsl(var(--border))",
+                    borderLeft: child.isPredicted ? "1.5px dashed hsl(var(--border))" : undefined,
                   }}
                 />
-              )}
-
-              {/* Children row */}
-              <div className="flex items-start justify-center" style={{ gap: NODE_GAP }}>
-                {row.map((child) => (
-                  <div key={child.id} className="flex flex-col items-center">
-                    {/* Vertical connector into child */}
-                    <div
-                      style={{
-                        width: child.isPredicted ? 0 : 1.5,
-                        height: 16,
-                        background: child.isPredicted ? "transparent" : "hsl(var(--border))",
-                        borderLeft: child.isPredicted ? "1.5px dashed hsl(var(--border))" : undefined,
-                      }}
-                    />
-                    <WrappingTreeNode node={child} />
-                  </div>
-                ))}
+                <WrappingTreeNode node={child} />
               </div>
-
-              {/* Vertical connector between rows (if not last row) */}
-              {rowIdx < childRows.length - 1 && (
-                <div style={{ width: 1.5, height: 16, background: "hsl(var(--border))" }} />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -520,8 +507,8 @@ export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) 
 
   useEffect(() => {
     async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id");
-      if (data) setAllProfiles(data);
+      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id, crew_name");
+      if (data) setAllProfiles(data as Profile[]);
     }
     fetchProfiles();
   }, []);
@@ -559,8 +546,8 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   useEffect(() => {
     async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id");
-      if (data) setAllProfiles(data);
+      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id, crew_name");
+      if (data) setAllProfiles(data as Profile[]);
     }
     fetchProfiles();
   }, []);
@@ -597,6 +584,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   const tree = showPredicted ? predictedTree : currentTree;
   const totalNodes = countNodes(tree);
+  const topCrewName = profile ? (allProfiles.find(p => p.id === profile.id)?.crew_name || "") : "";
 
   const confStyle = CONFIDENCE_STYLES[forecast.confidence];
 
@@ -728,7 +716,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
         style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}
       >
         <div className="p-8 flex justify-center">
-          <WrappingTreeNode node={tree} />
+          <WrappingTreeNode node={tree} crewName={topCrewName || undefined} />
         </div>
       </div>
     </div>

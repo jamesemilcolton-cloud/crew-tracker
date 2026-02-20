@@ -1,12 +1,12 @@
 import { useMemo, useRef, useCallback, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage, KPI_TARGETS } from "@/lib/types";
+import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Minus, AlertTriangle, Trophy, Users, Target, GitBranch } from "lucide-react";
+import { Download, Trophy, Users, Target, GitBranch } from "lucide-react";
 import { startOfWeek, parseISO, format } from "date-fns";
 import { CrewBubbleSnapshot } from "@/components/crew/CrewBubbleForecast";
 
@@ -15,6 +15,7 @@ interface Profile {
   user_id: string;
   full_name: string;
   leader_id: string | null;
+  crew_name: string;
 }
 
 function getWeekBounds(offset: number = 0) {
@@ -59,13 +60,12 @@ export function WeeklySummary() {
   useEffect(() => {
     async function fetchProfiles() {
       const { data } = await supabase.from("profiles").select("*");
-      setAllProfiles(data ?? []);
+      setAllProfiles((data ?? []) as Profile[]);
     }
     fetchProfiles();
   }, []);
 
   const thisWeek = useMemo(() => getWeekBounds(0), []);
-  const lastWeek = useMemo(() => getWeekBounds(1), []);
 
   const [allOwnCandidates, setAllOwnCandidates] = useState<Candidate[]>([]);
 
@@ -112,12 +112,6 @@ export function WeeklySummary() {
     kpiStages.forEach((s) => { counts[s] = countInRange(allOwnCandidates, s, thisWeek.start, thisWeek.end); });
     return counts;
   }, [allOwnCandidates, thisWeek]);
-
-  const lastWeekCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    kpiStages.forEach((s) => { counts[s] = countInRange(allOwnCandidates, s, lastWeek.start, lastWeek.end); });
-    return counts;
-  }, [allOwnCandidates, lastWeek]);
 
   const conversions = useMemo(() => {
     const pairs: { from: PipelineStage; to: PipelineStage; label: string }[] = [
@@ -201,36 +195,6 @@ export function WeeklySummary() {
     return records;
   }, [allOwnCandidates, thisWeekCounts]);
 
-  // SECTION 5: Focus Area
-  const focusArea = useMemo(() => {
-    let worstGap = 0;
-    let worstLabel = "";
-    let worstActual = 0;
-    let worstTarget = 0;
-
-    for (let i = 1; i < STAGES_ORDER.length; i++) {
-      const from = STAGES_ORDER[i - 1];
-      const to = STAGES_ORDER[i];
-      const key = `${from}→${to}`;
-      const target = KPI_TARGETS[key];
-      if (target === null || target === undefined) continue;
-
-      const prevCount = thisWeekCounts[from] || 0;
-      const currCount = thisWeekCounts[to] || 0;
-      const actual = prevCount > 0 ? Math.round((currCount / prevCount) * 100) : 0;
-      const gap = target - actual;
-
-      if (gap > worstGap) {
-        worstGap = gap;
-        worstLabel = `${STAGE_CONFIG[from].label} → ${STAGE_CONFIG[to].label}`;
-        worstActual = actual;
-        worstTarget = target;
-      }
-    }
-
-    return worstGap > 0 ? { label: worstLabel, actual: worstActual, target: worstTarget } : null;
-  }, [thisWeekCounts]);
-
   // PDF Export
   const handleDownloadPDF = useCallback(async () => {
     if (!summaryRef.current) return;
@@ -273,14 +237,13 @@ export function WeeklySummary() {
 
   const loading = candidatesLoading || linkedInLoading || allCandidatesLoading;
 
-  const dateLabel = `${format(thisWeek.start, "do MMM")} – ${format(thisWeek.end, "do MMM yyyy")}`;
+  const crewName = profile ? (allProfiles.find(p => p.user_id === profile.user_id)?.crew_name || "") : "";
+  const mondayLabel = format(thisWeek.start, "do MMMM yyyy");
+  const summaryTitle = crewName
+    ? `${crewName} – Week Commencing ${mondayLabel} Summary`
+    : `Week Commencing ${mondayLabel} Summary`;
 
-  const DeltaIndicator = ({ current, previous }: { current: number; previous: number }) => {
-    const diff = current - previous;
-    if (diff === 0) return <span className="text-muted-foreground text-[10px] flex items-center gap-0.5"><Minus className="w-3 h-3" /> 0</span>;
-    if (diff > 0) return <span className="text-primary text-[10px] flex items-center gap-0.5"><TrendingUp className="w-3 h-3" /> +{diff}</span>;
-    return <span className="text-destructive text-[10px] flex items-center gap-0.5"><TrendingDown className="w-3 h-3" /> {diff}</span>;
-  };
+  const dateLabel = `${format(thisWeek.start, "do MMM")} – ${format(thisWeek.end, "do MMM yyyy")}`;
 
   if (loading) {
     return (
@@ -292,8 +255,9 @@ export function WeeklySummary() {
 
   return (
     <div className="space-y-4">
-      {/* Download Button */}
-      <div className="flex justify-end">
+      {/* Title + Download Button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-foreground">{summaryTitle}</h2>
         <Button onClick={handleDownloadPDF} disabled={exporting} variant="outline" size="sm" className="gap-2">
           <Download className="w-4 h-4" />
           {exporting ? "Generating…" : "Download Weekly Summary (PDF)"}
@@ -319,7 +283,6 @@ export function WeeklySummary() {
                     {STAGE_CONFIG[stage].label}
                   </div>
                   <div className="text-2xl font-bold text-foreground">{thisWeekCounts[stage] || 0}</div>
-                  <DeltaIndicator current={thisWeekCounts[stage] || 0} previous={lastWeekCounts[stage] || 0} />
                 </div>
               ))}
             </div>
@@ -427,25 +390,6 @@ export function WeeklySummary() {
                     <div className="ml-auto text-2xl font-bold text-primary">{record.current}</div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* SECTION 5: Focus Area */}
-        {focusArea && (
-          <Card className="border-status-waiting/30 bg-status-waiting/5">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-status-waiting mt-0.5" />
-                <div>
-                  <div className="text-sm font-semibold text-foreground">
-                    Focus Area: Improve {focusArea.label} conversion
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Current: {focusArea.actual}% | Target: {focusArea.target}%
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>

@@ -6,11 +6,13 @@ interface Profile {
   id: string;
   user_id: string;
   full_name: string;
+  crew_name: string;
 }
 
 interface LeaderboardEntry {
   profileId: string;
   name: string;
+  crewName: string;
   adsUploaded: number;
   cvsDownloaded: number;
   secondRoundsLinkedIn: number;
@@ -20,7 +22,7 @@ interface LeaderboardEntry {
   activeTeamSize: number;
 }
 
-type Metric = keyof Omit<LeaderboardEntry, "profileId" | "name">;
+type Metric = keyof Omit<LeaderboardEntry, "profileId" | "name" | "crewName">;
 
 const METRICS: { key: Metric; label: string; icon: React.ReactNode; suffix?: string }[] = [
   { key: "adsUploaded", label: "Ads Uploaded", icon: <Upload className="w-4 h-4" /> },
@@ -45,7 +47,9 @@ export function Leaderboard() {
         supabase.from("cv_downloads").select("*"),
       ]);
 
-      const profiles: Profile[] = profilesRes.data ?? [];
+      const profiles: Profile[] = (profilesRes.data ?? []).map((p: any) => ({
+        id: p.id, user_id: p.user_id, full_name: p.full_name, crew_name: p.crew_name || "",
+      }));
       const candidates = candidatesRes.data ?? [];
       const activities = activityRes.data ?? [];
       const ads = adsRes.data ?? [];
@@ -66,6 +70,7 @@ export function Leaderboard() {
         return {
           profileId: p.id,
           name: p.full_name,
+          crewName: p.crew_name,
           adsUploaded: userAds.length,
           cvsDownloaded: userCvs.reduce((s, c) => s + c.count, 0),
           secondRoundsLinkedIn: userActivities.reduce((s, a) => s + a.candidates_attending_2nd_round, 0),
@@ -88,6 +93,9 @@ export function Leaderboard() {
     });
     return map;
   }, [entries]);
+
+  const displayName = (entry: LeaderboardEntry) =>
+    entry.crewName ? `${entry.name} (${entry.crewName})` : entry.name;
 
   return (
     <div className="space-y-4">
@@ -116,9 +124,7 @@ export function Leaderboard() {
                   {ranked.map((entry, i) => (
                     <div
                       key={entry.profileId}
-                      className={`flex items-center justify-between py-1.5 px-2 rounded-md ${
-                        i === 0 ? "bg-primary/10" : ""
-                      }`}
+                      className={`flex items-center justify-between py-1.5 px-2 rounded-md ${i === 0 ? "bg-primary/10" : ""}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         {i === 0 ? (
@@ -133,7 +139,7 @@ export function Leaderboard() {
                           </span>
                         )}
                         <span className={`text-xs truncate ${i === 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                          {entry.name}
+                          {displayName(entry)}
                         </span>
                       </div>
                       <span className={`text-xs font-mono flex-shrink-0 ml-2 ${i === 0 ? "font-bold text-primary" : "text-muted-foreground"}`}>
