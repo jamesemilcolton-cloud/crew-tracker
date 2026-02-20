@@ -32,7 +32,7 @@ const Index = () => {
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
   const { profile, signOut } = useAuth();
 
-  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, archiveCandidate } = useCandidates("own");
+  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, archiveCandidate, refetch: refetchOwn } = useCandidates("own");
   const { candidates: allCandidates, loading: allLoading, refetch: refetchAll } = useCandidates("all");
 
   const handleAddCandidate = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
@@ -120,6 +120,7 @@ const Index = () => {
             onUpdateCandidate={handleUpdateCandidate}
             onArchiveCandidate={handleArchiveCandidate}
             loading={ownLoading}
+            onDataDeleted={() => { refetchOwn(); refetchAll(); }}
           />
         )}
         {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} />}

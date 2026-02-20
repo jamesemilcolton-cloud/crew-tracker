@@ -20,6 +20,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [crewName, setCrewName] = useState("");
   const [leaderId, setLeaderId] = useState<string>("");
   const [leaders, setLeaders] = useState<LeaderOption[]>([]);
   const [error, setError] = useState("");
@@ -44,7 +45,12 @@ export default function Auth() {
     setSubmitting(true);
 
     if (isSignUp) {
-      const { error } = await signUp(email, password, fullName, leaderId || null);
+      if (!crewName.trim()) {
+        setError("Crew Name is required.");
+        setSubmitting(false);
+        return;
+      }
+      const { error } = await signUp(email, password, fullName, leaderId || null, crewName.trim());
       if (error) setError(error.message);
     } else {
       const { error } = await signIn(email, password);
@@ -88,10 +94,17 @@ export default function Auth() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
-            <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Crew Name</Label>
+                <Input value={crewName} onChange={(e) => setCrewName(e.target.value)} placeholder="e.g. Alpha Crew" required />
+                <p className="text-[11px] text-muted-foreground">This will be displayed across the app alongside your name.</p>
+              </div>
+            </>
           )}
 
           <div className="space-y-2">

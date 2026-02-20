@@ -4,20 +4,39 @@ import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface PipelineBoardProps {
   trendRange: TrendRange;
   candidates: Candidate[];
   onAddCandidate: (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => Promise<any>;
-  onUpdateCandidate: (id: string, updates: Partial<Candidate>, stageChange?: StageChange) => Promise<any>;
+  onUpdateCandidate: (id: string, updates: Partial<Candidate>, stageChange?: any) => Promise<any>;
   onArchiveCandidate: (id: string) => Promise<void>;
   loading?: boolean;
+  onDataDeleted?: () => void;
 }
 
-export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, loading }: PipelineBoardProps) {
+export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, loading, onDataDeleted }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const { user } = useAuth();
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -42,12 +61,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     const original = candidates.find((c) => c.id === updated.id);
     let stageChange: StageChange | undefined;
     if (original && original.stage !== updated.stage) {
-      stageChange = {
-        from: original.stage,
-        to: updated.stage,
-        date: new Date().toISOString().split("T")[0],
-        note: "Manually updated",
-      };
+      stageChange = { from: original.stage, to: updated.stage, date: new Date().toISOString().split("T")[0], note: "Manually updated" };
     }
     await onUpdateCandidate(updated.id, updated, stageChange);
     setSelectedCandidate(updated);
@@ -67,24 +81,13 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     setDragOverStage(null);
     const candidateId = e.dataTransfer.getData("candidateId");
     if (!candidateId) return;
-
     const c = candidates.find((c) => c.id === candidateId);
     if (!c || c.stage === targetStage) return;
-
     const currentIdx = STAGES_ORDER.indexOf(c.stage);
     const targetIdx = STAGES_ORDER.indexOf(targetStage);
     if (targetIdx <= currentIdx) return;
-
-    const stageChange: StageChange = {
-      from: c.stage,
-      to: targetStage,
-      date: new Date().toISOString().split("T")[0],
-    };
-
-    const updatedStartDate = (targetStage === "start" && !c.potentialStartDate)
-      ? new Date().toISOString().split("T")[0]
-      : c.potentialStartDate;
-
+    const stageChange: StageChange = { from: c.stage, to: targetStage, date: new Date().toISOString().split("T")[0] };
+    const updatedStartDate = (targetStage === "start" && !c.potentialStartDate) ? new Date().toISOString().split("T")[0] : c.potentialStartDate;
     await onUpdateCandidate(candidateId, {
       stage: targetStage,
       potentialStartDate: targetStage === "start" ? (c.potentialStartDate || new Date().toISOString().split("T")[0]) : updatedStartDate,
@@ -97,9 +100,40 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     setDragOverStage(stage);
   }, []);
 
-  const handleDragLeave = useCallback(() => {
-    setDragOverStage(null);
-  }, []);
+  const handleDragLeave = useCallback(() => { setDragOverStage(null); }, []);
+
+  const handleDeleteAllData = async () => {
+    if (!user || deleteConfirm !== "DELETE") return;
+    setDeleting(true);
+    try {
+      // Delete in order: stage history, candidates, linkedin activity, ad uploads (cv_downloads depend on ad_uploads), cv_downloads
+      const { data: myAds } = await supabase.from("ad_uploads").select("id").eq("user_id", user.id);
+      const adIds = (myAds ?? []).map(a => a.id);
+      if (adIds.length > 0) {
+        await supabase.from("cv_downloads").delete().in("ad_upload_id", adIds);
+      }
+      await supabase.from("cv_downloads").delete().eq("user_id", user.id);
+
+      const { data: myCandidates } = await supabase.from("candidates").select("id").eq("user_id", user.id);
+      const candidateIds = (myCandidates ?? []).map(c => c.id);
+      if (candidateIds.length > 0) {
+        await supabase.from("candidate_stage_history").delete().in("candidate_id", candidateIds);
+      }
+      await supabase.from("candidates").delete().eq("user_id", user.id);
+      await supabase.from("linkedin_activity").delete().eq("user_id", user.id);
+      await supabase.from("ad_uploads").delete().eq("user_id", user.id);
+
+      toast.success("All your data has been deleted.");
+      setDeleteOpen(false);
+      setDeleteConfirm("");
+      onDataDeleted?.();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete data.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading pipeline...</div>;
@@ -107,20 +141,52 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-end px-1">
+      <div className="flex items-center justify-between px-1">
+        <Dialog open={deleteOpen} onOpenChange={(open) => { setDeleteOpen(open); if (!open) setDeleteConfirm(""); }}>
+          <DialogTrigger asChild>
+            <Button variant="destructive" size="sm" className="gap-2">
+              <Trash2 className="w-4 h-4" />
+              Delete All My Data
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete All My Data</DialogTitle>
+              <DialogDescription>
+                This will permanently delete all your candidates, LinkedIn logs, crew members, and activity history. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-muted-foreground">Type <span className="font-mono font-bold text-foreground">DELETE</span> to confirm:</p>
+              <Input
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="Type DELETE"
+                className="font-mono"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                disabled={deleteConfirm !== "DELETE" || deleting}
+                onClick={handleDeleteAllData}
+              >
+                {deleting ? "Deleting…" : "Permanently Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <NewCandidateForm onAdd={handleAdd} />
       </div>
 
-      {/* TOP SECTION: Pipeline Board + Upcoming Starts */}
+      {/* TOP SECTION: Pipeline Board */}
       <div className="flex gap-4 overflow-hidden">
-        {/* Pipeline columns */}
         <div className="flex gap-3 overflow-x-auto flex-1 pb-2 custom-scrollbar">
           {columns.map(({ stage, config, candidates: stageCandidates }) => (
             <div
               key={stage}
-              className={`pipeline-column flex-shrink-0 transition-all duration-200 ${
-                dragOverStage === stage ? "ring-2 ring-primary/50 bg-primary/5" : ""
-              }`}
+              className={`pipeline-column flex-shrink-0 transition-all duration-200 ${dragOverStage === stage ? "ring-2 ring-primary/50 bg-primary/5" : ""}`}
               onDrop={(e) => handleDrop(stage, e)}
               onDragOver={(e) => handleDragOver(stage, e)}
               onDragLeave={handleDragLeave}
@@ -142,15 +208,9 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
           ))}
         </div>
 
-        {/* Right: Candidate Detail (shown when a candidate is selected) */}
         {selectedCandidate && (
           <div className="flex-shrink-0 w-72">
-            <CandidateDetail
-              candidate={selectedCandidate}
-              onClose={() => setSelectedCandidate(null)}
-              onUpdate={handleUpdate}
-              onArchive={handleArchive}
-            />
+            <CandidateDetail candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={handleUpdate} onArchive={handleArchive} />
           </div>
         )}
       </div>
