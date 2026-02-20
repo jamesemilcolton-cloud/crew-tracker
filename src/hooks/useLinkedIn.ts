@@ -21,25 +21,17 @@ export function useLinkedIn() {
     ]);
 
     setActivities((actRes.data ?? []).map((a) => ({
-      id: a.id,
-      date: a.activity_date,
-      freeAdsUploaded: a.free_ads_uploaded,
-      paidAdsUploaded: a.paid_ads_uploaded,
-      cvsDownloaded: a.cvs_downloaded,
+      id: a.id, date: a.activity_date, freeAdsUploaded: a.free_ads_uploaded,
+      paidAdsUploaded: a.paid_ads_uploaded, cvsDownloaded: a.cvs_downloaded,
       candidatesAttending2ndRound: a.candidates_attending_2nd_round,
     })));
 
     setAdUploads((adRes.data ?? []).map((a) => ({
-      id: a.id,
-      date: a.upload_date,
-      type: a.ad_type as "free" | "paid",
+      id: a.id, date: a.upload_date, type: a.ad_type as "free" | "paid",
     })));
 
     setCvDownloads((cvRes.data ?? []).map((c) => ({
-      id: c.id,
-      downloadDate: c.download_date,
-      adUploadId: c.ad_upload_id,
-      count: c.count,
+      id: c.id, downloadDate: c.download_date, adUploadId: c.ad_upload_id, count: c.count,
     })));
 
     setLoading(false);
@@ -47,9 +39,9 @@ export function useLinkedIn() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const logActivity = useCallback(async (type: "free" | "paid" | "attend") => {
+  const logActivity = useCallback(async (type: "free" | "paid" | "attend", dateOverride?: string) => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = dateOverride || new Date().toISOString().split("T")[0];
 
     if (type === "free" || type === "paid") {
       await supabase.from("ad_uploads").insert({
@@ -98,7 +90,6 @@ export function useLinkedIn() {
       count,
     });
 
-    // Update raw activity tracking
     const { data: existing } = await supabase
       .from("linkedin_activity")
       .select("*")
@@ -141,28 +132,17 @@ export function useLinkedInAll() {
     ]);
 
     setActivities((actRes.data ?? []).map((a) => ({
-      id: a.id,
-      user_id: a.user_id,
-      date: a.activity_date,
-      freeAdsUploaded: a.free_ads_uploaded,
-      paidAdsUploaded: a.paid_ads_uploaded,
-      cvsDownloaded: a.cvs_downloaded,
-      candidatesAttending2ndRound: a.candidates_attending_2nd_round,
+      id: a.id, user_id: a.user_id, date: a.activity_date,
+      freeAdsUploaded: a.free_ads_uploaded, paidAdsUploaded: a.paid_ads_uploaded,
+      cvsDownloaded: a.cvs_downloaded, candidatesAttending2ndRound: a.candidates_attending_2nd_round,
     })));
 
     setAdUploads((adRes.data ?? []).map((a) => ({
-      id: a.id,
-      user_id: a.user_id,
-      date: a.upload_date,
-      type: a.ad_type as "free" | "paid",
+      id: a.id, user_id: a.user_id, date: a.upload_date, type: a.ad_type as "free" | "paid",
     })));
 
     setCvDownloads((cvRes.data ?? []).map((c) => ({
-      id: c.id,
-      user_id: c.user_id,
-      downloadDate: c.download_date,
-      adUploadId: c.ad_upload_id,
-      count: c.count,
+      id: c.id, user_id: c.user_id, downloadDate: c.download_date, adUploadId: c.ad_upload_id, count: c.count,
     })));
   }, []);
 

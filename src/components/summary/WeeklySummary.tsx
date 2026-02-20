@@ -6,8 +6,9 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Minus, AlertTriangle, Trophy, Users, Target } from "lucide-react";
-import { startOfWeek, subWeeks, parseISO, format } from "date-fns";
+import { Download, TrendingUp, TrendingDown, Minus, AlertTriangle, Trophy, Users, Target, GitBranch } from "lucide-react";
+import { startOfWeek, parseISO, format } from "date-fns";
+import { CrewBubbleSnapshot } from "@/components/crew/CrewBubbleForecast";
 
 interface Profile {
   id: string;
@@ -16,13 +17,10 @@ interface Profile {
   leader_id: string | null;
 }
 
-// Get Monday-Sunday boundaries for a given week offset (0 = this week)
 function getWeekBounds(offset: number = 0) {
   const now = new Date();
   const monday = startOfWeek(now, { weekStartsOn: 1 });
-  if (offset !== 0) {
-    monday.setDate(monday.getDate() - offset * 7);
-  }
+  if (offset !== 0) monday.setDate(monday.getDate() - offset * 7);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
@@ -54,9 +52,7 @@ export function WeeklySummary() {
   const summaryRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  // Team-related state
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
-  const [teamCandidates, setTeamCandidates] = useState<Candidate[]>([]);
 
   const isLeader = !!profile?.leader_id === false && allProfiles.some((p) => p.leader_id === profile?.id);
 
@@ -71,8 +67,6 @@ export function WeeklySummary() {
   const thisWeek = useMemo(() => getWeekBounds(0), []);
   const lastWeek = useMemo(() => getWeekBounds(1), []);
 
-  // Use all candidates (including archived) for historical accuracy
-  // The useCandidates hook filters archived, so we need to fetch all for summary
   const [allOwnCandidates, setAllOwnCandidates] = useState<Candidate[]>([]);
 
   useEffect(() => {
@@ -96,23 +90,14 @@ export function WeeklySummary() {
         historyMap[h.candidate_id].push(h);
       });
       setAllOwnCandidates(rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        phone: r.phone,
-        notes: r.notes,
-        source: r.source as any,
-        stage: r.stage as PipelineStage,
-        status: r.status as any,
-        potentialStartDate: r.potential_start_date,
-        hasSalesPitchAccess: r.has_sales_pitch_access,
-        hasEvoAppAccess: r.has_evo_app_access,
-        recruitedBy: r.recruited_by,
-        archivedAt: r.archived_at,
+        id: r.id, name: r.name, phone: r.phone, notes: r.notes,
+        source: r.source as any, stage: r.stage as PipelineStage,
+        status: r.status as any, potentialStartDate: r.potential_start_date,
+        hasSalesPitchAccess: r.has_sales_pitch_access, hasEvoAppAccess: r.has_evo_app_access,
+        recruitedBy: r.recruited_by, archivedAt: r.archived_at,
         history: (historyMap[r.id] ?? []).map((h: any) => ({
-          from: h.from_stage as PipelineStage,
-          to: h.to_stage as PipelineStage,
-          date: h.changed_at?.split("T")[0] ?? "",
-          note: h.note,
+          from: h.from_stage as PipelineStage, to: h.to_stage as PipelineStage,
+          date: h.changed_at?.split("T")[0] ?? "", note: h.note,
         })),
         createdAt: r.created_at,
       })));
@@ -171,22 +156,6 @@ export function WeeklySummary() {
   const crewSummary = useMemo(() => {
     if (!isLeader || !profile) return null;
 
-    const teamProfileIds = allProfiles
-      .filter((p) => p.leader_id === profile.id)
-      .map((p) => p.user_id);
-
-    const allTeamUserIds = [user!.id, ...teamProfileIds];
-
-    // Use allCandidates (which includes all users' candidates)
-    const teamCands = allCandidates.filter((c) =>
-      allTeamUserIds.includes(c.recruitedBy || "") ||
-      allTeamUserIds.some((uid) => {
-        // Check if candidate belongs to any team member
-        return true; // simplified - we need the user_id on candidates
-      })
-    );
-
-    // Count team members by looking at candidates with start/solo/promoted stages recruited by team
     const activeTeam = allCandidates.filter((c) =>
       c.recruitedBy === profile.id && ["start", "solo", "promoted"].includes(c.stage)
     );
@@ -204,28 +173,18 @@ export function WeeklySummary() {
       "promoted", thisWeek.start, thisWeek.end
     );
 
-    // Net growth = starts - (archived this week)
-    const startsLW = countInRange(
-      allCandidates.filter((c) => c.recruitedBy === profile.id),
-      "start", lastWeek.start, lastWeek.end
-    );
-    const netGrowth = startsThisWeek - startsLW; // simplified
-
     return { totalTeamSize, brandAmbassadors, leaders, netGrowth: startsThisWeek, startsThisWeek, promotionsThisWeek };
-  }, [isLeader, profile, allCandidates, allProfiles, thisWeek, lastWeek, user]);
+  }, [isLeader, profile, allCandidates, thisWeek]);
 
   // SECTION 4: Personal Best
   const personalBest = useMemo(() => {
-    // Calculate weekly totals for all historical weeks
     const records: { metric: string; previousBest: number; current: number }[] = [];
-
     const trackMetrics: { key: PipelineStage; label: string }[] = [
       { key: "obs", label: "OBs" },
       { key: "start", label: "Starts" },
       { key: "promoted", label: "Promotions" },
     ];
 
-    // Go back up to 52 weeks to find historical bests
     for (const { key, label } of trackMetrics) {
       let historicalBest = 0;
       for (let w = 1; w <= 52; w++) {
@@ -281,11 +240,7 @@ export function WeeklySummary() {
       const { jsPDF } = await import("jspdf");
 
       const element = summaryRef.current;
-      const canvas = await html2canvas(element, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
-      });
+      const canvas = await html2canvas(element, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
@@ -339,13 +294,7 @@ export function WeeklySummary() {
     <div className="space-y-4">
       {/* Download Button */}
       <div className="flex justify-end">
-        <Button
-          onClick={handleDownloadPDF}
-          disabled={exporting}
-          variant="outline"
-          size="sm"
-          className="gap-2"
-        >
+        <Button onClick={handleDownloadPDF} disabled={exporting} variant="outline" size="sm" className="gap-2">
           <Download className="w-4 h-4" />
           {exporting ? "Generating…" : "Download Weekly Summary (PDF)"}
         </Button>
@@ -439,6 +388,19 @@ export function WeeklySummary() {
             </CardContent>
           </Card>
         )}
+
+        {/* SECTION: Crew Bubble Snapshot */}
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-primary" />
+              Crew Structure
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CrewBubbleSnapshot candidates={allCandidates} />
+          </CardContent>
+        </Card>
 
         {/* SECTION 4: Personal Best (only if records achieved) */}
         {personalBest.length > 0 && (
