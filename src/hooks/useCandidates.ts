@@ -47,11 +47,15 @@ export function useCandidates(scope: "own" | "all" = "own") {
     if (!rows) { setLoading(false); return; }
 
     const ids = rows.map((r) => r.id);
-    const { data: historyRows } = await supabase
-      .from("candidate_stage_history")
-      .select("*")
-      .in("candidate_id", ids.length > 0 ? ids : ["__none__"])
-      .order("changed_at", { ascending: true });
+    let historyRows: any[] = [];
+    if (ids.length > 0) {
+      const { data } = await supabase
+        .from("candidate_stage_history")
+        .select("*")
+        .in("candidate_id", ids)
+        .order("changed_at", { ascending: true });
+      historyRows = data ?? [];
+    }
 
     const historyMap: Record<string, any[]> = {};
     (historyRows ?? []).forEach((h) => {
