@@ -8,6 +8,7 @@ interface Profile {
   full_name: string;
   leader_id: string | null;
   crew_name: string;
+  created_at: string;
 }
 
 interface AuthContextType {

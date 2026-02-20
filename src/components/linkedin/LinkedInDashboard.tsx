@@ -18,9 +18,10 @@ import { cn } from "@/lib/utils";
 
 interface LinkedInDashboardProps {
   trendRange: TrendRange;
+  signupDate?: Date;
 }
 
-export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
+export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardProps) {
   const { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload } = useLinkedIn();
 
   const [cvModalOpen, setCvModalOpen] = useState(false);
@@ -33,25 +34,28 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
   const [adUploadDate, setAdUploadDate] = useState<Date>(new Date());
 
   const filteredActivities = useMemo(() => {
+    if (trendRange === "all") {
+      if (!signupDate) return activities;
+      return activities.filter((a) => new Date(a.date) >= signupDate);
+    }
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
-    if (trendRange === "all") return activities;
     const now = new Date();
     const cutoff = new Date(now);
     cutoff.setDate(now.getDate() - option.weeks * 7);
     return activities.filter((a) => new Date(a.date) >= cutoff);
-  }, [activities, trendRange]);
+  }, [activities, trendRange, signupDate]);
 
   const rangeLabel = TREND_OPTIONS.find((o) => o.value === trendRange)?.label ?? "";
   const isThisWeek = trendRange === "this-week";
 
   const cutoffDate = useMemo(() => {
+    if (trendRange === "all") return signupDate ?? null;
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
-    if (trendRange === "all") return null;
     const now = new Date();
     const cutoff = new Date(now);
     cutoff.setDate(now.getDate() - option.weeks * 7);
     return cutoff;
-  }, [trendRange]);
+  }, [trendRange, signupDate]);
 
   const filteredAdUploads = useMemo(() => {
     if (!cutoffDate) return adUploads;
