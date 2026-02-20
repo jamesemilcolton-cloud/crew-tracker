@@ -27,9 +27,10 @@ const FUNNEL_COLORS: Record<string, string> = {
 interface PipelineAnalyticsProps {
   candidates: Candidate[];
   trendRange: TrendRange;
+  signupDate?: Date;
 }
 
-export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsProps) {
+export function PipelineAnalytics({ candidates, trendRange, signupDate }: PipelineAnalyticsProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const dateRange = useMemo(() => {
@@ -45,11 +46,11 @@ export function PipelineAnalytics({ candidates, trendRange }: PipelineAnalyticsP
       prevSaturday.setDate(prevMonday.getDate() + 5);
       return { start: prevMonday, end: prevSaturday };
     }
-    if (trendRange === "all") return { start: new Date(0), end: thisSaturday };
+    if (trendRange === "all") return { start: signupDate ?? new Date(0), end: thisSaturday };
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
     const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
     return { start: rangeStart, end: thisSaturday };
-  }, [trendRange]);
+  }, [trendRange, signupDate]);
 
   // History-driven stage counts
   const stageCounts = useMemo(() => {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Candidate } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
@@ -31,6 +31,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
   const { profile, signOut } = useAuth();
+  const signupDate = useMemo(() => profile?.created_at ? new Date(profile.created_at) : undefined, [profile?.created_at]);
 
   const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, archiveCandidate, refetch: refetchOwn } = useCandidates("own");
   const { candidates: allCandidates, loading: allLoading, refetch: refetchAll } = useCandidates("all");
@@ -121,9 +122,10 @@ const Index = () => {
             onArchiveCandidate={handleArchiveCandidate}
             loading={ownLoading}
             onDataDeleted={() => { refetchOwn(); refetchAll(); }}
+            signupDate={signupDate}
           />
         )}
-        {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} />}
+        {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} signupDate={signupDate} />}
         {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
         {activeTab === "leaderboard" && <Leaderboard />}
       </main>

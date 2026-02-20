@@ -28,9 +28,10 @@ interface PipelineBoardProps {
   onArchiveCandidate: (id: string) => Promise<void>;
   loading?: boolean;
   onDataDeleted?: () => void;
+  signupDate?: Date;
 }
 
-export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, loading, onDataDeleted }: PipelineBoardProps) {
+export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, loading, onDataDeleted, signupDate }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -218,7 +219,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
       {/* BOTTOM SECTION: Funnel Chart + Upcoming Starts side by side */}
       <div className="flex gap-4">
         <div className="flex-1 min-w-0">
-          <PipelineAnalytics candidates={candidates} trendRange={trendRange} />
+          <PipelineAnalytics candidates={candidates} trendRange={trendRange} signupDate={signupDate} />
         </div>
         <div className="flex-shrink-0 w-72">
           <div className="glass-panel p-4 overflow-y-auto custom-scrollbar max-h-[50vh]">
