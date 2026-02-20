@@ -5,12 +5,16 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, Cell,
 } from "recharts";
-import { Plus, Activity, BarChart3 } from "lucide-react";
+import { Plus, Activity, BarChart3, CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface LinkedInDashboardProps {
   trendRange: TrendRange;
@@ -22,6 +26,11 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [cvModalAdId, setCvModalAdId] = useState("");
   const [cvModalCount, setCvModalCount] = useState("1");
+
+  // Ad upload date confirmation state
+  const [adDateModalOpen, setAdDateModalOpen] = useState(false);
+  const [adDateModalType, setAdDateModalType] = useState<"free" | "paid">("free");
+  const [adUploadDate, setAdUploadDate] = useState<Date>(new Date());
 
   const filteredActivities = useMemo(() => {
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
@@ -49,7 +58,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     return adUploads.filter((a) => new Date(a.date) >= cutoffDate);
   }, [adUploads, cutoffDate]);
 
-  // Filter CV downloads by their attributed ad upload date, NOT download date
   const filteredCVDownloads = useMemo(() => {
     if (!cutoffDate) return cvDownloads;
     return cvDownloads.filter((cv) => {
@@ -59,10 +67,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     });
   }, [cvDownloads, adUploads, cutoffDate]);
 
-  // CVs grouped by ad upload date (attribution) — this is the PRIMARY source for all graphs
-  // No longer using download date for any graph aggregation
-
-  // CVs grouped by ad upload date (attribution)
   const cvsPerAdDate = useMemo(() => {
     const map: Record<string, number> = {};
     filteredCVDownloads.forEach((cv) => {
@@ -135,7 +139,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       return weekStart.toISOString().split("T")[0];
     };
 
-    // Use ad upload date (attribution) for CV aggregation
     Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
       const key = getWeekKey(adDate);
       const ws = new Date(key);
@@ -153,31 +156,33 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
     return Object.values(weeks).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ period, cvs, interviews }) => ({ period, cvs, interviews }));
   }, [filteredActivities, isThisWeek, cvsPerAdDate]);
 
-  // === Best Day to Upload: horizontal bar chart data (Mon-Sun, CVs attributed by ad upload day) ===
+  // === Best Day to Upload: ALL-TIME data, layered free/paid bars ===
   const bestDayBarData = useMemo(() => {
     const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const dayMap = [0, 0, 0, 0, 0, 0, 0]; // Mon=0 ... Sun=6
+    const freeDayMap = [0, 0, 0, 0, 0, 0, 0];
+    const paidDayMap = [0, 0, 0, 0, 0, 0, 0];
 
-    filteredCVDownloads.forEach((cv) => {
+    // Use ALL cv downloads (not filtered) for all-time accuracy
+    cvDownloads.forEach((cv) => {
       const ad = adUploads.find((a) => a.id === cv.adUploadId);
       if (ad) {
-        const jsDay = new Date(ad.date).getDay(); // 0=Sun
-        const idx = jsDay === 0 ? 6 : jsDay - 1; // convert to Mon=0
-        dayMap[idx] += cv.count;
+        const jsDay = new Date(ad.date).getDay();
+        const idx = jsDay === 0 ? 6 : jsDay - 1;
+        if (ad.type === "free") freeDayMap[idx] += cv.count;
+        else paidDayMap[idx] += cv.count;
       }
     });
 
-    const maxVal = Math.max(...dayMap);
     return dayNames.map((name, i) => ({
       day: name,
-      cvs: dayMap[i],
-      isMax: dayMap[i] === maxVal && maxVal > 0,
+      paid: paidDayMap[i],
+      free: freeDayMap[i],
+      total: freeDayMap[i] + paidDayMap[i],
     }));
-  }, [filteredCVDownloads, adUploads]);
+  }, [cvDownloads, adUploads]);
 
   // === Free vs Paid Performance (outcome-based) ===
   const freeVsPaidData = useMemo(() => {
-    // CVs from free ads vs paid ads
     let freeCVs = 0;
     let paidCVs = 0;
 
@@ -189,7 +194,6 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       }
     });
 
-    // Count ads in range by type
     const freeAdsCount = filteredAdUploads.filter((a) => a.type === "free").length;
     const paidAdsCount = filteredAdUploads.filter((a) => a.type === "paid").length;
 
@@ -201,10 +205,7 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         { type: "Free Ads", cvs: freeCVs, color: "hsl(172 66% 50%)" },
         { type: "Paid Ads", cvs: paidCVs, color: "hsl(217 91% 60%)" },
       ],
-      freeCVsPerAd,
-      paidCVsPerAd,
-      freeAdsCount,
-      paidAdsCount,
+      freeCVsPerAd, paidCVsPerAd, freeAdsCount, paidAdsCount,
     };
   }, [filteredCVDownloads, adUploads, filteredAdUploads]);
 
@@ -226,9 +227,22 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
       setCvModalCount("1");
       return;
     }
-    if (type === "free" || type === "paid" || type === "attend") {
-      await logActivity(type as "free" | "paid" | "attend");
+    if (type === "free" || type === "paid") {
+      // Open date confirmation dialog instead of instant logging
+      setAdDateModalType(type);
+      setAdUploadDate(new Date());
+      setAdDateModalOpen(true);
+      return;
     }
+    if (type === "attend") {
+      await logActivity("attend");
+    }
+  };
+
+  const handleAdDateConfirm = async () => {
+    const dateStr = format(adUploadDate, "yyyy-MM-dd");
+    await logActivity(adDateModalType, dateStr);
+    setAdDateModalOpen(false);
   };
 
   const handleCvSubmit = async () => {
@@ -272,6 +286,51 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
           ))}
         </div>
       </div>
+
+      {/* Ad Upload Date Confirmation Modal */}
+      <Dialog open={adDateModalOpen} onOpenChange={setAdDateModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Confirm {adDateModalType === "free" ? "Free" : "Paid"} Ad Upload Date
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Ad Upload Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !adUploadDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {adUploadDate ? format(adUploadDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={adUploadDate}
+                    onSelect={(d) => d && setAdUploadDate(d)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-[11px] text-muted-foreground">
+                This date will be used for ad attribution. Confirm or adjust before submitting.
+              </p>
+            </div>
+            <Button onClick={handleAdDateConfirm} className="w-full">
+              Confirm & Log {adDateModalType === "free" ? "Free" : "Paid"} Ad
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* CV Modal */}
       <Dialog open={cvModalOpen} onOpenChange={setCvModalOpen}>
@@ -331,26 +390,29 @@ export function LinkedInDashboard({ trendRange }: LinkedInDashboardProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* New bar charts row */}
+      {/* Bar charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Best Day to Upload - Horizontal Bar Chart */}
+        {/* Best Day to Upload — ALL-TIME, Paid behind Free overlay */}
         <div className="glass-panel p-4">
           <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
             <BarChart3 className="w-3.5 h-3.5 text-primary" />
-            Best Day to Upload (CVs Attributed)
+            Best Day to Upload (All-Time CVs)
           </h4>
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={bestDayBarData} layout="vertical" margin={{ left: 10, right: 16, top: 4, bottom: 4 }}>
               <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
               <YAxis dataKey="day" type="category" tick={{ fontSize: 11, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} width={36} />
               <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
-              <Bar dataKey="cvs" name="CVs Attributed" radius={[0, 4, 4, 0]} maxBarSize={18}>
-                {bestDayBarData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.isMax ? "hsl(172 66% 50%)" : "hsl(217 91% 60% / 0.6)"} />
-                ))}
-              </Bar>
+              <Legend wrapperStyle={{ fontSize: "11px" }} />
+              {/* Paid as background (wider) */}
+              <Bar dataKey="paid" name="Paid Ads CVs" fill="hsl(217 91% 60% / 0.45)" radius={[0, 4, 4, 0]} maxBarSize={22} />
+              {/* Free overlaid on top */}
+              <Bar dataKey="free" name="Free Ads CVs" fill="hsl(172 66% 50%)" radius={[0, 4, 4, 0]} maxBarSize={22} />
             </BarChart>
           </ResponsiveContainer>
+          <p className="text-[10px] text-muted-foreground/60 mt-1 text-center">
+            Based on all-time CV attribution data. Continuously updated.
+          </p>
         </div>
 
         {/* Free vs Paid Performance (Outcome-Based) */}
