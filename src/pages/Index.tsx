@@ -6,8 +6,9 @@ import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
 import { WeeklyEmailToggle } from "@/components/settings/WeeklyEmailToggle";
 import { Leaderboard } from "@/components/Leaderboard";
+import { WeeklySummary } from "@/components/summary/WeeklySummary";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, Trophy, ChevronDown, LogOut } from "lucide-react";
+import { Users, Linkedin, GitBranch, Trophy, ChevronDown, LogOut, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -17,9 +18,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "pipeline" | "linkedin" | "crew" | "leaderboard";
+type Tab = "summary" | "pipeline" | "linkedin" | "crew" | "leaderboard";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: "summary", label: "Summary", icon: <BarChart3 className="w-4 h-4" /> },
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
   { id: "linkedin", label: "LinkedIn", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
@@ -27,7 +29,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("pipeline");
+  const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
   const { profile, signOut } = useAuth();
 
@@ -113,6 +115,7 @@ const Index = () => {
       </header>
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
+        {activeTab === "summary" && <WeeklySummary />}
         {activeTab === "pipeline" && (
           <PipelineBoard
             trendRange={trendRange}
