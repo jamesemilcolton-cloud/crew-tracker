@@ -1,13 +1,13 @@
 import { useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Candidate } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
-import { Leaderboard } from "@/components/Leaderboard";
 import { WeeklySummary } from "@/components/summary/WeeklySummary";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, Trophy, ChevronDown, LogOut, BarChart3 } from "lucide-react";
+import { Users, Linkedin, GitBranch, ChevronDown, LogOut, BarChart3, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -17,17 +17,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "summary" | "pipeline" | "linkedin" | "crew" | "leaderboard";
+type Tab = "summary" | "pipeline" | "linkedin" | "crew";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "summary", label: "Summary", icon: <BarChart3 className="w-4 h-4" /> },
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
   { id: "linkedin", label: "LinkedIn", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
-  { id: "leaderboard", label: "Leaderboard", icon: <Trophy className="w-4 h-4" /> },
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
   const { profile, signOut } = useAuth();
@@ -59,10 +59,13 @@ const Index = () => {
         <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/home")} className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-4 h-4 mr-1" /> Modules
+              </Button>
               <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Users className="w-4 h-4 text-primary" />
               </div>
-              <h1 className="text-sm font-semibold text-foreground tracking-tight">Mission Control</h1>
+              <h1 className="text-sm font-semibold text-foreground tracking-tight">Recruitment</h1>
             </div>
             <nav className="flex items-center gap-1">
               {tabs.map((tab) => (
@@ -127,7 +130,7 @@ const Index = () => {
         )}
         {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} signupDate={signupDate} />}
         {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
-        {activeTab === "leaderboard" && <Leaderboard />}
+        
       </main>
     </div>
   );
