@@ -1,4 +1,1 @@
 project_id = "laxptgjxqafztiwjmdbb"
-
-[functions.weekly-kpi-email]
-verify_jwt = false
