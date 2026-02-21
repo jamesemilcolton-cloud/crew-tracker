@@ -156,6 +156,11 @@ export function WeeklySummary() {
     return means;
   }
 
+  // Target gauge values for deviation analysis
+  const TARGET_GAUGES: Record<string, number> = {
+    doors: 120, spoken: 80, presentations: 30, closes: 25, tablets: 10, sales: 3,
+  };
+
   // Funnel conversion % between adjacent stages
   const FUNNEL_PAIRS = [
     { from: "doors", to: "spoken", label: "D→S" },
@@ -165,6 +170,12 @@ export function WeeklySummary() {
     { from: "tablets", to: "sales", label: "T→S" },
   ] as const;
 
+  // Target conversion benchmarks derived from TARGET_GAUGES
+  const TARGET_CONVERSIONS = FUNNEL_PAIRS.map(({ from, to, label }) => ({
+    from, to, label,
+    pct: Math.round((TARGET_GAUGES[to] / TARGET_GAUGES[from]) * 100),
+  }));
+
   function calcFunnelConversions(means: Record<string, number>) {
     return FUNNEL_PAIRS.map(({ from, to, label }) => {
       const pct = means[from] > 0 ? Math.round((means[to] / means[from]) * 100) : 0;
@@ -172,33 +183,44 @@ export function WeeklySummary() {
     });
   }
 
-  function findWeakestConversion(conversions: ReturnType<typeof calcFunnelConversions>) {
-    return conversions.reduce((min, c) => c.pct < min.pct ? c : min, conversions[0]);
+  function calcDeviations(actuals: ReturnType<typeof calcFunnelConversions>) {
+    return actuals.map((a, i) => ({
+      ...a,
+      targetPct: TARGET_CONVERSIONS[i].pct,
+      gap: TARGET_CONVERSIONS[i].pct - a.pct, // positive = underperforming
+    }));
   }
 
-  function calcSimulation(means: Record<string, number>, weakest: { from: string; to: string; pct: number }, allConversions: ReturnType<typeof calcFunnelConversions>) {
-    // Raise weakest conversion to average of the other conversions
-    const otherPcts = allConversions.filter(c => !(c.from === weakest.from && c.to === weakest.to)).map(c => c.pct);
-    const avgOther = otherPcts.length > 0 ? Math.round(otherPcts.reduce((a, b) => a + b, 0) / otherPcts.length) : weakest.pct;
-    const improvedPct = Math.max(avgOther, weakest.pct); // don't decrease
+  function findWeakestDeviation(deviations: ReturnType<typeof calcDeviations>) {
+    return deviations.reduce((worst, d) => d.gap > worst.gap ? d : worst, deviations[0]);
+  }
 
+  function calcSimulation(
+    means: Record<string, number>,
+    weakest: ReturnType<typeof calcDeviations>[0],
+    actuals: ReturnType<typeof calcFunnelConversions>
+  ) {
     const adjusted = { ...means };
     const funnel = ["doors", "spoken", "presentations", "closes", "tablets", "sales"];
     const weakIdx = funnel.indexOf(weakest.to);
 
-    // Apply improved conversion at the weak step, then propagate downstream
-    adjusted[weakest.to] = Math.round(adjusted[weakest.from] * (improvedPct / 100));
+    // Raise weakest stage conversion to its TARGET conversion %
+    adjusted[weakest.to] = Math.round(adjusted[weakest.from] * (weakest.targetPct / 100));
+
+    // Propagate downstream using actual conversion ratios
     for (let i = weakIdx; i < funnel.length - 1; i++) {
-      const ratio = means[funnel[i]] > 0 ? means[funnel[i + 1]] / means[funnel[i]] : 0;
+      const actualConv = actuals.find(c => c.from === funnel[i] && c.to === funnel[i + 1]);
+      const ratio = actualConv ? actualConv.pct / 100 : 0;
       adjusted[funnel[i + 1]] = Math.round(adjusted[funnel[i]] * ratio);
     }
 
-    return { adjusted, improvedPct };
+    return adjusted;
   }
 
   const individualMeans = useMemo(() => calcMeanGauges(ownSalesEntries), [ownSalesEntries]);
   const individualConversions = useMemo(() => individualMeans ? calcFunnelConversions(individualMeans) : null, [individualMeans]);
-  const individualWeakest = useMemo(() => individualConversions ? findWeakestConversion(individualConversions) : null, [individualConversions]);
+  const individualDeviations = useMemo(() => individualConversions ? calcDeviations(individualConversions) : null, [individualConversions]);
+  const individualWeakest = useMemo(() => individualDeviations ? findWeakestDeviation(individualDeviations) : null, [individualDeviations]);
   const individualSim = useMemo(() => {
     if (!individualMeans || !individualWeakest || !individualConversions) return null;
     return calcSimulation(individualMeans, individualWeakest, individualConversions);
@@ -209,7 +231,8 @@ export function WeeklySummary() {
     return calcMeanGauges(crewSalesEntries);
   }, [crewSalesEntries, userRole]);
   const crewConversions = useMemo(() => crewMeans ? calcFunnelConversions(crewMeans) : null, [crewMeans]);
-  const crewWeakest = useMemo(() => crewConversions ? findWeakestConversion(crewConversions) : null, [crewConversions]);
+  const crewDeviations = useMemo(() => crewConversions ? calcDeviations(crewConversions) : null, [crewConversions]);
+  const crewWeakest = useMemo(() => crewDeviations ? findWeakestDeviation(crewDeviations) : null, [crewDeviations]);
   const crewSim = useMemo(() => {
     if (!crewMeans || !crewWeakest || !crewConversions) return null;
     return calcSimulation(crewMeans, crewWeakest, crewConversions);
@@ -497,48 +520,53 @@ export function WeeklySummary() {
             {/* YOUR PERFORMANCE */}
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Performance</div>
 
-            {individualMeans && individualConversions && individualWeakest ? (
+            {individualMeans && individualDeviations && individualWeakest ? (
               <>
-                {/* Conversion % row */}
-                <div className="flex items-center gap-1 flex-wrap text-[11px] text-muted-foreground">
-                  {individualConversions.map((c, i) => (
-                    <span key={c.label} className="inline-flex items-center gap-0.5">
-                      <span className={`font-semibold ${c.from === individualWeakest.from && c.to === individualWeakest.to ? "text-destructive" : "text-muted-foreground"}`}>
-                        {c.pct}%
-                      </span>
-                      {i < individualConversions.length - 1 && <span className="text-border mx-1">|</span>}
-                    </span>
-                  ))}
-                </div>
-                {/* Gauge row */}
-                <div className="flex items-center gap-1 flex-wrap text-xs">
-                  {GAUGE_KEYS.map((key, i) => (
-                    <span key={key} className="inline-flex items-center gap-0.5">
-                      <span className="text-muted-foreground">{GAUGE_LABELS[key] === "Presentations" ? "Pres" : GAUGE_LABELS[key] === "Tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
-                      <span className="font-bold text-foreground">{individualMeans[key]}</span>
-                      {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
-                    </span>
-                  ))}
+                {/* Conversion % positioned between gauges with arrows */}
+                <div className="relative">
+                  <div className="grid" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
+                    {/* Top row: conversion % centered between adjacent gauge columns */}
+                    {individualDeviations.map((d, i) => (
+                      <div key={d.label} className="text-center" style={{ gridColumn: `${i * 2 + 2} / ${i * 2 + 3}` }}>
+                        <span className={`text-[10px] font-semibold ${d.gap === individualWeakest.gap && d.from === individualWeakest.from ? "text-destructive" : "text-muted-foreground"}`}>
+                          {d.pct}%
+                        </span>
+                        <div className={`text-[8px] leading-none mt-0.5 ${d.gap === individualWeakest.gap && d.from === individualWeakest.from ? "text-destructive/60" : "text-muted-foreground/40"}`}>
+                          ↙ ↘
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Gauge row */}
+                  <div className="grid mt-1" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
+                    {GAUGE_KEYS.map((key, i) => (
+                      <div key={key} className="text-center" style={{ gridColumn: `${i * 2 + 1} / ${i * 2 + 2}` }}>
+                        <div className="text-[9px] text-muted-foreground">{key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}</div>
+                        <div className="text-sm font-bold text-foreground">{individualMeans[key]}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Improvement Simulation */}
-                {individualSim && (
+                {individualSim && individualWeakest.gap > 0 && (
                   <div className="rounded-md p-2.5 border border-border/30 bg-muted/10 space-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <TrendingUp className="w-3.5 h-3.5 text-primary" />
                       <span className="text-[11px] font-semibold text-foreground">Improvement Simulation</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Weakest: <span className="font-medium text-foreground">{GAUGE_LABELS[individualWeakest.from]} → {GAUGE_LABELS[individualWeakest.to]}</span> ({individualWeakest.pct}%)
-                      {" · "}If improved to {individualSim.improvedPct}%:
+                      Weakest Stage: <span className="font-medium text-foreground">{GAUGE_LABELS[individualWeakest.from]} → {GAUGE_LABELS[individualWeakest.to]}</span>
+                      {" · "}Target: {individualWeakest.targetPct}% · Current: {individualWeakest.pct}%
                     </p>
+                    <p className="text-[10px] text-muted-foreground">If improved to target:</p>
                     <div className="flex items-center gap-1 flex-wrap text-xs">
                       {GAUGE_KEYS.map((key, i) => {
-                        const changed = individualSim.adjusted[key] !== individualMeans[key];
+                        const changed = individualSim[key] !== individualMeans[key];
                         return (
                           <span key={key} className="inline-flex items-center gap-0.5">
-                            <span className="text-muted-foreground">{GAUGE_LABELS[key] === "Presentations" ? "Pres" : GAUGE_LABELS[key] === "Tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
-                            <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{individualSim.adjusted[key]}</span>
+                            <span className="text-muted-foreground">{key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
+                            <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{individualSim[key]}</span>
                             {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
                           </span>
                         );
@@ -552,50 +580,51 @@ export function WeeklySummary() {
             )}
 
             {/* CREW PERFORMANCE (Leader + Manager only) */}
-            {crewMeans && crewConversions && crewWeakest && (
+            {crewMeans && crewDeviations && crewWeakest && (
               <div className="border-t border-border/30 pt-3 space-y-3">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Crew Performance</div>
 
-                {/* Crew Conversion % row */}
-                <div className="flex items-center gap-1 flex-wrap text-[11px] text-muted-foreground">
-                  {crewConversions.map((c, i) => (
-                    <span key={c.label} className="inline-flex items-center gap-0.5">
-                      <span className={`font-semibold ${c.from === crewWeakest.from && c.to === crewWeakest.to ? "text-destructive" : "text-muted-foreground"}`}>
-                        {c.pct}%
-                      </span>
-                      {i < crewConversions.length - 1 && <span className="text-border mx-1">|</span>}
-                    </span>
-                  ))}
-                </div>
-                {/* Crew Gauge row */}
-                <div className="flex items-center gap-1 flex-wrap text-xs">
-                  {GAUGE_KEYS.map((key, i) => (
-                    <span key={key} className="inline-flex items-center gap-0.5">
-                      <span className="text-muted-foreground">{GAUGE_LABELS[key] === "Presentations" ? "Pres" : GAUGE_LABELS[key] === "Tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
-                      <span className="font-bold text-foreground">{crewMeans[key]}</span>
-                      {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
-                    </span>
-                  ))}
+                <div className="relative">
+                  <div className="grid" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
+                    {crewDeviations.map((d, i) => (
+                      <div key={d.label} className="text-center" style={{ gridColumn: `${i * 2 + 2} / ${i * 2 + 3}` }}>
+                        <span className={`text-[10px] font-semibold ${d.gap === crewWeakest.gap && d.from === crewWeakest.from ? "text-destructive" : "text-muted-foreground"}`}>
+                          {d.pct}%
+                        </span>
+                        <div className={`text-[8px] leading-none mt-0.5 ${d.gap === crewWeakest.gap && d.from === crewWeakest.from ? "text-destructive/60" : "text-muted-foreground/40"}`}>
+                          ↙ ↘
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid mt-1" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
+                    {GAUGE_KEYS.map((key, i) => (
+                      <div key={key} className="text-center" style={{ gridColumn: `${i * 2 + 1} / ${i * 2 + 2}` }}>
+                        <div className="text-[9px] text-muted-foreground">{key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}</div>
+                        <div className="text-sm font-bold text-foreground">{crewMeans[key]}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Crew Simulation */}
-                {crewSim && (
+                {crewSim && crewWeakest.gap > 0 && (
                   <div className="rounded-md p-2.5 border border-border/30 bg-muted/10 space-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <TrendingUp className="w-3.5 h-3.5 text-primary" />
                       <span className="text-[11px] font-semibold text-foreground">Improvement Simulation</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Weakest: <span className="font-medium text-foreground">{GAUGE_LABELS[crewWeakest.from]} → {GAUGE_LABELS[crewWeakest.to]}</span> ({crewWeakest.pct}%)
-                      {" · "}If improved to {crewSim.improvedPct}%:
+                      Weakest Stage: <span className="font-medium text-foreground">{GAUGE_LABELS[crewWeakest.from]} → {GAUGE_LABELS[crewWeakest.to]}</span>
+                      {" · "}Target: {crewWeakest.targetPct}% · Current: {crewWeakest.pct}%
                     </p>
+                    <p className="text-[10px] text-muted-foreground">If improved to target:</p>
                     <div className="flex items-center gap-1 flex-wrap text-xs">
                       {GAUGE_KEYS.map((key, i) => {
-                        const changed = crewSim.adjusted[key] !== crewMeans[key];
+                        const changed = crewSim[key] !== crewMeans[key];
                         return (
                           <span key={key} className="inline-flex items-center gap-0.5">
-                            <span className="text-muted-foreground">{GAUGE_LABELS[key] === "Presentations" ? "Pres" : GAUGE_LABELS[key] === "Tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
-                            <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{crewSim.adjusted[key]}</span>
+                            <span className="text-muted-foreground">{key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
+                            <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{crewSim[key]}</span>
                             {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
                           </span>
                         );
