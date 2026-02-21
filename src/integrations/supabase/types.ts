@@ -287,6 +287,10 @@ export type Database = {
       }
       is_leader_of: { Args: { profile_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      reassign_recruits_upward: {
+        Args: { _deleted_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "brand_ambassador" | "leader" | "manager"

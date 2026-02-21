@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { Users, DollarSign, Trophy, Shield, LogOut } from "lucide-react";
+import { Users, DollarSign, Trophy, Shield, LogOut, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef, useState } from "react";
 
-const modules = [
+const allModules = [
   {
     id: "recruitment",
     label: "RECRUITMENT",
@@ -14,6 +14,7 @@ const modules = [
     path: "/recruitment",
     hsl: "172 66% 50%",
     hslDark: "172 66% 38%",
+    requiredRoles: ["leader", "manager"] as string[],
   },
   {
     id: "sales",
@@ -23,6 +24,7 @@ const modules = [
     path: "/sales",
     hsl: "0 65% 42%",
     hslDark: "0 65% 32%",
+    requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
   },
   {
     id: "leaderboards",
@@ -32,6 +34,7 @@ const modules = [
     path: "/leaderboards",
     hsl: "36 75% 48%",
     hslDark: "36 75% 36%",
+    requiredRoles: ["leader", "manager"] as string[],
   },
 ] as const;
 
@@ -140,6 +143,10 @@ export default function ModuleSelection() {
   const [hovered, setHovered] = useState<string | null>(null);
 
   const isManager = userRole?.role === "manager" && userRole?.super_admin;
+  const userRoleName = userRole?.role ?? "brand_ambassador";
+
+  const isModuleUnlocked = (requiredRoles: string[]) => requiredRoles.includes(userRoleName);
+  const isManagerUnlocked = isManager;
 
   if (isMobile) {
     return (
@@ -155,38 +162,58 @@ export default function ModuleSelection() {
           </div>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 relative z-10">
-          {modules.map((m) => {
+          {allModules.map((m) => {
             const Icon = m.icon;
+            const unlocked = isModuleUnlocked(m.requiredRoles);
             return (
               <button
                 key={m.id}
-                onClick={() => navigate(m.path)}
-                className="w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 active:scale-[0.98]"
+                onClick={() => unlocked && navigate(m.path)}
+                disabled={!unlocked}
+                className={`w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 relative ${unlocked ? "active:scale-[0.98]" : "cursor-not-allowed"}`}
                 style={{
-                  background: `linear-gradient(135deg, hsl(${m.hsl} / 0.18), hsl(${m.hslDark} / 0.10))`,
-                  border: `1px solid hsl(${m.hsl} / 0.25)`,
+                  background: unlocked
+                    ? `linear-gradient(135deg, hsl(${m.hsl} / 0.18), hsl(${m.hslDark} / 0.10))`
+                    : `linear-gradient(135deg, hsl(0 0% 50% / 0.08), hsl(0 0% 40% / 0.05))`,
+                  border: `1px solid ${unlocked ? `hsl(${m.hsl} / 0.25)` : "hsl(0 0% 50% / 0.12)"}`,
+                  opacity: unlocked ? 1 : 0.5,
                 }}
               >
-                <Icon className="w-7 h-7" style={{ color: `hsl(${m.hsl})` }} />
-                <span className="text-base font-bold tracking-[0.2em] text-foreground">{m.label}</span>
+                <Icon className="w-7 h-7" style={{ color: unlocked ? `hsl(${m.hsl})` : "hsl(0 0% 50%)" }} />
+                <span className={`text-base font-bold tracking-[0.2em] ${unlocked ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
                 <span className="text-xs text-muted-foreground">{m.subtitle}</span>
+                {!unlocked && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1 text-muted-foreground">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium">Locked</span>
+                  </div>
+                )}
               </button>
             );
           })}
-          {isManager && (
-            <button
-              onClick={() => navigate(managerModule.path)}
-              className="w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 active:scale-[0.98]"
-              style={{
-                background: `linear-gradient(135deg, hsl(${managerModule.hsl} / 0.18), hsl(${managerModule.hslDark} / 0.10))`,
-                border: `1px solid hsl(${managerModule.hsl} / 0.25)`,
-              }}
-            >
-              <Shield className="w-7 h-7" style={{ color: `hsl(${managerModule.hsl})` }} />
-              <span className="text-base font-bold tracking-[0.2em] text-foreground">{managerModule.label}</span>
-              <span className="text-xs text-muted-foreground">{managerModule.subtitle}</span>
-            </button>
-          )}
+          {/* Manager module - always visible */}
+          <button
+            onClick={() => isManagerUnlocked && navigate(managerModule.path)}
+            disabled={!isManagerUnlocked}
+            className={`w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 relative ${isManagerUnlocked ? "active:scale-[0.98]" : "cursor-not-allowed"}`}
+            style={{
+              background: isManagerUnlocked
+                ? `linear-gradient(135deg, hsl(${managerModule.hsl} / 0.18), hsl(${managerModule.hslDark} / 0.10))`
+                : `linear-gradient(135deg, hsl(0 0% 50% / 0.08), hsl(0 0% 40% / 0.05))`,
+              border: `1px solid ${isManagerUnlocked ? `hsl(${managerModule.hsl} / 0.25)` : "hsl(0 0% 50% / 0.12)"}`,
+              opacity: isManagerUnlocked ? 1 : 0.5,
+            }}
+          >
+            <Shield className="w-7 h-7" style={{ color: isManagerUnlocked ? `hsl(${managerModule.hsl})` : "hsl(0 0% 50%)" }} />
+            <span className={`text-base font-bold tracking-[0.2em] ${isManagerUnlocked ? "text-foreground" : "text-muted-foreground"}`}>{managerModule.label}</span>
+            <span className="text-xs text-muted-foreground">{managerModule.subtitle}</span>
+            {!isManagerUnlocked && (
+              <div className="absolute top-3 right-3 flex items-center gap-1 text-muted-foreground">
+                <Lock className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-medium">Locked</span>
+              </div>
+            )}
+          </button>
         </main>
       </div>
     );
@@ -201,7 +228,7 @@ export default function ModuleSelection() {
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
-  const segmentPaths = modules.map((_, i) => {
+  const segmentPaths = allModules.map((_, i) => {
     const startAngle = i * 120 - 90 + gap / 2;
     const endAngle = startAngle + 120 - gap;
     const ox1 = center + outerR * Math.cos(toRad(startAngle));
@@ -215,7 +242,7 @@ export default function ModuleSelection() {
     return `M${ox1},${oy1} A${outerR},${outerR} 0 0,1 ${ox2},${oy2} L${ix1},${iy1} A${innerR},${innerR} 0 0,0 ${ix2},${iy2} Z`;
   });
 
-  const labelPositions = modules.map((_, i) => {
+  const labelPositions = allModules.map((_, i) => {
     const midAngle = i * 120 - 90 + 60;
     const lr = (outerR + innerR) / 2;
     return {
@@ -251,7 +278,7 @@ export default function ModuleSelection() {
             className="block"
           >
             <defs>
-              {modules.map((m, i) => {
+              {allModules.map((m, i) => {
                 const midAngle = i * 120 - 90 + 60;
                 const gx1 = center + innerR * Math.cos(toRad(midAngle));
                 const gy1 = center + innerR * Math.sin(toRad(midAngle));
@@ -264,7 +291,7 @@ export default function ModuleSelection() {
                   </linearGradient>
                 );
               })}
-              {modules.map((m, i) => {
+              {allModules.map((m, i) => {
                 const midAngle = i * 120 - 90 + 60;
                 const gx1 = center + innerR * Math.cos(toRad(midAngle));
                 const gy1 = center + innerR * Math.sin(toRad(midAngle));
@@ -277,6 +304,11 @@ export default function ModuleSelection() {
                   </linearGradient>
                 );
               })}
+              {/* Locked gradient */}
+              <linearGradient id="grad-locked" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="hsl(0 0% 40%)" stopOpacity="0.06" />
+                <stop offset="100%" stopColor="hsl(0 0% 50%)" stopOpacity="0.04" />
+              </linearGradient>
               {/* Manager gradient */}
               <radialGradient id="grad-manager" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor={`hsl(${managerModule.hslDark})`} stopOpacity="0.22" />
@@ -286,63 +318,69 @@ export default function ModuleSelection() {
                 <stop offset="0%" stopColor={`hsl(${managerModule.hslDark})`} stopOpacity="0.35" />
                 <stop offset="100%" stopColor={`hsl(${managerModule.hsl})`} stopOpacity="0.28" />
               </radialGradient>
+              <radialGradient id="grad-locked-manager" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="hsl(0 0% 40%)" stopOpacity="0.06" />
+                <stop offset="100%" stopColor="hsl(0 0% 50%)" stopOpacity="0.04" />
+              </radialGradient>
             </defs>
 
-            {modules.map((m, i) => {
+            {allModules.map((m, i) => {
+              const unlocked = isModuleUnlocked(m.requiredRoles);
               const isHovered = hovered === m.id;
               return (
                 <path
                   key={m.id}
                   d={segmentPaths[i]}
-                  fill={isHovered ? `url(#grad-hover-${m.id})` : `url(#grad-${m.id})`}
-                  stroke={`hsl(${m.hsl} / ${isHovered ? 0.5 : 0.2})`}
+                  fill={!unlocked ? "url(#grad-locked)" : isHovered ? `url(#grad-hover-${m.id})` : `url(#grad-${m.id})`}
+                  stroke={unlocked ? `hsl(${m.hsl} / ${isHovered ? 0.5 : 0.2})` : "hsl(0 0% 50% / 0.1)"}
                   strokeWidth="1"
-                  className="cursor-pointer"
+                  className={unlocked ? "cursor-pointer" : "cursor-not-allowed"}
                   style={{
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    filter: isHovered
+                    filter: unlocked && isHovered
                       ? `drop-shadow(0 4px 6px hsl(${m.hsl} / 0.25)) drop-shadow(0 0 20px hsl(${m.hsl} / 0.15))`
                       : "none",
-                    transform: isHovered ? "translateY(-3px)" : "translateY(0)",
+                    transform: unlocked && isHovered ? "translateY(-3px)" : "translateY(0)",
                     transformOrigin: "center",
+                    opacity: unlocked ? 1 : 0.45,
                   }}
-                  onClick={() => navigate(m.path)}
+                  onClick={() => unlocked && navigate(m.path)}
                   onMouseEnter={() => setHovered(m.id)}
                   onMouseLeave={() => setHovered(null)}
                 />
               );
             })}
 
-            {/* Manager circle in center */}
-            {isManager && (
-              <circle
-                cx={center}
-                cy={center}
-                r={managerR}
-                fill={isManagerHovered ? "url(#grad-hover-manager)" : "url(#grad-manager)"}
-                stroke={`hsl(${managerModule.hsl} / ${isManagerHovered ? 0.5 : 0.2})`}
-                strokeWidth="1"
-                className="cursor-pointer"
-                style={{
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  filter: isManagerHovered
-                    ? `drop-shadow(0 4px 6px hsl(${managerModule.hsl} / 0.25)) drop-shadow(0 0 20px hsl(${managerModule.hsl} / 0.15))`
-                    : "none",
-                  transform: isManagerHovered ? "translateY(-3px)" : "translateY(0)",
-                  transformOrigin: "center",
-                }}
-                onClick={() => navigate(managerModule.path)}
-                onMouseEnter={() => setHovered("manager")}
-                onMouseLeave={() => setHovered(null)}
-              />
-            )}
+            {/* Manager circle in center - always visible */}
+            <circle
+              cx={center}
+              cy={center}
+              r={managerR}
+              fill={!isManagerUnlocked ? "url(#grad-locked-manager)" : isManagerHovered ? "url(#grad-hover-manager)" : "url(#grad-manager)"}
+              stroke={isManagerUnlocked ? `hsl(${managerModule.hsl} / ${isManagerHovered ? 0.5 : 0.2})` : "hsl(0 0% 50% / 0.1)"}
+              strokeWidth="1"
+              className={isManagerUnlocked ? "cursor-pointer" : "cursor-not-allowed"}
+              style={{
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                filter: isManagerUnlocked && isManagerHovered
+                  ? `drop-shadow(0 4px 6px hsl(${managerModule.hsl} / 0.25)) drop-shadow(0 0 20px hsl(${managerModule.hsl} / 0.15))`
+                  : "none",
+                transform: isManagerUnlocked && isManagerHovered ? "translateY(-3px)" : "translateY(0)",
+                transformOrigin: "center",
+                opacity: isManagerUnlocked ? 1 : 0.45,
+              }}
+              onClick={() => isManagerUnlocked && navigate(managerModule.path)}
+              onMouseEnter={() => setHovered("manager")}
+              onMouseLeave={() => setHovered(null)}
+            />
           </svg>
 
           {/* Labels overlaid on segments */}
-          {modules.map((m, i) => {
+          {allModules.map((m, i) => {
             const Icon = m.icon;
             const pos = labelPositions[i];
             const isHovered = hovered === m.id;
+            const unlocked = isModuleUnlocked(m.requiredRoles);
             return (
               <div
                 key={m.id}
@@ -350,22 +388,23 @@ export default function ModuleSelection() {
                 style={{
                   left: pos.x,
                   top: pos.y,
-                  transform: `translate(-50%, -50%) translateY(${isHovered ? "-3px" : "0"})`,
+                  transform: `translate(-50%, -50%) translateY(${unlocked && isHovered ? "-3px" : "0"})`,
                   transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  opacity: unlocked ? 1 : 0.45,
                 }}
               >
                 <Icon
                   className="w-6 h-6 mb-2"
                   style={{
-                    color: `hsl(${m.hsl})`,
-                    opacity: isHovered ? 1 : 0.7,
+                    color: unlocked ? `hsl(${m.hsl})` : "hsl(0 0% 50%)",
+                    opacity: unlocked && isHovered ? 1 : 0.7,
                     transition: "opacity 0.3s",
                   }}
                 />
                 <span
-                  className="text-sm font-bold tracking-[0.2em] text-foreground"
+                  className={`text-sm font-bold tracking-[0.2em] ${unlocked ? "text-foreground" : "text-muted-foreground"}`}
                   style={{
-                    opacity: isHovered ? 1 : 0.85,
+                    opacity: unlocked && isHovered ? 1 : 0.85,
                     transition: "opacity 0.3s",
                   }}
                 >
@@ -380,49 +419,60 @@ export default function ModuleSelection() {
                 >
                   {m.subtitle}
                 </span>
+                {!unlocked && (
+                  <div className="flex items-center gap-1 mt-1.5 text-muted-foreground">
+                    <Lock className="w-3 h-3" />
+                    <span className="text-[9px] font-medium">Locked</span>
+                  </div>
+                )}
               </div>
             );
           })}
 
-          {/* Manager center label */}
-          {isManager && (
-            <div
-              className="absolute flex flex-col items-center pointer-events-none select-none"
+          {/* Manager center label - always visible */}
+          <div
+            className="absolute flex flex-col items-center pointer-events-none select-none"
+            style={{
+              left: center,
+              top: center,
+              transform: `translate(-50%, -50%) translateY(${isManagerUnlocked && isManagerHovered ? "-3px" : "0"})`,
+              transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              opacity: isManagerUnlocked ? 1 : 0.45,
+            }}
+          >
+            <Shield
+              className="w-6 h-6 mb-2"
               style={{
-                left: center,
-                top: center,
-                transform: `translate(-50%, -50%) translateY(${isManagerHovered ? "-3px" : "0"})`,
-                transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                color: isManagerUnlocked ? `hsl(${managerModule.hsl})` : "hsl(0 0% 50%)",
+                opacity: isManagerUnlocked && isManagerHovered ? 1 : 0.7,
+                transition: "opacity 0.3s",
+              }}
+            />
+            <span
+              className={`text-sm font-bold tracking-[0.2em] ${isManagerUnlocked ? "text-foreground" : "text-muted-foreground"}`}
+              style={{
+                opacity: isManagerUnlocked && isManagerHovered ? 1 : 0.85,
+                transition: "opacity 0.3s",
               }}
             >
-              <Shield
-                className="w-6 h-6 mb-2"
-                style={{
-                  color: `hsl(${managerModule.hsl})`,
-                  opacity: isManagerHovered ? 1 : 0.7,
-                  transition: "opacity 0.3s",
-                }}
-              />
-              <span
-                className="text-sm font-bold tracking-[0.2em] text-foreground"
-                style={{
-                  opacity: isManagerHovered ? 1 : 0.85,
-                  transition: "opacity 0.3s",
-                }}
-              >
-                {managerModule.label}
-              </span>
-              <span
-                className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap"
-                style={{
-                  opacity: isManagerHovered ? 0.8 : 0.5,
-                  transition: "opacity 0.3s",
-                }}
-              >
-                {managerModule.subtitle}
-              </span>
-            </div>
-          )}
+              {managerModule.label}
+            </span>
+            <span
+              className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap"
+              style={{
+                opacity: isManagerHovered ? 0.8 : 0.5,
+                transition: "opacity 0.3s",
+              }}
+            >
+              {managerModule.subtitle}
+            </span>
+            {!isManagerUnlocked && (
+              <div className="flex items-center gap-1 mt-1.5 text-muted-foreground">
+                <Lock className="w-3 h-3" />
+                <span className="text-[9px] font-medium">Locked</span>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>

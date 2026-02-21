@@ -66,6 +66,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === "ban_user") {
+      // First reassign recruits upward before banning
+      await adminClient.rpc("reassign_recruits_upward", { _deleted_user_id: target_user_id });
+      
       // Ban user (disable login but keep data)
       const { error } = await adminClient.auth.admin.updateUserById(target_user_id, {
         ban_duration: "876000h", // ~100 years
