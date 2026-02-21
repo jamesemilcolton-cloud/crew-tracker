@@ -5,9 +5,8 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
-import { WeeklySummary } from "@/components/summary/WeeklySummary";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, ChevronDown, LogOut, BarChart3, ArrowLeft } from "lucide-react";
+import { Users, Linkedin, GitBranch, ChevronDown, LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -17,10 +16,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "summary" | "pipeline" | "linkedin" | "crew";
+type Tab = "pipeline" | "linkedin" | "crew";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "summary", label: "Summary", icon: <BarChart3 className="w-4 h-4" /> },
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
   { id: "linkedin", label: "LinkedIn", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
@@ -28,7 +26,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 const Index = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>("summary");
+  const [activeTab, setActiveTab] = useState<Tab>("pipeline");
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
   const { profile, signOut } = useAuth();
   const signupDate = useMemo(() => profile?.created_at ? new Date(profile.created_at) : undefined, [profile?.created_at]);
@@ -115,7 +113,6 @@ const Index = () => {
       </header>
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
-        {activeTab === "summary" && <WeeklySummary />}
         {activeTab === "pipeline" && (
           <PipelineBoard
             trendRange={trendRange}
