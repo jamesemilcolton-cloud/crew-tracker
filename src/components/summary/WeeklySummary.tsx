@@ -6,8 +6,8 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Trophy, Users, Target, GitBranch } from "lucide-react";
-import { startOfWeek, parseISO, format } from "date-fns";
+import { Download, Trophy, Users, Target, GitBranch, Flame } from "lucide-react";
+import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
 import { CrewBubbleSnapshot } from "@/components/crew/CrewBubbleForecast";
 
 interface Profile {
@@ -46,7 +46,7 @@ function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date
 }
 
 export function WeeklySummary() {
-  const { user, profile } = useAuth();
+  const { user, profile, userRole } = useAuth();
   const { candidates: ownCandidates, loading: candidatesLoading } = useCandidates("own");
   const { candidates: allCandidates, loading: allCandidatesLoading } = useCandidates("all");
   const { adUploads, cvDownloads, loading: linkedInLoading } = useLinkedIn();
@@ -56,6 +56,108 @@ export function WeeklySummary() {
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
 
   const isLeader = !!profile?.leader_id === false && allProfiles.some((p) => p.leader_id === profile?.id);
+
+  // Sales snapshot data
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [ownSalesEntries, setOwnSalesEntries] = useState<any[]>([]);
+  const [crewSalesEntries, setCrewSalesEntries] = useState<any[]>([]);
+
+  const currentWeekBounds = useMemo(() => {
+    const now = new Date();
+    const monday = startOfWeek(now, { weekStartsOn: 1 });
+    const sunday = endOfWeek(now, { weekStartsOn: 1 });
+    return {
+      start: format(monday, "yyyy-MM-dd"),
+      end: format(sunday, "yyyy-MM-dd"),
+    };
+  }, []);
+
+  // Fetch own sales for current week
+  useEffect(() => {
+    if (!user) return;
+    async function fetchOwnSales() {
+      const { data } = await supabase
+        .from("sales_entries")
+        .select("*")
+        .eq("user_id", user!.id)
+        .gte("entry_date", currentWeekBounds.start)
+        .lte("entry_date", currentWeekBounds.end);
+      setOwnSalesEntries(data ?? []);
+    }
+    fetchOwnSales();
+  }, [user, currentWeekBounds]);
+
+  // Fetch crew sales based on role
+  useEffect(() => {
+    if (!user || !userRole || !profile) { setSalesLoading(false); return; }
+    const role = userRole.role;
+
+    async function fetchCrewSales() {
+      if (role === "brand_ambassador") {
+        setCrewSalesEntries([]);
+        setSalesLoading(false);
+        return;
+      }
+
+      // For leader: get full hierarchy descendant user_ids
+      // For manager: get all entries
+      if (role === "manager" && userRole.super_admin) {
+        const { data } = await supabase
+          .from("sales_entries")
+          .select("*")
+          .gte("entry_date", currentWeekBounds.start)
+          .lte("entry_date", currentWeekBounds.end);
+        setCrewSalesEntries(data ?? []);
+      } else {
+        // Leader: need to resolve hierarchy from profiles
+        const { data: profiles } = await supabase.from("profiles").select("id, user_id, leader_id");
+        if (!profiles || !profile) { setSalesLoading(false); return; }
+
+        const myProfileId = profile.id;
+        // Recursive: get all descendant user_ids
+        function getDescendantUserIds(leaderId: string): string[] {
+          const directReports = profiles!.filter((p) => p.leader_id === leaderId);
+          const userIds: string[] = [];
+          for (const dr of directReports) {
+            userIds.push(dr.user_id);
+            userIds.push(...getDescendantUserIds(dr.id));
+          }
+          return userIds;
+        }
+        const crewUserIds = [user!.id, ...getDescendantUserIds(myProfileId)];
+        const uniqueIds = [...new Set(crewUserIds)];
+
+        const { data } = await supabase
+          .from("sales_entries")
+          .select("*")
+          .in("user_id", uniqueIds)
+          .gte("entry_date", currentWeekBounds.start)
+          .lte("entry_date", currentWeekBounds.end);
+        setCrewSalesEntries(data ?? []);
+      }
+      setSalesLoading(false);
+    }
+    fetchCrewSales();
+  }, [user, userRole, profile, currentWeekBounds, allProfiles]);
+
+  // Calculate individual sales metrics
+  const individualSales = useMemo(() => {
+    const totalSales = ownSalesEntries.reduce((s, e) => s + (e.sales || 0), 0);
+    const totalSpoken = ownSalesEntries.reduce((s, e) => s + (e.spoken || 0), 0);
+    const totalDoors = ownSalesEntries.reduce((s, e) => s + (e.doors || 0), 0);
+    const loa = totalSales > 0 ? `${Math.round(totalSpoken / totalSales)} : 1` : "–";
+    return { sales: totalSales, spoken: totalSpoken, doors: totalDoors, loa };
+  }, [ownSalesEntries]);
+
+  // Calculate crew sales metrics
+  const crewSalesMetrics = useMemo(() => {
+    if (!userRole || userRole.role === "brand_ambassador") return null;
+    const totalSales = crewSalesEntries.reduce((s, e) => s + (e.sales || 0), 0);
+    const totalSpoken = crewSalesEntries.reduce((s, e) => s + (e.spoken || 0), 0);
+    const totalDoors = crewSalesEntries.reduce((s, e) => s + (e.doors || 0), 0);
+    const avgLoa = totalSales > 0 ? `${Math.round(totalSpoken / totalSales)} : 1` : "–";
+    return { sales: totalSales, spoken: totalSpoken, doors: totalDoors, avgLoa };
+  }, [crewSalesEntries, userRole]);
 
   useEffect(() => {
     async function fetchProfiles() {
@@ -321,6 +423,55 @@ export function WeeklySummary() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION: Sales — This Week */}
+        <Card className="border-[hsl(0_70%_50%/0.3)] bg-card/80">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
+              <span style={{ color: "hsl(0 70% 50%)" }}>Sales — This Week</span>
+              <span className="text-xs font-normal text-muted-foreground">({dateLabel})</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Individual Sales */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Your Sales", value: individualSales.sales },
+                { label: "Your LOA (Spoken → Sale)", value: individualSales.loa },
+                { label: "Your Total Spoken", value: individualSales.spoken },
+                { label: "Your Total Doors", value: individualSales.doors },
+              ].map((item) => (
+                <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center" style={{ borderLeft: "3px solid hsl(0 70% 50% / 0.3)" }}>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
+                  <div className="text-2xl font-bold text-foreground">{item.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Crew Sales (Leader + Manager only) */}
+            {crewSalesMetrics && (
+              <div className="border-t border-border/30 pt-3">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
+                  Crew Performance
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Crew Sales", value: crewSalesMetrics.sales },
+                    { label: "Crew Average LOA", value: crewSalesMetrics.avgLoa },
+                    { label: "Crew Total Spoken", value: crewSalesMetrics.spoken },
+                    { label: "Crew Total Doors", value: crewSalesMetrics.doors },
+                  ].map((item) => (
+                    <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center" style={{ borderLeft: "3px solid hsl(0 70% 50% / 0.15)" }}>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
+                      <div className="text-2xl font-bold text-foreground">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
