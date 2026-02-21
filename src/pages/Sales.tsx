@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy } from "lucide-react";
+import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSalesData, SalesEntry } from "@/hooks/useSalesData";
@@ -17,19 +16,21 @@ const FIELD_KEYS: FieldKey[] = ["doors", "spoken", "presentations", "closes", "t
 export default function Sales() {
   const navigate = useNavigate();
   const { profile, userRole } = useAuth();
+  const [weekOffset, setWeekOffset] = useState(0);
+
   const {
     currentWeekEntries, saveDayMutation, getDateForDay, getEntryForDate,
     getWeekTotals, calcLOA, calcCloseLOA, getWeeklyLOAData, getPrevWeekTotals,
-    getPersonalBestSales, teamEntries, profiles, DAYS,
-  } = useSalesData();
+    getPersonalBestSales, teamEntries, profiles, DAYS, isCurrentWeek, weekLabel,
+  } = useSalesData(weekOffset);
 
   const [selectedDay, setSelectedDay] = useState(() => {
     const d = new Date().getDay();
     return d === 0 ? 6 : d - 1;
   });
 
-  const [formData, setFormData] = useState<Record<FieldKey, number>>({
-    doors: 0, spoken: 0, presentations: 0, closes: 0, tablets: 0, sales: 0,
+  const [formData, setFormData] = useState<Record<FieldKey, string>>({
+    doors: "0", spoken: "0", presentations: "0", closes: "0", tablets: "0", sales: "0",
   });
 
   const [pbGlow, setPbGlow] = useState(false);
@@ -40,17 +41,31 @@ export default function Sales() {
   useEffect(() => {
     if (existingEntry) {
       setFormData({
-        doors: existingEntry.doors, spoken: existingEntry.spoken,
-        presentations: existingEntry.presentations, closes: existingEntry.closes,
-        tablets: existingEntry.tablets, sales: existingEntry.sales,
+        doors: String(existingEntry.doors),
+        spoken: String(existingEntry.spoken),
+        presentations: String(existingEntry.presentations),
+        closes: String(existingEntry.closes),
+        tablets: String(existingEntry.tablets),
+        sales: String(existingEntry.sales),
       });
     } else {
-      setFormData({ doors: 0, spoken: 0, presentations: 0, closes: 0, tablets: 0, sales: 0 });
+      setFormData({ doors: "", spoken: "", presentations: "", closes: "", tablets: "", sales: "" });
     }
-  }, [selectedDay, existingEntry?.id]);
+  }, [selectedDay, existingEntry?.id, weekOffset]);
+
+  // Validation: all fields must be non-empty (numbers including 0)
+  const allFieldsFilled = FIELD_KEYS.every((k) => formData[k] !== "");
+  const numericData = useMemo(() => {
+    const out: Record<FieldKey, number> = {} as any;
+    for (const k of FIELD_KEYS) {
+      out[k] = formData[k] === "" ? 0 : Math.max(0, parseInt(formData[k]) || 0);
+    }
+    return out;
+  }, [formData]);
 
   const handleSave = () => {
-    saveDayMutation.mutate({ date: currentDate, data: formData }, {
+    if (!allFieldsFilled) return;
+    saveDayMutation.mutate({ date: currentDate, data: numericData }, {
       onSuccess: () => toast.success("Day saved"),
       onError: () => toast.error("Failed to save"),
     });
@@ -60,10 +75,8 @@ export default function Sales() {
   const weekTotals = getWeekTotals(currentWeekEntries);
   const prevTotals = getPrevWeekTotals();
   const loaData = getWeeklyLOAData();
-  const daysLogged = currentWeekEntries.length;
   const personalBest = getPersonalBestSales();
 
-  // Check if current week beats personal best for glow effect
   useEffect(() => {
     if (personalBest !== null && weekTotals.sales > 0 && weekTotals.sales >= personalBest) {
       setPbGlow(true);
@@ -72,7 +85,6 @@ export default function Sales() {
     }
   }, [weekTotals.sales, personalBest]);
 
-  // LOA comparison
   const currLOANum = weekTotals.sales > 0 ? Math.round(weekTotals.spoken / weekTotals.sales) : null;
   const prevLOANum = prevTotals.sales > 0 ? Math.round(prevTotals.spoken / prevTotals.sales) : null;
   let loaTrend: "better" | "worse" | "same" = "same";
@@ -81,10 +93,8 @@ export default function Sales() {
     else if (currLOANum > prevLOANum) loaTrend = "worse";
   }
 
-  // Funnel percentages
   const pct = (num: number, den: number) => (den > 0 ? ((num / den) * 100).toFixed(0) + "%" : "–");
 
-  // Crew leaderboard data
   const role = userRole?.role;
   const myProfileId = profile?.id;
   const myUserId = profile?.user_id;
@@ -92,41 +102,32 @@ export default function Sales() {
   const getCrewMembers = () => {
     if (!role || role === "brand_ambassador") return [];
     const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
-
     let relevantUserIds: string[];
     if (role === "manager" && userRole?.super_admin) {
       relevantUserIds = profiles.map((p) => p.user_id);
     } else {
       relevantUserIds = profiles.filter((p) => p.leader_id === myProfileId).map((p) => p.user_id);
     }
-
     const members = relevantUserIds.map((uid) => {
       const p = profileMap.get(uid);
       const entries = teamEntries.filter((e) => e.user_id === uid);
       const totals = getWeekTotals(entries);
       const loaNum = totals.sales > 0 ? Math.round(totals.spoken / totals.sales) : Infinity;
-      return {
-        userId: uid,
-        name: p?.full_name || "Unknown",
-        sales: totals.sales,
-        spoken: totals.spoken,
-        loa: calcLOA(totals.spoken, totals.sales),
-        loaNum,
-      };
+      return { userId: uid, name: p?.full_name || "Unknown", sales: totals.sales, spoken: totals.spoken, loa: calcLOA(totals.spoken, totals.sales), loaNum };
     });
-
-    // Sort: highest sales, then lower LOA, then alphabetical
     members.sort((a, b) => {
       if (b.sales !== a.sales) return b.sales - a.sales;
       if (a.loaNum !== b.loaNum) return a.loaNum - b.loaNum;
       return a.name.localeCompare(b.name);
     });
-
     return members;
   };
 
   const crewMembers = getCrewMembers();
   const hasCrew = crewMembers.length > 0;
+
+  // Prevent navigating into the future
+  const canGoForward = weekOffset < 0;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -146,7 +147,21 @@ export default function Sales() {
       </header>
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-6 space-y-6">
-        {/* 1. Day Selector */}
+        {/* 1. Week Navigation */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="icon" onClick={() => setWeekOffset((o) => o - 1)} className="text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Week Commencing</p>
+            <p className="text-sm font-semibold text-foreground">{weekLabel}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setWeekOffset((o) => o + 1)} disabled={!canGoForward} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* 2. Day Selector & Entry */}
         <div className="glass-panel p-4">
           <div className="flex gap-1.5 mb-4 overflow-x-auto">
             {DAYS.map((day, i) => {
@@ -172,7 +187,7 @@ export default function Sales() {
             })}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
             {FIELD_KEYS.map((key, i) => (
               <div key={key}>
                 <label className="text-xs text-muted-foreground mb-1 block">{FIELD_LABELS[i]}</label>
@@ -180,17 +195,22 @@ export default function Sales() {
                   type="number"
                   min={0}
                   value={formData[key]}
-                  onChange={(e) => setFormData((p) => ({ ...p, [key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                  onChange={(e) => setFormData((p) => ({ ...p, [key]: e.target.value }))}
+                  placeholder="0"
                   className="h-9 text-sm bg-secondary/50 border-border/50"
                 />
               </div>
             ))}
           </div>
 
+          {!allFieldsFilled && (
+            <p className="text-[11px] text-[hsl(var(--module-sales))] mb-2">All gauges must be completed before saving.</p>
+          )}
+
           <Button
             onClick={handleSave}
-            disabled={saveDayMutation.isPending}
-            className="w-full bg-[hsl(var(--module-sales))] hover:bg-[hsl(var(--module-sales)/0.85)] text-foreground font-medium"
+            disabled={saveDayMutation.isPending || !allFieldsFilled}
+            className="w-full bg-[hsl(var(--module-sales))] hover:bg-[hsl(var(--module-sales)/0.85)] text-foreground font-medium disabled:opacity-40"
           >
             {saveDayMutation.isPending ? "Saving…" : existingEntry ? (
               <><Check className="w-4 h-4 mr-1" /> Update Day</>
@@ -200,7 +220,7 @@ export default function Sales() {
           </Button>
         </div>
 
-        {/* 2. Weekly Performance Summary — 3 stat boxes */}
+        {/* 3. Weekly Performance Summary — 3 stat boxes */}
         <div className="grid grid-cols-3 gap-3">
           {/* Primary LOA */}
           <Card className="border-[hsl(var(--module-sales)/0.3)] bg-card">
@@ -252,7 +272,7 @@ export default function Sales() {
           </Card>
         </div>
 
-        {/* 3. LOA Progression Graph */}
+        {/* 4. LOA Progression Graph */}
         <Card className="border-border/50 bg-card">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-xs text-muted-foreground font-medium">LOA Progression (8 weeks)</CardTitle>
@@ -268,21 +288,14 @@ export default function Sales() {
                     labelStyle={{ color: "hsl(210 40% 96%)" }}
                     formatter={(v: any) => v !== null ? [`${v} : 1`, "LOA"] : ["–", "LOA"]}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="loa"
-                    stroke="hsl(0 65% 48%)"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "hsl(0 65% 48%)" }}
-                    connectNulls
-                  />
+                  <Line type="monotone" dataKey="loa" stroke="hsl(0 65% 48%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(0 65% 48%)" }} connectNulls />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* 4. Funnel Snapshot */}
+        {/* 5. Funnel Snapshot */}
         <Card className="border-border/50 bg-card">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-xs text-muted-foreground font-medium">Weekly Funnel</CardTitle>
@@ -316,27 +329,13 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        {/* 5. Consistency Tracker */}
-        <Card className="border-border/50 bg-card">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-xs text-muted-foreground font-medium">Consistency</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-foreground">Days Logged This Week</span>
-              <span className="text-sm font-mono font-bold text-foreground">{daysLogged} / 6</span>
-            </div>
-            <Progress value={(daysLogged / 6) * 100} className="h-2 bg-secondary/50 [&>div]:bg-[hsl(var(--module-sales))]" />
-          </CardContent>
-        </Card>
-
         {/* 6. Crew Leaderboard / Personal Summary */}
         {role && role !== "brand_ambassador" && (
           hasCrew ? (
             <Card className="border-border/50 bg-card">
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-xs text-muted-foreground font-medium">
-                  Crew Sales Leaderboard – This Week
+                  Crew Sales Leaderboard – {isCurrentWeek ? "This Week" : weekLabel}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 overflow-x-auto">

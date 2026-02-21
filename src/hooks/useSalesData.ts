@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { startOfWeek, endOfWeek, subWeeks, format, addDays } from "date-fns";
+import { startOfWeek, endOfWeek, subWeeks, format, addDays, addWeeks } from "date-fns";
 
 export interface SalesEntry {
   id: string;
@@ -26,30 +26,35 @@ interface DayData {
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-function getWeekStart(date: Date = new Date()): Date {
-  return startOfWeek(date, { weekStartsOn: 1 });
+function getWeekStartForOffset(offset: number): Date {
+  const now = new Date();
+  const base = offset === 0 ? now : (offset > 0 ? addWeeks(now, offset) : subWeeks(now, Math.abs(offset)));
+  return startOfWeek(base, { weekStartsOn: 1 });
 }
 
-function getWeekEnd(date: Date = new Date()): Date {
-  return endOfWeek(date, { weekStartsOn: 1 });
+function getWeekEndForOffset(offset: number): Date {
+  return endOfWeek(getWeekStartForOffset(offset), { weekStartsOn: 1 });
 }
 
-export function useSalesData() {
+export function useSalesData(weekOffset: number = 0) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Current week entries for the user
+  const selectedWeekStart = getWeekStartForOffset(weekOffset);
+  const selectedWeekEnd = getWeekEndForOffset(weekOffset);
+  const wsStr = format(selectedWeekStart, "yyyy-MM-dd");
+  const weStr = format(selectedWeekEnd, "yyyy-MM-dd");
+
+  // Selected week entries for the user
   const currentWeekQuery = useQuery({
-    queryKey: ["sales-entries", "current-week", user?.id],
+    queryKey: ["sales-entries", "week", wsStr, user?.id],
     queryFn: async () => {
-      const ws = format(getWeekStart(), "yyyy-MM-dd");
-      const we = format(getWeekEnd(), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("sales_entries")
         .select("*")
         .eq("user_id", user!.id)
-        .gte("entry_date", ws)
-        .lte("entry_date", we);
+        .gte("entry_date", wsStr)
+        .lte("entry_date", weStr);
       if (error) throw error;
       return data as SalesEntry[];
     },
@@ -71,17 +76,15 @@ export function useSalesData() {
     enabled: !!user,
   });
 
-  // All entries for team view (leaders/managers)
+  // Team entries for the selected week
   const teamQuery = useQuery({
-    queryKey: ["sales-entries", "team"],
+    queryKey: ["sales-entries", "team", wsStr],
     queryFn: async () => {
-      const ws = format(getWeekStart(), "yyyy-MM-dd");
-      const we = format(getWeekEnd(), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("sales_entries")
         .select("*")
-        .gte("entry_date", ws)
-        .lte("entry_date", we);
+        .gte("entry_date", wsStr)
+        .lte("entry_date", weStr);
       if (error) throw error;
       return data as SalesEntry[];
     },
@@ -128,7 +131,7 @@ export function useSalesData() {
 
   // Helpers
   function getDateForDay(dayIndex: number): string {
-    return format(addDays(getWeekStart(), dayIndex), "yyyy-MM-dd");
+    return format(addDays(selectedWeekStart, dayIndex), "yyyy-MM-dd");
   }
 
   function getEntryForDate(date: string): SalesEntry | undefined {
@@ -163,12 +166,12 @@ export function useSalesData() {
     const allEntries = historicalQuery.data || [];
     const weeks: { label: string; loa: number | null }[] = [];
     for (let i = 7; i >= 0; i--) {
-      const ws = getWeekStart(subWeeks(new Date(), i));
-      const we = getWeekEnd(subWeeks(new Date(), i));
-      const wsStr = format(ws, "yyyy-MM-dd");
-      const weStr = format(we, "yyyy-MM-dd");
+      const ws = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
+      const we = endOfWeek(ws, { weekStartsOn: 1 });
+      const wsS = format(ws, "yyyy-MM-dd");
+      const weS = format(we, "yyyy-MM-dd");
       const weekEntries = allEntries.filter(
-        (e) => e.entry_date >= wsStr && e.entry_date <= weStr
+        (e) => e.entry_date >= wsS && e.entry_date <= weS
       );
       const totals = getWeekTotals(weekEntries);
       weeks.push({
@@ -179,10 +182,12 @@ export function useSalesData() {
     return weeks;
   }
 
-  // Previous week totals for comparison
+  // Previous week totals relative to selected week
   function getPrevWeekTotals(): DayData {
-    const ws = format(getWeekStart(subWeeks(new Date(), 1)), "yyyy-MM-dd");
-    const we = format(getWeekEnd(subWeeks(new Date(), 1)), "yyyy-MM-dd");
+    const prevStart = subWeeks(selectedWeekStart, 1);
+    const prevEnd = endOfWeek(prevStart, { weekStartsOn: 1 });
+    const ws = format(prevStart, "yyyy-MM-dd");
+    const we = format(prevEnd, "yyyy-MM-dd");
     const entries = (historicalQuery.data || []).filter(
       (e) => e.entry_date >= ws && e.entry_date <= we
     );
@@ -194,27 +199,32 @@ export function useSalesData() {
     const allEntries = historicalQuery.data || [];
     if (allEntries.length === 0) return null;
 
-    // Find earliest and latest dates to determine week range
     const dates = allEntries.map((e) => e.entry_date).sort();
     const earliest = new Date(dates[0]);
     const latest = new Date(dates[dates.length - 1]);
 
     let best = 0;
-    let weekStart = getWeekStart(earliest);
+    let ws = startOfWeek(earliest, { weekStartsOn: 1 });
 
-    while (weekStart <= latest) {
-      const wsStr = format(weekStart, "yyyy-MM-dd");
-      const weStr = format(endOfWeek(weekStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
+    while (ws <= latest) {
+      const wsS = format(ws, "yyyy-MM-dd");
+      const weS = format(endOfWeek(ws, { weekStartsOn: 1 }), "yyyy-MM-dd");
       const weekEntries = allEntries.filter(
-        (e) => e.entry_date >= wsStr && e.entry_date <= weStr
+        (e) => e.entry_date >= wsS && e.entry_date <= weS
       );
       const totalSales = weekEntries.reduce((sum, e) => sum + e.sales, 0);
       if (totalSales > best) best = totalSales;
-      weekStart = addDays(weekStart, 7);
+      ws = addDays(ws, 7);
     }
 
     return best > 0 ? best : null;
   }
+
+  // Check if selected week is the current week
+  const isCurrentWeek = weekOffset === 0;
+
+  // Week label for header
+  const weekLabel = format(selectedWeekStart, "EEEE d MMMM yyyy");
 
   return {
     currentWeekEntries: currentWeekQuery.data || [],
@@ -231,6 +241,8 @@ export function useSalesData() {
     getWeeklyLOAData,
     getPrevWeekTotals,
     getPersonalBestSales,
+    isCurrentWeek,
+    weekLabel,
     DAYS,
   };
 }
