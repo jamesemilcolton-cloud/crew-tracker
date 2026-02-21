@@ -247,6 +247,48 @@ export type Database = {
           },
         ]
       }
+      sales_entries: {
+        Row: {
+          closes: number
+          created_at: string
+          doors: number
+          entry_date: string
+          id: string
+          presentations: number
+          sales: number
+          spoken: number
+          tablets: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closes?: number
+          created_at?: string
+          doors?: number
+          entry_date?: string
+          id?: string
+          presentations?: number
+          sales?: number
+          spoken?: number
+          tablets?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closes?: number
+          created_at?: string
+          doors?: number
+          entry_date?: string
+          id?: string
+          presentations?: number
+          sales?: number
+          spoken?: number
+          tablets?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
