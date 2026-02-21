@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check } from "lucide-react";
+import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -20,17 +20,19 @@ export default function Sales() {
   const {
     currentWeekEntries, saveDayMutation, getDateForDay, getEntryForDate,
     getWeekTotals, calcLOA, calcCloseLOA, getWeeklyLOAData, getPrevWeekTotals,
-    teamEntries, profiles, DAYS,
+    getPersonalBestSales, teamEntries, profiles, DAYS,
   } = useSalesData();
 
   const [selectedDay, setSelectedDay] = useState(() => {
     const d = new Date().getDay();
-    return d === 0 ? 6 : d - 1; // Monday=0
+    return d === 0 ? 6 : d - 1;
   });
 
   const [formData, setFormData] = useState<Record<FieldKey, number>>({
     doors: 0, spoken: 0, presentations: 0, closes: 0, tablets: 0, sales: 0,
   });
+
+  const [pbGlow, setPbGlow] = useState(false);
 
   const currentDate = getDateForDay(selectedDay);
   const existingEntry = getEntryForDate(currentDate);
@@ -38,12 +40,9 @@ export default function Sales() {
   useEffect(() => {
     if (existingEntry) {
       setFormData({
-        doors: existingEntry.doors,
-        spoken: existingEntry.spoken,
-        presentations: existingEntry.presentations,
-        closes: existingEntry.closes,
-        tablets: existingEntry.tablets,
-        sales: existingEntry.sales,
+        doors: existingEntry.doors, spoken: existingEntry.spoken,
+        presentations: existingEntry.presentations, closes: existingEntry.closes,
+        tablets: existingEntry.tablets, sales: existingEntry.sales,
       });
     } else {
       setFormData({ doors: 0, spoken: 0, presentations: 0, closes: 0, tablets: 0, sales: 0 });
@@ -62,6 +61,16 @@ export default function Sales() {
   const prevTotals = getPrevWeekTotals();
   const loaData = getWeeklyLOAData();
   const daysLogged = currentWeekEntries.length;
+  const personalBest = getPersonalBestSales();
+
+  // Check if current week beats personal best for glow effect
+  useEffect(() => {
+    if (personalBest !== null && weekTotals.sales > 0 && weekTotals.sales >= personalBest) {
+      setPbGlow(true);
+      const t = setTimeout(() => setPbGlow(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [weekTotals.sales, personalBest]);
 
   // LOA comparison
   const currLOANum = weekTotals.sales > 0 ? Math.round(weekTotals.spoken / weekTotals.sales) : null;
@@ -75,11 +84,12 @@ export default function Sales() {
   // Funnel percentages
   const pct = (num: number, den: number) => (den > 0 ? ((num / den) * 100).toFixed(0) + "%" : "–");
 
-  // Team data for leaders/managers
+  // Crew leaderboard data
   const role = userRole?.role;
   const myProfileId = profile?.id;
+  const myUserId = profile?.user_id;
 
-  const getTeamMembers = () => {
+  const getCrewMembers = () => {
     if (!role || role === "brand_ambassador") return [];
     const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
 
@@ -87,25 +97,36 @@ export default function Sales() {
     if (role === "manager" && userRole?.super_admin) {
       relevantUserIds = profiles.map((p) => p.user_id);
     } else {
-      // Leader: direct reports
       relevantUserIds = profiles.filter((p) => p.leader_id === myProfileId).map((p) => p.user_id);
     }
 
-    return relevantUserIds.map((uid) => {
+    const members = relevantUserIds.map((uid) => {
       const p = profileMap.get(uid);
       const entries = teamEntries.filter((e) => e.user_id === uid);
       const totals = getWeekTotals(entries);
+      const loaNum = totals.sales > 0 ? Math.round(totals.spoken / totals.sales) : Infinity;
       return {
+        userId: uid,
         name: p?.full_name || "Unknown",
         sales: totals.sales,
         spoken: totals.spoken,
         loa: calcLOA(totals.spoken, totals.sales),
-        closeLoa: calcCloseLOA(totals.closes, totals.sales),
+        loaNum,
       };
     });
+
+    // Sort: highest sales, then lower LOA, then alphabetical
+    members.sort((a, b) => {
+      if (b.sales !== a.sales) return b.sales - a.sales;
+      if (a.loaNum !== b.loaNum) return a.loaNum - b.loaNum;
+      return a.name.localeCompare(b.name);
+    });
+
+    return members;
   };
 
-  const teamMembers = getTeamMembers();
+  const crewMembers = getCrewMembers();
+  const hasCrew = crewMembers.length > 0;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -151,7 +172,6 @@ export default function Sales() {
             })}
           </div>
 
-          {/* Fields */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
             {FIELD_KEYS.map((key, i) => (
               <div key={key}>
@@ -180,34 +200,54 @@ export default function Sales() {
           </Button>
         </div>
 
-        {/* 2. Weekly Performance Summary */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* 2. Weekly Performance Summary — 3 stat boxes */}
+        <div className="grid grid-cols-3 gap-3">
+          {/* Primary LOA */}
           <Card className="border-[hsl(var(--module-sales)/0.3)] bg-card">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground font-medium">LOA (Spoken → Sale)</CardTitle>
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-[10px] text-muted-foreground font-medium">LOA (Spoken → Sale)</CardTitle>
             </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold font-mono text-[hsl(var(--module-sales))]">
+            <CardContent className="px-3 pb-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xl font-bold font-mono text-[hsl(var(--module-sales))]">
                   {calcLOA(weekTotals.spoken, weekTotals.sales)}
                 </span>
-                {loaTrend === "better" && <TrendingDown className="w-4 h-4 text-emerald-500" />}
-                {loaTrend === "worse" && <TrendingUp className="w-4 h-4 text-[hsl(var(--module-sales))]" />}
-                {loaTrend === "same" && <Minus className="w-4 h-4 text-muted-foreground" />}
+                {loaTrend === "better" && <TrendingDown className="w-3.5 h-3.5 text-emerald-500" />}
+                {loaTrend === "worse" && <TrendingUp className="w-3.5 h-3.5 text-[hsl(var(--module-sales))]" />}
+                {loaTrend === "same" && <Minus className="w-3.5 h-3.5 text-muted-foreground" />}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Lower is better</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">Lower is better</p>
             </CardContent>
           </Card>
 
+          {/* Close LOA */}
           <Card className="border-border/50 bg-card">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground font-medium">Close LOA (Closes → Sale)</CardTitle>
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-[10px] text-muted-foreground font-medium">Close LOA</CardTitle>
             </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <span className="text-2xl font-bold font-mono text-orange-400">
+            <CardContent className="px-3 pb-3">
+              <span className="text-xl font-bold font-mono text-orange-400">
                 {calcCloseLOA(weekTotals.closes, weekTotals.sales)}
               </span>
-              <p className="text-[10px] text-muted-foreground mt-1">Lower is better</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">Lower is better</p>
+            </CardContent>
+          </Card>
+
+          {/* Personal Best */}
+          <Card className={`border-border/50 bg-card transition-shadow duration-700 ${pbGlow ? "shadow-[0_0_20px_hsl(217_91%_60%/0.4)] border-[hsl(217_91%_60%/0.5)]" : ""}`}>
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                <Trophy className="w-3 h-3 text-[hsl(var(--module-leaderboards))]" />
+                Personal Best
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <span className="text-xl font-bold font-mono text-[hsl(var(--module-leaderboards))]">
+                {personalBest !== null ? `${personalBest}` : "–"}
+              </span>
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                {personalBest !== null ? "Sales (best week)" : "No record yet"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -222,7 +262,7 @@ export default function Sales() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={loaData}>
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} width={30} reversed />
+                  <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} width={30} />
                   <Tooltip
                     contentStyle={{ background: "hsl(222 44% 10%)", border: "1px solid hsl(222 30% 16%)", borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: "hsl(210 40% 96%)" }}
@@ -290,39 +330,53 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        {/* 6. Team Snapshot (leaders/managers only) */}
-        {role && role !== "brand_ambassador" && teamMembers.length > 0 && (
-          <Card className="border-border/50 bg-card">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs text-muted-foreground font-medium">
-                {role === "manager" ? "Office" : "Team"} Weekly Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-muted-foreground border-b border-border/30">
-                    <th className="text-left pb-2 font-medium">Name</th>
-                    <th className="text-right pb-2 font-medium">Sales</th>
-                    <th className="text-right pb-2 font-medium">Spoken</th>
-                    <th className="text-right pb-2 font-medium">LOA</th>
-                    <th className="text-right pb-2 font-medium">Close LOA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teamMembers.sort((a, b) => b.sales - a.sales).map((m) => (
-                    <tr key={m.name} className="border-b border-border/10">
-                      <td className="py-2 text-foreground">{m.name}</td>
-                      <td className="py-2 text-right font-mono text-foreground">{m.sales}</td>
-                      <td className="py-2 text-right font-mono text-muted-foreground">{m.spoken}</td>
-                      <td className="py-2 text-right font-mono text-[hsl(var(--module-sales))]">{m.loa}</td>
-                      <td className="py-2 text-right font-mono text-orange-400">{m.closeLoa}</td>
+        {/* 6. Crew Leaderboard / Personal Summary */}
+        {role && role !== "brand_ambassador" && (
+          hasCrew ? (
+            <Card className="border-border/50 bg-card">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-xs text-muted-foreground font-medium">
+                  Crew Sales Leaderboard – This Week
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-muted-foreground border-b border-border/30">
+                      <th className="text-left pb-2 font-medium w-8">#</th>
+                      <th className="text-left pb-2 font-medium">Name</th>
+                      <th className="text-right pb-2 font-medium">Sales</th>
+                      <th className="text-right pb-2 font-medium">Spoken</th>
+                      <th className="text-right pb-2 font-medium">LOA</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+                  </thead>
+                  <tbody>
+                    {crewMembers.map((m, idx) => {
+                      const isMe = m.userId === myUserId;
+                      return (
+                        <tr key={m.userId} className={`border-b border-border/10 ${isMe ? "bg-[hsl(var(--module-sales)/0.08)]" : ""}`}>
+                          <td className="py-2 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="py-2 text-foreground">{m.name}{isMe && <span className="text-muted-foreground ml-1 text-[10px]">(you)</span>}</td>
+                          <td className="py-2 text-right font-mono font-semibold text-foreground">{m.sales}</td>
+                          <td className="py-2 text-right font-mono text-muted-foreground">{m.spoken}</td>
+                          <td className="py-2 text-right font-mono text-[hsl(var(--module-sales))]">{m.loa}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/50 bg-card">
+              <CardContent className="px-4 py-6 text-center">
+                <p className="text-lg font-bold font-mono text-foreground mb-1">
+                  Your Sales This Week: {weekTotals.sales}
+                </p>
+                <p className="text-xs text-muted-foreground">No one on your crew yet.</p>
+              </CardContent>
+            </Card>
+          )
         )}
       </main>
     </div>

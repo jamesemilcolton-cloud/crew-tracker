@@ -56,18 +56,15 @@ export function useSalesData() {
     enabled: !!user,
   });
 
-  // Last 8 weeks of user's entries for LOA progression
+  // All historical entries for LOA progression + personal best
   const historicalQuery = useQuery({
-    queryKey: ["sales-entries", "historical", user?.id],
+    queryKey: ["sales-entries", "all-history", user?.id],
     queryFn: async () => {
-      const ws = format(getWeekStart(subWeeks(new Date(), 7)), "yyyy-MM-dd");
-      const we = format(getWeekEnd(), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("sales_entries")
         .select("*")
         .eq("user_id", user!.id)
-        .gte("entry_date", ws)
-        .lte("entry_date", we);
+        .order("entry_date", { ascending: true });
       if (error) throw error;
       return data as SalesEntry[];
     },
@@ -163,13 +160,14 @@ export function useSalesData() {
   }
 
   function getWeeklyLOAData() {
+    const allEntries = historicalQuery.data || [];
     const weeks: { label: string; loa: number | null }[] = [];
     for (let i = 7; i >= 0; i--) {
       const ws = getWeekStart(subWeeks(new Date(), i));
       const we = getWeekEnd(subWeeks(new Date(), i));
       const wsStr = format(ws, "yyyy-MM-dd");
       const weStr = format(we, "yyyy-MM-dd");
-      const weekEntries = (historicalQuery.data || []).filter(
+      const weekEntries = allEntries.filter(
         (e) => e.entry_date >= wsStr && e.entry_date <= weStr
       );
       const totals = getWeekTotals(weekEntries);
@@ -191,6 +189,33 @@ export function useSalesData() {
     return getWeekTotals(entries);
   }
 
+  // Personal Best: highest weekly sales across all history
+  function getPersonalBestSales(): number | null {
+    const allEntries = historicalQuery.data || [];
+    if (allEntries.length === 0) return null;
+
+    // Find earliest and latest dates to determine week range
+    const dates = allEntries.map((e) => e.entry_date).sort();
+    const earliest = new Date(dates[0]);
+    const latest = new Date(dates[dates.length - 1]);
+
+    let best = 0;
+    let weekStart = getWeekStart(earliest);
+
+    while (weekStart <= latest) {
+      const wsStr = format(weekStart, "yyyy-MM-dd");
+      const weStr = format(endOfWeek(weekStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const weekEntries = allEntries.filter(
+        (e) => e.entry_date >= wsStr && e.entry_date <= weStr
+      );
+      const totalSales = weekEntries.reduce((sum, e) => sum + e.sales, 0);
+      if (totalSales > best) best = totalSales;
+      weekStart = addDays(weekStart, 7);
+    }
+
+    return best > 0 ? best : null;
+  }
+
   return {
     currentWeekEntries: currentWeekQuery.data || [],
     historicalEntries: historicalQuery.data || [],
@@ -205,6 +230,7 @@ export function useSalesData() {
     calcCloseLOA,
     getWeeklyLOAData,
     getPrevWeekTotals,
+    getPersonalBestSales,
     DAYS,
   };
 }
