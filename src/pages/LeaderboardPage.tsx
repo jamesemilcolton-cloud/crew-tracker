@@ -17,7 +17,10 @@ export default function LeaderboardPage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "hsl(40 80% 50% / 0.2)" }}>
               <Trophy className="w-4 h-4" style={{ color: "hsl(40 80% 50%)" }} />
             </div>
-            <h1 className="text-sm font-semibold text-foreground tracking-tight">Leaderboards</h1>
+            <div>
+              <h1 className="text-sm font-semibold text-foreground tracking-tight">Leaderboards</h1>
+              <p className="text-[11px] text-muted-foreground leading-none">Weekly Office Performance</p>
+            </div>
           </div>
         </div>
       </header>
