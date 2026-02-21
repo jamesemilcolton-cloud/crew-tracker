@@ -18,16 +18,6 @@ const weekSummaryModule = {
 
 const allModules = [
   {
-    id: "recruitment",
-    label: "RECRUITMENT",
-    subtitle: "Pipeline & Forecast",
-    icon: Users,
-    path: "/recruitment",
-    hsl: "172 66% 50%",
-    hslDark: "172 66% 38%",
-    requiredRoles: ["leader", "manager"] as string[],
-  },
-  {
     id: "sales",
     label: "SALES",
     subtitle: "Daily Performance",
@@ -36,6 +26,16 @@ const allModules = [
     hsl: "0 65% 42%",
     hslDark: "0 65% 32%",
     requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
+  },
+  {
+    id: "recruitment",
+    label: "RECRUITMENT",
+    subtitle: "Pipeline & Forecast",
+    icon: Users,
+    path: "/recruitment",
+    hsl: "172 66% 50%",
+    hslDark: "172 66% 38%",
+    requiredRoles: ["leader", "manager"] as string[],
   },
   {
     id: "leaderboards",
@@ -271,7 +271,7 @@ export default function ModuleSelection() {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
   const segmentPaths = allModules.map((_, i) => {
-    const startAngle = i * 120 - 90 + gap / 2;
+    const startAngle = i * 120 - 150 + gap / 2;
     const endAngle = startAngle + 120 - gap;
     const ox1 = center + outerR * Math.cos(toRad(startAngle));
     const oy1 = center + outerR * Math.sin(toRad(startAngle));
@@ -285,7 +285,7 @@ export default function ModuleSelection() {
   });
 
   const labelPositions = allModules.map((_, i) => {
-    const midAngle = i * 120 - 90 + 60;
+    const midAngle = i * 120 - 150 + 60;
     const lr = (outerR + innerR) / 2;
     return {
       x: center + lr * Math.cos(toRad(midAngle)),
@@ -358,7 +358,7 @@ export default function ModuleSelection() {
           >
             <defs>
               {allModules.map((m, i) => {
-                const midAngle = i * 120 - 90 + 60;
+                const midAngle = i * 120 - 150 + 60;
                 const gx1 = center + innerR * Math.cos(toRad(midAngle));
                 const gy1 = center + innerR * Math.sin(toRad(midAngle));
                 const gx2 = center + outerR * Math.cos(toRad(midAngle));
@@ -371,7 +371,7 @@ export default function ModuleSelection() {
                 );
               })}
               {allModules.map((m, i) => {
-                const midAngle = i * 120 - 90 + 60;
+                const midAngle = i * 120 - 150 + 60;
                 const gx1 = center + innerR * Math.cos(toRad(midAngle));
                 const gy1 = center + innerR * Math.sin(toRad(midAngle));
                 const gx2 = center + outerR * Math.cos(toRad(midAngle));
