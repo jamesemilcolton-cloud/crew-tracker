@@ -6,7 +6,7 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Trophy, Users, Target, GitBranch, Flame } from "lucide-react";
+import { Download, Trophy, Users, Target, GitBranch, Flame, AlertTriangle, TrendingUp } from "lucide-react";
 import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
 import { CrewBubbleSnapshot } from "@/components/crew/CrewBubbleForecast";
 
@@ -140,24 +140,86 @@ export function WeeklySummary() {
     fetchCrewSales();
   }, [user, userRole, profile, currentWeekBounds, allProfiles]);
 
-  // Calculate individual sales metrics
-  const individualSales = useMemo(() => {
-    const totalSales = ownSalesEntries.reduce((s, e) => s + (e.sales || 0), 0);
-    const totalSpoken = ownSalesEntries.reduce((s, e) => s + (e.spoken || 0), 0);
-    const totalDoors = ownSalesEntries.reduce((s, e) => s + (e.doors || 0), 0);
-    const loa = totalSales > 0 ? `${Math.round(totalSpoken / totalSales)} : 1` : "–";
-    return { sales: totalSales, spoken: totalSpoken, doors: totalDoors, loa };
-  }, [ownSalesEntries]);
+  const GAUGE_KEYS = ["doors", "spoken", "presentations", "closes", "tablets", "sales"] as const;
+  const GAUGE_LABELS: Record<string, string> = {
+    doors: "Doors", spoken: "Spoken", presentations: "Presentations",
+    closes: "Closes", tablets: "Tablets", sales: "Sales",
+  };
+  const DAILY_TARGETS: Record<string, number> = {
+    doors: 120, spoken: 80, presentations: 30, closes: 25, tablets: 10, sales: 3,
+  };
 
-  // Calculate crew sales metrics
-  const crewSalesMetrics = useMemo(() => {
+  function calcMeanGauges(entries: any[]) {
+    const daysLogged = entries.length;
+    if (daysLogged === 0) return null;
+    const means: Record<string, number> = {};
+    for (const key of GAUGE_KEYS) {
+      const total = entries.reduce((s: number, e: any) => s + (e[key] || 0), 0);
+      means[key] = Math.round(total / daysLogged);
+    }
+    return means;
+  }
+
+  function calcDropoff(means: Record<string, number>) {
+    const result: { key: string; pct: number }[] = [];
+    for (const key of GAUGE_KEYS) {
+      const pct = Math.round((means[key] / DAILY_TARGETS[key]) * 100);
+      result.push({ key, pct });
+    }
+    return result;
+  }
+
+  function findWeakest(dropoff: { key: string; pct: number }[]) {
+    return dropoff.reduce((min, d) => d.pct < min.pct ? d : min, dropoff[0]);
+  }
+
+  function calcProjectedSales(means: Record<string, number>, weakestKey: string) {
+    const adjusted = { ...means };
+    adjusted[weakestKey] = DAILY_TARGETS[weakestKey];
+    const spokenToPresRatio = means.spoken > 0 ? means.presentations / means.spoken : 0;
+    const presToCloseRatio = means.presentations > 0 ? means.closes / means.presentations : 0;
+    const closeToTabRatio = means.closes > 0 ? means.tablets / means.closes : 0;
+    const tabToSaleRatio = means.tablets > 0 ? means.sales / means.tablets : 0;
+
+    const funnel = ["spoken", "presentations", "closes", "tablets", "sales"];
+    const ratios = [spokenToPresRatio, presToCloseRatio, closeToTabRatio, tabToSaleRatio];
+    const weakIdx = funnel.indexOf(weakestKey);
+
+    if (weakestKey === "doors") {
+      const doorsToSpokenRatio = means.doors > 0 ? means.spoken / means.doors : 0;
+      adjusted.spoken = Math.round(adjusted.doors * doorsToSpokenRatio);
+      adjusted.presentations = Math.round(adjusted.spoken * spokenToPresRatio);
+      adjusted.closes = Math.round(adjusted.presentations * presToCloseRatio);
+      adjusted.tablets = Math.round(adjusted.closes * closeToTabRatio);
+      adjusted.sales = adjusted.tablets * tabToSaleRatio;
+    } else if (weakestKey === "sales") {
+      return DAILY_TARGETS.sales;
+    } else if (weakIdx >= 0) {
+      for (let i = weakIdx; i < funnel.length - 1; i++) {
+        adjusted[funnel[i + 1]] = adjusted[funnel[i]] * ratios[i];
+      }
+    }
+    return Math.round(adjusted.sales * 10) / 10;
+  }
+
+  const individualMeans = useMemo(() => calcMeanGauges(ownSalesEntries), [ownSalesEntries]);
+  const individualDropoff = useMemo(() => individualMeans ? calcDropoff(individualMeans) : null, [individualMeans]);
+  const individualWeakest = useMemo(() => individualDropoff ? findWeakest(individualDropoff) : null, [individualDropoff]);
+  const individualProjected = useMemo(() => {
+    if (!individualMeans || !individualWeakest) return null;
+    return calcProjectedSales(individualMeans, individualWeakest.key);
+  }, [individualMeans, individualWeakest]);
+
+  const crewMeans = useMemo(() => {
     if (!userRole || userRole.role === "brand_ambassador") return null;
-    const totalSales = crewSalesEntries.reduce((s, e) => s + (e.sales || 0), 0);
-    const totalSpoken = crewSalesEntries.reduce((s, e) => s + (e.spoken || 0), 0);
-    const totalDoors = crewSalesEntries.reduce((s, e) => s + (e.doors || 0), 0);
-    const avgLoa = totalSales > 0 ? `${Math.round(totalSpoken / totalSales)} : 1` : "–";
-    return { sales: totalSales, spoken: totalSpoken, doors: totalDoors, avgLoa };
+    return calcMeanGauges(crewSalesEntries);
   }, [crewSalesEntries, userRole]);
+  const crewDropoff = useMemo(() => crewMeans ? calcDropoff(crewMeans) : null, [crewMeans]);
+  const crewWeakest = useMemo(() => crewDropoff ? findWeakest(crewDropoff) : null, [crewDropoff]);
+  const crewProjected = useMemo(() => {
+    if (!crewMeans || !crewWeakest) return null;
+    return calcProjectedSales(crewMeans, crewWeakest.key);
+  }, [crewMeans, crewWeakest]);
 
   useEffect(() => {
     async function fetchProfiles() {
@@ -426,50 +488,179 @@ export function WeeklySummary() {
           </CardContent>
         </Card>
 
-        {/* SECTION: Sales — This Week */}
+        {/* SECTION: Sales Performance — This Week */}
         <Card className="border-[hsl(0_70%_50%/0.3)] bg-card/80">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-              <span style={{ color: "hsl(0 70% 50%)" }}>Sales — This Week</span>
-              <span className="text-xs font-normal text-muted-foreground">({dateLabel})</span>
+              <span style={{ color: "hsl(0 70% 50%)" }}>Sales Performance — This Week</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                ({format(thisWeek.start, "do MMM")} – {format(thisWeek.end, "do MMM yyyy")})
+              </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Individual Sales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: "Your Sales", value: individualSales.sales },
-                { label: "Your LOA (Spoken → Sale)", value: individualSales.loa },
-                { label: "Your Total Spoken", value: individualSales.spoken },
-                { label: "Your Total Doors", value: individualSales.doors },
-              ].map((item) => (
-                <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center" style={{ borderLeft: "3px solid hsl(0 70% 50% / 0.3)" }}>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
-                  <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="space-y-5">
+            {/* YOUR PERFORMANCE */}
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Performance</div>
 
-            {/* Crew Sales (Leader + Manager only) */}
-            {crewSalesMetrics && (
-              <div className="border-t border-border/30 pt-3">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
-                  Crew Performance
+            {individualMeans ? (
+              <>
+                {/* Mean Daily Averages */}
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Mean Daily Average</div>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {GAUGE_KEYS.map((key) => (
+                      <div key={key} className="bg-muted/30 rounded-lg p-3 text-center" style={{ borderBottom: "2px solid hsl(0 70% 50% / 0.3)" }}>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[key]}</div>
+                        <div className="text-xl font-bold text-foreground">{individualMeans[key]}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: "Crew Sales", value: crewSalesMetrics.sales },
-                    { label: "Crew Average LOA", value: crewSalesMetrics.avgLoa },
-                    { label: "Crew Total Spoken", value: crewSalesMetrics.spoken },
-                    { label: "Crew Total Doors", value: crewSalesMetrics.doors },
-                  ].map((item) => (
-                    <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center" style={{ borderLeft: "3px solid hsl(0 70% 50% / 0.15)" }}>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
-                      <div className="text-2xl font-bold text-foreground">{item.value}</div>
+
+                {/* Target Daily Gauges */}
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+                    <Target className="w-3 h-3" /> Target Daily Gauges
+                  </div>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {GAUGE_KEYS.map((key) => (
+                      <div key={key} className="bg-muted/20 rounded-lg p-3 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[key]}</div>
+                        <div className="text-xl font-semibold text-muted-foreground">{DAILY_TARGETS[key]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Drop-off % */}
+                {individualDropoff && (
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">% of Target</div>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                      {individualDropoff.map((d) => (
+                        <div key={d.key} className="bg-muted/20 rounded-lg p-2 text-center">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[d.key]}</div>
+                          <div className={`text-lg font-bold ${d.pct >= 100 ? "text-green-500" : d.pct >= 80 ? "text-yellow-500" : "text-red-500"}`}>
+                            {d.pct}%
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {/* Primary Improvement Area */}
+                {individualWeakest && (
+                  <div className="rounded-lg p-4 border" style={{ borderColor: "hsl(0 70% 50% / 0.4)", backgroundColor: "hsl(0 70% 50% / 0.05)" }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
+                      <span className="text-sm font-semibold text-foreground">
+                        Primary Improvement Area: {GAUGE_LABELS[individualWeakest.key]}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Currently performing at {individualWeakest.pct}% of target.
+                    </p>
+                  </div>
+                )}
+
+                {/* Projected Outcome */}
+                {individualProjected !== null && individualWeakest && (
+                  <div className="rounded-lg p-4 bg-muted/20 border border-border/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <span className="text-sm font-semibold text-foreground">Projected Outcome</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      If <span className="font-medium text-foreground">{GAUGE_LABELS[individualWeakest.key]}</span> improved to target levels, your projected average daily sales would be: <span className="font-bold text-foreground text-sm">{individualProjected}</span>
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground py-4 text-center">No sales data logged this week.</div>
+            )}
+
+            {/* CREW PERFORMANCE (Leader + Manager only) */}
+            {crewMeans && (
+              <div className="border-t border-border/30 pt-4 space-y-4">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {userRole?.role === "manager" ? "Office Performance" : "Crew Performance"}
                 </div>
+
+                {/* Crew Mean Daily Averages */}
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Mean Daily Average</div>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {GAUGE_KEYS.map((key) => (
+                      <div key={key} className="bg-muted/30 rounded-lg p-3 text-center" style={{ borderBottom: "2px solid hsl(0 70% 50% / 0.15)" }}>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[key]}</div>
+                        <div className="text-xl font-bold text-foreground">{crewMeans[key]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Crew Target */}
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+                    <Target className="w-3 h-3" /> Target Daily Gauges
+                  </div>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {GAUGE_KEYS.map((key) => (
+                      <div key={key} className="bg-muted/20 rounded-lg p-3 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[key]}</div>
+                        <div className="text-xl font-semibold text-muted-foreground">{DAILY_TARGETS[key]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Crew Drop-off */}
+                {crewDropoff && (
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">% of Target</div>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                      {crewDropoff.map((d) => (
+                        <div key={d.key} className="bg-muted/20 rounded-lg p-2 text-center">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[d.key]}</div>
+                          <div className={`text-lg font-bold ${d.pct >= 100 ? "text-green-500" : d.pct >= 80 ? "text-yellow-500" : "text-red-500"}`}>
+                            {d.pct}%
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Crew Improvement Area */}
+                {crewWeakest && (
+                  <div className="rounded-lg p-4 border" style={{ borderColor: "hsl(0 70% 50% / 0.4)", backgroundColor: "hsl(0 70% 50% / 0.05)" }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
+                      <span className="text-sm font-semibold text-foreground">
+                        Primary Improvement Area: {GAUGE_LABELS[crewWeakest.key]}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Currently performing at {crewWeakest.pct}% of target.
+                    </p>
+                  </div>
+                )}
+
+                {/* Crew Projected */}
+                {crewProjected !== null && crewWeakest && (
+                  <div className="rounded-lg p-4 bg-muted/20 border border-border/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <span className="text-sm font-semibold text-foreground">Projected Outcome</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      If <span className="font-medium text-foreground">{GAUGE_LABELS[crewWeakest.key]}</span> improved to target levels, projected average daily sales would be: <span className="font-bold text-foreground text-sm">{crewProjected}</span>
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
