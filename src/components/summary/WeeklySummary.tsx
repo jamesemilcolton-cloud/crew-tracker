@@ -490,7 +490,7 @@ export function WeeklySummary() {
 
         {/* SECTION: Sales Performance — This Week */}
         <Card className="border-[hsl(0_70%_50%/0.3)] bg-card/80">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
               <span style={{ color: "hsl(0 70% 50%)" }}>Sales Performance — This Week</span>
@@ -499,7 +499,7 @@ export function WeeklySummary() {
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4">
             {/* YOUR PERFORMANCE */}
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Performance</div>
 
@@ -533,48 +533,65 @@ export function WeeklySummary() {
                   </div>
                 </div>
 
-                {/* Drop-off % */}
-                {individualDropoff && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">% of Target</div>
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                      {individualDropoff.map((d) => (
-                        <div key={d.key} className="bg-muted/20 rounded-lg p-2 text-center">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[d.key]}</div>
-                          <div className={`text-lg font-bold ${d.pct >= 100 ? "text-green-500" : d.pct >= 80 ? "text-yellow-500" : "text-red-500"}`}>
-                            {d.pct}%
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Primary Improvement Area */}
-                {individualWeakest && (
-                  <div className="rounded-lg p-4 border" style={{ borderColor: "hsl(0 70% 50% / 0.4)", backgroundColor: "hsl(0 70% 50% / 0.05)" }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-                      <span className="text-sm font-semibold text-foreground">
-                        Primary Improvement Area: {GAUGE_LABELS[individualWeakest.key]}
+                {/* Compact % vs Target — single line */}
+                {individualDropoff && individualWeakest && (
+                  <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground">
+                    <span className="text-[10px] uppercase tracking-wider mr-1">% of Target:</span>
+                    {individualDropoff.map((d, i) => (
+                      <span key={d.key} className="inline-flex items-center gap-0.5">
+                        <span className="text-muted-foreground">{GAUGE_LABELS[d.key] === "Presentations" ? "Pres" : GAUGE_LABELS[d.key] === "Tablets" ? "Tabs" : GAUGE_LABELS[d.key]}</span>
+                        <span className={`font-semibold ${d.key === individualWeakest.key ? "text-red-400" : d.pct >= 100 ? "text-green-500" : d.pct >= 80 ? "text-yellow-500" : "text-red-500"}`}>
+                          {d.pct}%
+                        </span>
+                        {i < individualDropoff.length - 1 && <span className="text-border mx-0.5">|</span>}
                       </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Currently performing at {individualWeakest.pct}% of target.
-                    </p>
+                    ))}
                   </div>
                 )}
 
-                {/* Projected Outcome */}
-                {individualProjected !== null && individualWeakest && (
-                  <div className="rounded-lg p-4 bg-muted/20 border border-border/30">
-                    <div className="flex items-center gap-2 mb-1">
+                {/* Improvement Simulation */}
+                {individualWeakest && individualMeans && (
+                  <div className="rounded-lg p-3 border border-border/30 bg-muted/10 space-y-2">
+                    <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span className="text-sm font-semibold text-foreground">Projected Outcome</span>
+                      <span className="text-xs font-semibold text-foreground">Improvement Simulation</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      If <span className="font-medium text-foreground">{GAUGE_LABELS[individualWeakest.key]}</span> improved to target levels, your projected average daily sales would be: <span className="font-bold text-foreground text-sm">{individualProjected}</span>
+                      Weakest Gauge: <span className="font-medium text-foreground">{GAUGE_LABELS[individualWeakest.key]}</span> ({individualWeakest.pct}% of target)
                     </p>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-1">
+                        If {GAUGE_LABELS[individualWeakest.key]} improved to target:
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap text-xs">
+                        {GAUGE_KEYS.map((key, i) => {
+                          const projected = (() => {
+                            const adj = { ...individualMeans };
+                            adj[individualWeakest.key] = DAILY_TARGETS[individualWeakest.key];
+                            const doorsToSpokenRatio = individualMeans.doors > 0 ? individualMeans.spoken / individualMeans.doors : 0;
+                            const spokenToPresRatio = individualMeans.spoken > 0 ? individualMeans.presentations / individualMeans.spoken : 0;
+                            const presToCloseRatio = individualMeans.presentations > 0 ? individualMeans.closes / individualMeans.presentations : 0;
+                            const closeToTabRatio = individualMeans.closes > 0 ? individualMeans.tablets / individualMeans.closes : 0;
+                            const tabToSaleRatio = individualMeans.tablets > 0 ? individualMeans.sales / individualMeans.tablets : 0;
+                            const funnel = ["doors", "spoken", "presentations", "closes", "tablets", "sales"];
+                            const ratios = [doorsToSpokenRatio, spokenToPresRatio, presToCloseRatio, closeToTabRatio, tabToSaleRatio];
+                            const weakIdx = funnel.indexOf(individualWeakest.key);
+                            for (let ii = weakIdx; ii < funnel.length - 1; ii++) {
+                              adj[funnel[ii + 1]] = Math.round(adj[funnel[ii]] * ratios[ii]);
+                            }
+                            return adj;
+                          })();
+                          const changed = projected[key] !== individualMeans[key];
+                          return (
+                            <span key={key} className="inline-flex items-center gap-0.5">
+                              <span className="text-muted-foreground">{GAUGE_LABELS[key] === "Presentations" ? "Pres" : GAUGE_LABELS[key] === "Tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
+                              <span className={`font-semibold ${changed ? "text-green-400" : "text-foreground"}`}>{projected[key]}</span>
+                              {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-0.5">|</span>}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </>
@@ -585,9 +602,7 @@ export function WeeklySummary() {
             {/* CREW PERFORMANCE (Leader + Manager only) */}
             {crewMeans && (
               <div className="border-t border-border/30 pt-4 space-y-4">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                  {userRole?.role === "manager" ? "Office Performance" : "Crew Performance"}
-                </div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Crew Performance</div>
 
                 {/* Crew Mean Daily Averages */}
                 <div>
@@ -617,48 +632,65 @@ export function WeeklySummary() {
                   </div>
                 </div>
 
-                {/* Crew Drop-off */}
-                {crewDropoff && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">% of Target</div>
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                      {crewDropoff.map((d) => (
-                        <div key={d.key} className="bg-muted/20 rounded-lg p-2 text-center">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{GAUGE_LABELS[d.key]}</div>
-                          <div className={`text-lg font-bold ${d.pct >= 100 ? "text-green-500" : d.pct >= 80 ? "text-yellow-500" : "text-red-500"}`}>
-                            {d.pct}%
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Crew Improvement Area */}
-                {crewWeakest && (
-                  <div className="rounded-lg p-4 border" style={{ borderColor: "hsl(0 70% 50% / 0.4)", backgroundColor: "hsl(0 70% 50% / 0.05)" }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-                      <span className="text-sm font-semibold text-foreground">
-                        Primary Improvement Area: {GAUGE_LABELS[crewWeakest.key]}
+                {/* Crew Compact % vs Target */}
+                {crewDropoff && crewWeakest && (
+                  <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground">
+                    <span className="text-[10px] uppercase tracking-wider mr-1">% of Target:</span>
+                    {crewDropoff.map((d, i) => (
+                      <span key={d.key} className="inline-flex items-center gap-0.5">
+                        <span className="text-muted-foreground">{GAUGE_LABELS[d.key] === "Presentations" ? "Pres" : GAUGE_LABELS[d.key] === "Tablets" ? "Tabs" : GAUGE_LABELS[d.key]}</span>
+                        <span className={`font-semibold ${d.key === crewWeakest.key ? "text-red-400" : d.pct >= 100 ? "text-green-500" : d.pct >= 80 ? "text-yellow-500" : "text-red-500"}`}>
+                          {d.pct}%
+                        </span>
+                        {i < crewDropoff.length - 1 && <span className="text-border mx-0.5">|</span>}
                       </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Currently performing at {crewWeakest.pct}% of target.
-                    </p>
+                    ))}
                   </div>
                 )}
 
-                {/* Crew Projected */}
-                {crewProjected !== null && crewWeakest && (
-                  <div className="rounded-lg p-4 bg-muted/20 border border-border/30">
-                    <div className="flex items-center gap-2 mb-1">
+                {/* Crew Simulation */}
+                {crewWeakest && crewMeans && (
+                  <div className="rounded-lg p-3 border border-border/30 bg-muted/10 space-y-2">
+                    <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span className="text-sm font-semibold text-foreground">Projected Outcome</span>
+                      <span className="text-xs font-semibold text-foreground">Improvement Simulation</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      If <span className="font-medium text-foreground">{GAUGE_LABELS[crewWeakest.key]}</span> improved to target levels, projected average daily sales would be: <span className="font-bold text-foreground text-sm">{crewProjected}</span>
+                      Weakest Gauge: <span className="font-medium text-foreground">{GAUGE_LABELS[crewWeakest.key]}</span> ({crewWeakest.pct}% of target)
                     </p>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-1">
+                        If {GAUGE_LABELS[crewWeakest.key]} improved to target:
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap text-xs">
+                        {GAUGE_KEYS.map((key, i) => {
+                          const projected = (() => {
+                            const adj = { ...crewMeans };
+                            adj[crewWeakest.key] = DAILY_TARGETS[crewWeakest.key];
+                            const doorsToSpokenRatio = crewMeans.doors > 0 ? crewMeans.spoken / crewMeans.doors : 0;
+                            const spokenToPresRatio = crewMeans.spoken > 0 ? crewMeans.presentations / crewMeans.spoken : 0;
+                            const presToCloseRatio = crewMeans.presentations > 0 ? crewMeans.closes / crewMeans.presentations : 0;
+                            const closeToTabRatio = crewMeans.closes > 0 ? crewMeans.tablets / crewMeans.closes : 0;
+                            const tabToSaleRatio = crewMeans.tablets > 0 ? crewMeans.sales / crewMeans.tablets : 0;
+                            const funnel = ["doors", "spoken", "presentations", "closes", "tablets", "sales"];
+                            const ratios = [doorsToSpokenRatio, spokenToPresRatio, presToCloseRatio, closeToTabRatio, tabToSaleRatio];
+                            const weakIdx = funnel.indexOf(crewWeakest.key);
+                            for (let ii = weakIdx; ii < funnel.length - 1; ii++) {
+                              adj[funnel[ii + 1]] = Math.round(adj[funnel[ii]] * ratios[ii]);
+                            }
+                            return adj;
+                          })();
+                          const changed = projected[key] !== crewMeans[key];
+                          return (
+                            <span key={key} className="inline-flex items-center gap-0.5">
+                              <span className="text-muted-foreground">{GAUGE_LABELS[key] === "Presentations" ? "Pres" : GAUGE_LABELS[key] === "Tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
+                              <span className={`font-semibold ${changed ? "text-green-400" : "text-foreground"}`}>{projected[key]}</span>
+                              {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-0.5">|</span>}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
