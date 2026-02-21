@@ -20,6 +20,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [crewName, setCrewName] = useState("");
   const [leaderId, setLeaderId] = useState<string>("");
   const [leaders, setLeaders] = useState<LeaderOption[]>([]);
@@ -33,9 +34,25 @@ export default function Auth() {
 
   useEffect(() => {
     if (isSignUp) {
-      supabase.from("profiles").select("id, full_name").then(({ data }) => {
-        setLeaders(data ?? []);
-      });
+      // Fetch only leaders and managers as leader options
+      const fetchLeaders = async () => {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["leader", "manager"]);
+
+        if (roles && roles.length > 0) {
+          const userIds = roles.map((r: any) => r.user_id);
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("user_id", userIds);
+          setLeaders(profiles ?? []);
+        } else {
+          setLeaders([]);
+        }
+      };
+      fetchLeaders();
     }
   }, [isSignUp]);
 
@@ -50,7 +67,12 @@ export default function Auth() {
         setSubmitting(false);
         return;
       }
-      const { error } = await signUp(email, password, fullName, leaderId || null, crewName.trim());
+      if (!phone.trim()) {
+        setError("Phone number is required.");
+        setSubmitting(false);
+        return;
+      }
+      const { error } = await signUp(email, password, fullName, leaderId || null, crewName.trim(), phone.trim());
       if (error) setError(error.message);
     } else {
       const { error } = await signIn(email, password);
@@ -100,6 +122,10 @@ export default function Auth() {
                 <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
               </div>
               <div className="space-y-2">
+                <Label>Phone Number</Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+44 7700 900000" required />
+              </div>
+              <div className="space-y-2">
                 <Label>Crew Name</Label>
                 <Input value={crewName} onChange={(e) => setCrewName(e.target.value)} placeholder="e.g. Alpha Crew" required />
                 <p className="text-[11px] text-muted-foreground">This will be displayed across the app alongside your name.</p>
@@ -119,10 +145,10 @@ export default function Auth() {
 
           {isSignUp && (
             <div className="space-y-2">
-              <Label>Select Your Leader (optional)</Label>
+              <Label>Select Your Leader</Label>
               <Select value={leaderId} onValueChange={setLeaderId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="No leader (I'm a top-level recruiter)" />
+                  <SelectValue placeholder="Choose your leader" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No leader</SelectItem>

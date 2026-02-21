@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Users, DollarSign, Trophy, LogOut } from "lucide-react";
+import { Users, DollarSign, Trophy, Shield, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -12,7 +12,6 @@ const modules = [
     subtitle: "Pipeline & Forecast",
     icon: Users,
     path: "/recruitment",
-    cssVar: "--module-recruitment",
     hsl: "172 66% 50%",
     hslDark: "172 66% 38%",
   },
@@ -22,7 +21,6 @@ const modules = [
     subtitle: "Daily Performance",
     icon: DollarSign,
     path: "/sales",
-    cssVar: "--module-sales",
     hsl: "0 65% 42%",
     hslDark: "0 65% 32%",
   },
@@ -32,11 +30,20 @@ const modules = [
     subtitle: "Rankings & Results",
     icon: Trophy,
     path: "/leaderboards",
-    cssVar: "--module-leaderboards",
     hsl: "36 75% 48%",
     hslDark: "36 75% 36%",
   },
 ] as const;
+
+const managerModule = {
+  id: "manager",
+  label: "MANAGER",
+  subtitle: "User Management",
+  icon: Shield,
+  path: "/manager",
+  hsl: "270 60% 50%",
+  hslDark: "270 60% 38%",
+};
 
 // Particle system
 function ParticleCanvas() {
@@ -62,12 +69,12 @@ function ParticleCanvas() {
     window.addEventListener("resize", resize);
 
     const colors = [
-      "180,180,180",   // grey
-      "180,180,180",   // grey
-      "180,180,180",   // grey
-      "94,234,212",    // teal
-      "205,92,92",     // red
-      "218,165,72",    // amber
+      "180,180,180",
+      "180,180,180",
+      "180,180,180",
+      "94,234,212",
+      "205,92,92",
+      "218,165,72",
     ];
 
     type Particle = { x: number; y: number; vx: number; vy: number; size: number; opacity: number; maxOpacity: number; color: string; phase: number; phaseSpeed: number };
@@ -128,9 +135,11 @@ function ParticleCanvas() {
 
 export default function ModuleSelection() {
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, userRole, signOut } = useAuth();
   const isMobile = useIsMobile();
   const [hovered, setHovered] = useState<string | null>(null);
+
+  const isManager = userRole?.role === "manager" && userRole?.super_admin;
 
   if (isMobile) {
     return (
@@ -164,6 +173,20 @@ export default function ModuleSelection() {
               </button>
             );
           })}
+          {isManager && (
+            <button
+              onClick={() => navigate(managerModule.path)}
+              className="w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(135deg, hsl(${managerModule.hsl} / 0.18), hsl(${managerModule.hslDark} / 0.10))`,
+                border: `1px solid hsl(${managerModule.hsl} / 0.25)`,
+              }}
+            >
+              <Shield className="w-7 h-7" style={{ color: `hsl(${managerModule.hsl})` }} />
+              <span className="text-base font-bold tracking-[0.2em] text-foreground">{managerModule.label}</span>
+              <span className="text-xs text-muted-foreground">{managerModule.subtitle}</span>
+            </button>
+          )}
         </main>
       </div>
     );
@@ -174,7 +197,7 @@ export default function ModuleSelection() {
   const center = size / 2;
   const outerR = size / 2;
   const innerR = outerR * 0.38;
-  const gap = 1.2; // degrees gap between segments
+  const gap = 1.2;
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -200,6 +223,10 @@ export default function ModuleSelection() {
       y: center + lr * Math.sin(toRad(midAngle)),
     };
   });
+
+  // Manager circle radius - fits inside the inner ring
+  const managerR = innerR * 0.72;
+  const isManagerHovered = hovered === "manager";
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
@@ -250,6 +277,15 @@ export default function ModuleSelection() {
                   </linearGradient>
                 );
               })}
+              {/* Manager gradient */}
+              <radialGradient id="grad-manager" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={`hsl(${managerModule.hslDark})`} stopOpacity="0.22" />
+                <stop offset="100%" stopColor={`hsl(${managerModule.hsl})`} stopOpacity="0.16" />
+              </radialGradient>
+              <radialGradient id="grad-hover-manager" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={`hsl(${managerModule.hslDark})`} stopOpacity="0.35" />
+                <stop offset="100%" stopColor={`hsl(${managerModule.hsl})`} stopOpacity="0.28" />
+              </radialGradient>
             </defs>
 
             {modules.map((m, i) => {
@@ -276,6 +312,30 @@ export default function ModuleSelection() {
                 />
               );
             })}
+
+            {/* Manager circle in center */}
+            {isManager && (
+              <circle
+                cx={center}
+                cy={center}
+                r={managerR}
+                fill={isManagerHovered ? "url(#grad-hover-manager)" : "url(#grad-manager)"}
+                stroke={`hsl(${managerModule.hsl} / ${isManagerHovered ? 0.5 : 0.2})`}
+                strokeWidth="1"
+                className="cursor-pointer"
+                style={{
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  filter: isManagerHovered
+                    ? `drop-shadow(0 4px 6px hsl(${managerModule.hsl} / 0.25)) drop-shadow(0 0 20px hsl(${managerModule.hsl} / 0.15))`
+                    : "none",
+                  transform: isManagerHovered ? "translateY(-3px)" : "translateY(0)",
+                  transformOrigin: "center",
+                }}
+                onClick={() => navigate(managerModule.path)}
+                onMouseEnter={() => setHovered("manager")}
+                onMouseLeave={() => setHovered(null)}
+              />
+            )}
           </svg>
 
           {/* Labels overlaid on segments */}
@@ -323,6 +383,46 @@ export default function ModuleSelection() {
               </div>
             );
           })}
+
+          {/* Manager center label */}
+          {isManager && (
+            <div
+              className="absolute flex flex-col items-center pointer-events-none select-none"
+              style={{
+                left: center,
+                top: center,
+                transform: `translate(-50%, -50%) translateY(${isManagerHovered ? "-3px" : "0"})`,
+                transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              <Shield
+                className="w-6 h-6 mb-2"
+                style={{
+                  color: `hsl(${managerModule.hsl})`,
+                  opacity: isManagerHovered ? 1 : 0.7,
+                  transition: "opacity 0.3s",
+                }}
+              />
+              <span
+                className="text-sm font-bold tracking-[0.2em] text-foreground"
+                style={{
+                  opacity: isManagerHovered ? 1 : 0.85,
+                  transition: "opacity 0.3s",
+                }}
+              >
+                {managerModule.label}
+              </span>
+              <span
+                className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap"
+                style={{
+                  opacity: isManagerHovered ? 0.8 : 0.5,
+                  transition: "opacity 0.3s",
+                }}
+              >
+                {managerModule.subtitle}
+              </span>
+            </div>
+          )}
         </div>
       </main>
     </div>

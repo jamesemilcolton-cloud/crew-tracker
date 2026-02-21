@@ -9,16 +9,26 @@ interface Profile {
   leader_id: string | null;
   crew_name: string;
   created_at: string;
+  phone: string;
+}
+
+export type AppRole = "brand_ambassador" | "leader" | "manager";
+
+interface UserRole {
+  role: AppRole;
+  super_admin: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  userRole: UserRole | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, leaderId: string | null, crewName: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, leaderId: string | null, crewName: string, phone: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  refetchRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -38,15 +49,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(data);
   };
 
+  const fetchRole = async (userId: string) => {
+    const { data } = await supabase.rpc("get_user_role", { _user_id: userId });
+    if (data) {
+      setUserRole(data as unknown as UserRole);
+    }
+  };
+
+  const refetchRole = async () => {
+    if (user) await fetchRole(user.id);
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
+          setTimeout(() => {
+            fetchProfile(session.user.id);
+            fetchRole(session.user.id);
+          }, 0);
         } else {
           setProfile(null);
+          setUserRole(null);
         }
         setLoading(false);
       }
@@ -57,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+        fetchRole(session.user.id);
       }
       setLoading(false);
     });
@@ -64,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, leaderId: string | null, crewName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, leaderId: string | null, crewName: string, phone: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -78,9 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: fullName,
         leader_id: leaderId || null,
         crew_name: crewName,
+        phone: phone,
       });
       if (profileError) return { error: profileError };
       await fetchProfile(data.user.id);
+      await fetchRole(data.user.id);
     }
     return { error: null };
   };
@@ -93,10 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setUserRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, userRole, loading, signUp, signIn, signOut, refetchRole }}>
       {children}
     </AuthContext.Provider>
   );

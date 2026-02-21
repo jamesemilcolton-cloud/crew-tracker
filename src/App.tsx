@@ -8,6 +8,7 @@ import ModuleSelection from "./pages/ModuleSelection";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import Manager from "./pages/Manager";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -17,6 +18,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground text-sm">Loading...</span></div>;
   if (!user) return <Navigate to="/auth" replace />;
+  return <>{children}</>;
+}
+
+function ManagerRoute({ children }: { children: React.ReactNode }) {
+  const { user, userRole, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground text-sm">Loading...</span></div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!userRole || userRole.role !== "manager" || !userRole.super_admin) {
+    return <Navigate to="/home" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -34,6 +45,7 @@ const App = () => (
             <Route path="/recruitment" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
             <Route path="/leaderboards" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+            <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
