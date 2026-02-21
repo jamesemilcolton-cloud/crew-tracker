@@ -232,157 +232,182 @@ export function Leaderboard() {
     }
   };
 
+  // Derive top 3 from salesRanking
+  const top1 = salesRanking.filter((e) => e.rank === 1);
+  const top2 = salesRanking.filter((e) => e.rank === 2);
+  const top3 = salesRanking.filter((e) => e.rank === 3);
+  const topRecord = allTimeRecords.length > 0 ? allTimeRecords[0] : null;
+
   return (
-    <div className="space-y-4">
-      {/* ===== SALES LEADERBOARD SECTION ===== */}
-      <div className="glass-panel p-4">
+    <div className="space-y-6">
+      {/* ===== SECTION 1 — SALES ===== */}
+      <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-          <h3 className="text-sm font-medium text-foreground">🔥 Sales Leaderboard</h3>
+          <h2 className="text-sm font-semibold text-foreground">🔥 Sales — This Week</h2>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {/* Sales (This Week) tile */}
-        <div className="glass-panel p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="text-muted-foreground"><Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-            <span className="text-xs font-medium text-muted-foreground">Sales (This Week)</span>
-          </div>
-
-          {salesRanking.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">No data</p>
-          ) : (
-            <div className="space-y-1">
-              {salesRanking.map((entry) => {
-                const isMe = entry.userId === user?.id;
-                const medalColor = entry.rank === 1 ? "#FFD700" : entry.rank === 2 ? "#C0C0C0" : entry.rank === 3 ? "#CD7F32" : null;
-                return (
-                  <div
-                    key={entry.userId}
-                    className={`flex items-center justify-between py-1.5 px-2 rounded-md ${entry.rank === 1 ? "bg-red-500/10" : ""} ${isMe ? "ring-1 ring-red-500/20" : ""}`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {medalColor ? (
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                      ) : (
-                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
-                          {entry.rank}
-                        </span>
-                      )}
-                      <span className={`text-xs truncate ${entry.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                        {entry.name}{isMe ? " ●" : ""}
-                      </span>
-                    </div>
-                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${entry.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={entry.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>
-                      {entry.sales}
-                    </span>
-                  </div>
-                );
-              })}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {/* Hero tile — Top Seller */}
+          <div className="glass-panel p-4 col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "#FFD700" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">Top Seller This Week</span>
             </div>
-          )}
-        </div>
-
-        {/* All-Time Weekly Record tile */}
-        <div className="glass-panel p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-            <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Record</span>
-          </div>
-
-          {allTimeRecords.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">No data</p>
-          ) : (
-            <div className="space-y-1">
-              {allTimeRecords.map((record, i) => {
-                const medalColor = record.rank === 1 ? "#FFD700" : record.rank === 2 ? "#C0C0C0" : record.rank === 3 ? "#CD7F32" : null;
-                return (
-                  <div
-                    key={i}
-                    className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {medalColor ? (
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                      ) : (
-                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
-                          {record.rank}
-                        </span>
-                      )}
-                      <div className="min-w-0">
-                        <span className={`text-xs truncate block ${record.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                          {record.name}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
+            {top1.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No sales yet</p>
+            ) : (
+              <div className="space-y-1">
+                {top1.map((e) => {
+                  const isMe = e.userId === user?.id;
+                  return (
+                    <div key={e.userId} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-red-500/10">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#FFD700" }} />
+                        <span className="text-xs font-semibold text-foreground truncate">{e.name}{isMe ? " ●" : ""}</span>
                       </div>
+                      <span className="text-sm font-mono font-bold flex-shrink-0 ml-2" style={{ color: "hsl(0 70% 50%)" }}>{e.sales}</span>
                     </div>
-                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>
-                      {record.sales}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-      {/* ===== EXISTING RECRUITMENT LEADERBOARD ===== */}
-      <div className="glass-panel p-4">
+          {/* 2nd Place tile */}
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Medal className="w-4 h-4" style={{ color: "#C0C0C0" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">🥈 2nd Place</span>
+            </div>
+            {top2.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">—</p>
+            ) : (
+              <div className="space-y-1">
+                {top2.map((e) => {
+                  const isMe = e.userId === user?.id;
+                  return (
+                    <div key={e.userId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${isMe ? "ring-1 ring-red-500/20" : ""}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C0C0C0" }} />
+                        <span className="text-xs text-muted-foreground truncate">{e.name}{isMe ? " ●" : ""}</span>
+                      </div>
+                      <span className="text-xs font-mono flex-shrink-0 ml-2 text-muted-foreground">{e.sales}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 3rd Place tile */}
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Medal className="w-4 h-4" style={{ color: "#CD7F32" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">🥉 3rd Place</span>
+            </div>
+            {top3.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">—</p>
+            ) : (
+              <div className="space-y-1">
+                {top3.map((e) => {
+                  const isMe = e.userId === user?.id;
+                  return (
+                    <div key={e.userId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${isMe ? "ring-1 ring-red-500/20" : ""}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CD7F32" }} />
+                        <span className="text-xs text-muted-foreground truncate">{e.name}{isMe ? " ●" : ""}</span>
+                      </div>
+                      <span className="text-xs font-mono flex-shrink-0 ml-2 text-muted-foreground">{e.sales}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* All-Time Weekly Record tile */}
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Record</span>
+            </div>
+            {!topRecord ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No data</p>
+            ) : (
+              <div className="space-y-1">
+                {allTimeRecords.map((record, i) => {
+                  const medalColor = record.rank === 1 ? "#FFD700" : record.rank === 2 ? "#C0C0C0" : record.rank === 3 ? "#CD7F32" : null;
+                  return (
+                    <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {medalColor ? (
+                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                        ) : (
+                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{record.rank}</span>
+                        )}
+                        <div className="min-w-0">
+                          <span className={`text-xs truncate block ${record.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{record.name}</span>
+                          <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>{record.sales}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Subtle divider */}
+      <div className="border-t border-border/30" />
+
+      {/* ===== SECTION 2 — RECRUITMENT ===== */}
+      <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-medium text-foreground">Recruitment Leaderboard</h3>
+          <h2 className="text-sm font-semibold text-foreground">🎯 Recruitment — This Week</h2>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {METRICS.map((m) => {
-          const ranked = metricRankings[m.key];
-
-          return (
-            <div key={m.key} className="glass-panel p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="text-muted-foreground">{m.icon}</div>
-                <span className="text-xs font-medium text-muted-foreground">{m.label}</span>
-              </div>
-
-              {ranked.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">No data</p>
-              ) : (
-                <div className="space-y-1">
-                  {ranked.map((entry, i) => (
-                    <div
-                      key={entry.profileId}
-                      className={`flex items-center justify-between py-1.5 px-2 rounded-md ${i === 0 ? "bg-primary/10" : ""}`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        {i === 0 ? (
-                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#FFD700" }} />
-                        ) : i === 1 ? (
-                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C0C0C0" }} />
-                        ) : i === 2 ? (
-                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CD7F32" }} />
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
-                            {i + 1}
-                          </span>
-                        )}
-                        <span className={`text-xs truncate ${i === 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                          {displayName(entry)}
-                        </span>
-                      </div>
-                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${i === 0 ? "font-bold text-primary" : "text-muted-foreground"}`}>
-                        {entry[m.key]}{m.suffix ?? ""}
-                      </span>
-                    </div>
-                  ))}
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {METRICS.map((m) => {
+            const ranked = metricRankings[m.key];
+            return (
+              <div key={m.key} className="glass-panel p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="text-muted-foreground">{m.icon}</div>
+                  <span className="text-xs font-medium text-muted-foreground">{m.label}</span>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {ranked.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No data</p>
+                ) : (
+                  <div className="space-y-1">
+                    {ranked.map((entry, i) => (
+                      <div key={entry.profileId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${i === 0 ? "bg-primary/10" : ""}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {i === 0 ? (
+                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#FFD700" }} />
+                          ) : i === 1 ? (
+                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C0C0C0" }} />
+                          ) : i === 2 ? (
+                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CD7F32" }} />
+                          ) : (
+                            <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{i + 1}</span>
+                          )}
+                          <span className={`text-xs truncate ${i === 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{displayName(entry)}</span>
+                        </div>
+                        <span className={`text-xs font-mono flex-shrink-0 ml-2 ${i === 0 ? "font-bold text-primary" : "text-muted-foreground"}`}>{entry[m.key]}{m.suffix ?? ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
