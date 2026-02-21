@@ -50,11 +50,29 @@ interface AllTimeRecord {
   rank: number;
 }
 
+interface CrewSalesEntry {
+  userId: string;
+  name: string;
+  crewName: string;
+  crewSales: number;
+  rank: number;
+  hasTeam: boolean;
+}
+
+interface AllTimeCrewRecord {
+  name: string;
+  crewSales: number;
+  weekCommencing: string;
+  rank: number;
+}
+
 export function Leaderboard() {
   const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [salesRanking, setSalesRanking] = useState<SalesRankedEntry[]>([]);
   const [allTimeRecords, setAllTimeRecords] = useState<AllTimeRecord[]>([]);
+  const [crewSalesRanking, setCrewSalesRanking] = useState<CrewSalesEntry[]>([]);
+  const [allTimeCrewRecords, setAllTimeCrewRecords] = useState<AllTimeCrewRecord[]>([]);
 
   // Current week bounds
   const now = new Date();
@@ -116,14 +134,17 @@ export function Leaderboard() {
   // Fetch sales leaderboard data
   useEffect(() => {
     async function fetchSalesData() {
-      const [salesRes, profilesRes] = await Promise.all([
+      const [salesRes, profilesRes, rolesRes] = await Promise.all([
         supabase.from("sales_entries").select("*"),
-        supabase.from("profiles").select("id, user_id, full_name"),
+        supabase.from("profiles").select("id, user_id, full_name, crew_name, leader_id"),
+        supabase.from("user_roles").select("user_id, role"),
       ]);
 
       const allSales = salesRes.data ?? [];
       const profiles = profilesRes.data ?? [];
+      const roles = rolesRes.data ?? [];
       const profileMap = new Map(profiles.map((p) => [p.user_id, p.full_name]));
+      const profileIdToUserId = new Map(profiles.map((p) => [p.id, p.user_id]));
 
       // Current week leaderboard — include ALL profiles
       const weekSales = allSales.filter(
@@ -156,20 +177,82 @@ export function Leaderboard() {
 
       setSalesRanking(sorted);
 
-      // All-time weekly records
+      // === CREW SALES CALCULATION ===
+      // Build hierarchy: profileId -> list of direct child profileIds
+      const childrenMap = new Map<string, string[]>();
+      profiles.forEach((p) => {
+        if (p.leader_id) {
+          const existing = childrenMap.get(p.leader_id) || [];
+          existing.push(p.id);
+          childrenMap.set(p.leader_id, existing);
+        }
+      });
+
+      // Recursive function to get all descendant user_ids for a profile
+      const getDescendantUserIds = (profileId: string): string[] => {
+        const children = childrenMap.get(profileId) || [];
+        const result: string[] = [];
+        for (const childId of children) {
+          const childUserId = profileIdToUserId.get(childId);
+          if (childUserId) result.push(childUserId);
+          result.push(...getDescendantUserIds(childId));
+        }
+        return result;
+      };
+
+      // Helper to calc crew sales for a given user totals map
+      const calcCrewSales = (leaderProfile: typeof profiles[0], salesTotals: Map<string, number>) => {
+        const leaderSales = salesTotals.get(leaderProfile.user_id) || 0;
+        const descendantIds = getDescendantUserIds(leaderProfile.id);
+        const descendantSales = descendantIds.reduce((sum, uid) => sum + (salesTotals.get(uid) || 0), 0);
+        return leaderSales + descendantSales;
+      };
+
+      // Filter to leaders and managers only
+      const roleSet = new Map(roles.map((r) => [r.user_id, r.role]));
+      const leaderOrManager = profiles.filter((p) => {
+        const role = roleSet.get(p.user_id);
+        return role === "leader" || role === "manager";
+      });
+
+      // Current week crew sales
+      const crewEntries: CrewSalesEntry[] = leaderOrManager.map((p) => {
+        const hasTeam = (childrenMap.get(p.id) || []).length > 0;
+        return {
+          userId: p.user_id,
+          name: p.full_name,
+          crewName: p.crew_name || "",
+          crewSales: calcCrewSales(p, userTotals),
+          rank: 0,
+          hasTeam,
+        };
+      }).sort((a, b) => b.crewSales - a.crewSales);
+
+      let crewRank = 1;
+      crewEntries.forEach((entry, i) => {
+        if (i > 0 && entry.crewSales < crewEntries[i - 1].crewSales) {
+          crewRank = i + 1;
+        }
+        entry.rank = crewRank;
+      });
+
+      setCrewSalesRanking(crewEntries);
+
+      // All-time weekly records (individual)
+      const weeklyRecords: { userId: string; sales: number; weekStart: Date }[] = [];
+      const crewWeeklyRecords: { userId: string; name: string; crewSales: number; weekStart: Date }[] = [];
+
       if (allSales.length > 0) {
         const dates = allSales.map((e) => e.entry_date).sort();
         const earliest = new Date(dates[0]);
         const latest = new Date(dates[dates.length - 1]);
 
-        const weeklyRecords: { userId: string; sales: number; weekStart: Date }[] = [];
         let ws = startOfWeek(earliest, { weekStartsOn: 1 });
 
         while (ws <= latest) {
           const wsS = format(ws, "yyyy-MM-dd");
           const weS = format(endOfWeek(ws, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
-          // Group by user for this week
           const weekEntries = allSales.filter(
             (e) => e.entry_date >= wsS && e.entry_date <= weS
           );
@@ -179,25 +262,31 @@ export function Leaderboard() {
             userWeekTotals.set(e.user_id, (userWeekTotals.get(e.user_id) || 0) + e.sales);
           });
 
+          // Individual records
           userWeekTotals.forEach((sales, userId) => {
             if (sales > 0) {
               weeklyRecords.push({ userId, sales, weekStart: ws });
             }
           });
 
+          // Crew records for this week
+          const currentWs = ws;
+          leaderOrManager.forEach((p) => {
+            const total = calcCrewSales(p, userWeekTotals);
+            if (total > 0) {
+              crewWeeklyRecords.push({ userId: p.user_id, name: p.full_name, crewSales: total, weekStart: currentWs });
+            }
+          });
+
           ws = addDays(ws, 7);
         }
 
-        // Sort descending by sales, take top 5
+        // Individual all-time top 5
         weeklyRecords.sort((a, b) => b.sales - a.sales);
         const top5 = weeklyRecords.slice(0, 5);
-
-        // Standard competition ranking
         let rank = 1;
         const ranked: AllTimeRecord[] = top5.map((r, i) => {
-          if (i > 0 && r.sales < top5[i - 1].sales) {
-            rank = i + 1;
-          }
+          if (i > 0 && r.sales < top5[i - 1].sales) rank = i + 1;
           return {
             name: profileMap.get(r.userId) || "Unknown",
             sales: r.sales,
@@ -205,8 +294,22 @@ export function Leaderboard() {
             rank,
           };
         });
-
         setAllTimeRecords(ranked);
+
+        // Crew all-time top 5
+        crewWeeklyRecords.sort((a, b) => b.crewSales - a.crewSales);
+        const crewTop5 = crewWeeklyRecords.slice(0, 5);
+        let crewRecRank = 1;
+        const crewRanked: AllTimeCrewRecord[] = crewTop5.map((r, i) => {
+          if (i > 0 && r.crewSales < crewTop5[i - 1].crewSales) crewRecRank = i + 1;
+          return {
+            name: r.name,
+            crewSales: r.crewSales,
+            weekCommencing: format(r.weekStart, "d MMM yyyy"),
+            rank: crewRecRank,
+          };
+        });
+        setAllTimeCrewRecords(crewRanked);
       }
     }
     fetchSalesData();
@@ -311,6 +414,88 @@ export function Leaderboard() {
                         </div>
                       </div>
                       <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>{record.sales}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Crew Sales Leaderboard */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">🏆 Top Performing Crew — This Week</span>
+            </div>
+            {crewSalesRanking.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {crewSalesRanking.map((entry) => {
+                  const isMe = entry.userId === user?.id;
+                  const isFirst = entry.rank === 1 && entry.crewSales > 0;
+                  const medalColor = entry.rank === 1 && entry.crewSales > 0 ? "#FFD700" : entry.rank === 2 && entry.crewSales > 0 ? "#C0C0C0" : entry.rank === 3 && entry.crewSales > 0 ? "#CD7F32" : null;
+                  return (
+                    <div
+                      key={entry.userId}
+                      className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {medalColor ? (
+                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                        ) : (
+                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
+                            {entry.rank}
+                          </span>
+                        )}
+                        <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">
+                          {entry.rank}{getRankSuffix(entry.rank)}
+                        </span>
+                        <div className="min-w-0">
+                          <span className={`text-xs truncate block ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                            {entry.name}{entry.crewName ? ` (${entry.crewName})` : ""}{isMe ? " ●" : ""}
+                          </span>
+                          {!entry.hasTeam && <span className="text-[10px] text-muted-foreground">No crew yet</span>}
+                        </div>
+                      </div>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
+                        {entry.crewSales}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* All-Time Weekly Crew Record */}
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Crew Record</span>
+            </div>
+            {allTimeCrewRecords.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No data</p>
+            ) : (
+              <div className="space-y-1">
+                {allTimeCrewRecords.map((record, i) => {
+                  const medalColor = record.rank === 1 ? "#FFD700" : record.rank === 2 ? "#C0C0C0" : record.rank === 3 ? "#CD7F32" : null;
+                  return (
+                    <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {medalColor ? (
+                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                        ) : (
+                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{record.rank}</span>
+                        )}
+                        <div className="min-w-0">
+                          <span className={`text-xs truncate block ${record.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{record.name}</span>
+                          <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>{record.crewSales}</span>
                     </div>
                   );
                 })}
