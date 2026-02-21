@@ -34,7 +34,6 @@ export default function Auth() {
 
   useEffect(() => {
     if (isSignUp) {
-      // Fetch only leaders and managers as leader options
       const fetchLeaders = async () => {
         const { data: roles } = await supabase
           .from("user_roles")
@@ -72,7 +71,38 @@ export default function Auth() {
         setSubmitting(false);
         return;
       }
-      const { error } = await signUp(email, password, fullName, leaderId || null, crewName.trim(), phone.trim());
+      if (!leaderId || leaderId === "none") {
+        setError("You must select a leader.");
+        setSubmitting(false);
+        return;
+      }
+
+      // Check if phone number exists as a candidate in the pipeline
+      const { data: matchingCandidates } = await supabase
+        .from("candidates")
+        .select("id, phone")
+        .eq("phone", phone.trim())
+        .is("archived_at", null);
+
+      if (!matchingCandidates || matchingCandidates.length === 0) {
+        setError("No pipeline record found with this phone number. You must be added to a recruitment pipeline before creating an account.");
+        setSubmitting(false);
+        return;
+      }
+
+      // Check if phone is already used by another profile
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("phone", phone.trim());
+
+      if (existingProfile && existingProfile.length > 0) {
+        setError("An account with this phone number already exists.");
+        setSubmitting(false);
+        return;
+      }
+
+      const { error } = await signUp(email, password, fullName, leaderId, crewName.trim(), phone.trim());
       if (error) setError(error.message);
     } else {
       const { error } = await signIn(email, password);
@@ -124,6 +154,7 @@ export default function Auth() {
               <div className="space-y-2">
                 <Label>Phone Number</Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+44 7700 900000" required />
+                <p className="text-[11px] text-muted-foreground">Must match your phone number in an existing recruitment pipeline.</p>
               </div>
               <div className="space-y-2">
                 <Label>Crew Name</Label>
@@ -151,7 +182,6 @@ export default function Auth() {
                   <SelectValue placeholder="Choose your leader" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No leader</SelectItem>
                   {leaders.map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
                   ))}

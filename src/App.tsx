@@ -21,6 +21,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RoleRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
+  const { user, userRole, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground text-sm">Loading...</span></div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!userRole || !allowedRoles.includes(userRole.role)) {
+    return <Navigate to="/home" replace />;
+  }
+  return <>{children}</>;
+}
+
 function ManagerRoute({ children }: { children: React.ReactNode }) {
   const { user, userRole, loading } = useAuth();
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground text-sm">Loading...</span></div>;
@@ -42,9 +52,9 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<ProtectedRoute><ModuleSelection /></ProtectedRoute>} />
-            <Route path="/recruitment" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
             <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-            <Route path="/leaderboards" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+            <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
             <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
