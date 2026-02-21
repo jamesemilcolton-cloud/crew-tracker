@@ -125,7 +125,7 @@ export function Leaderboard() {
       const profiles = profilesRes.data ?? [];
       const profileMap = new Map(profiles.map((p) => [p.user_id, p.full_name]));
 
-      // Current week leaderboard
+      // Current week leaderboard — include ALL profiles
       const weekSales = allSales.filter(
         (e) => e.entry_date >= wsStr && e.entry_date <= weStr
       );
@@ -135,11 +135,12 @@ export function Leaderboard() {
         userTotals.set(e.user_id, (userTotals.get(e.user_id) || 0) + e.sales);
       });
 
-      const sorted = Array.from(userTotals.entries())
-        .map(([userId, sales]) => ({
-          userId,
-          name: profileMap.get(userId) || "Unknown",
-          sales,
+      // Ensure every profile appears, even with 0 sales
+      const sorted = profiles
+        .map((p) => ({
+          userId: p.user_id,
+          name: p.full_name,
+          sales: userTotals.get(p.user_id) || 0,
           rank: 0,
         }))
         .sort((a, b) => b.sales - a.sales);
@@ -232,10 +233,6 @@ export function Leaderboard() {
     }
   };
 
-  // Derive top 3 from salesRanking
-  const top1 = salesRanking.filter((e) => e.rank === 1);
-  const top2 = salesRanking.filter((e) => e.rank === 2);
-  const top3 = salesRanking.filter((e) => e.rank === 3);
   const topRecord = allTimeRecords.length > 0 ? allTimeRecords[0] : null;
 
   return (
@@ -247,83 +244,45 @@ export function Leaderboard() {
           <h2 className="text-sm font-semibold text-foreground">🔥 Sales — This Week</h2>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {/* Hero tile — Top Seller */}
-          <div className="glass-panel p-4 col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "#FFD700" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">Top Seller This Week</span>
-            </div>
-            {top1.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No sales yet</p>
-            ) : (
-              <div className="space-y-1">
-                {top1.map((e) => {
-                  const isMe = e.userId === user?.id;
-                  return (
-                    <div key={e.userId} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-red-500/10">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#FFD700" }} />
-                        <span className="text-xs font-semibold text-foreground truncate">{e.name}{isMe ? " ●" : ""}</span>
-                      </div>
-                      <span className="text-sm font-mono font-bold flex-shrink-0 ml-2" style={{ color: "hsl(0 70% 50%)" }}>{e.sales}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 2nd Place tile */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Full ranked list */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="text-muted-foreground"><Medal className="w-4 h-4" style={{ color: "#C0C0C0" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🥈 2nd Place</span>
+              <div className="text-muted-foreground"><Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">Office Ranking</span>
             </div>
-            {top2.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">—</p>
-            ) : (
-              <div className="space-y-1">
-                {top2.map((e) => {
-                  const isMe = e.userId === user?.id;
-                  return (
-                    <div key={e.userId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${isMe ? "ring-1 ring-red-500/20" : ""}`}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C0C0C0" }} />
-                        <span className="text-xs text-muted-foreground truncate">{e.name}{isMe ? " ●" : ""}</span>
-                      </div>
-                      <span className="text-xs font-mono flex-shrink-0 ml-2 text-muted-foreground">{e.sales}</span>
+            <div className="divide-y divide-border/30">
+              {salesRanking.map((entry) => {
+                const isMe = entry.userId === user?.id;
+                const isFirst = entry.rank === 1 && entry.sales > 0;
+                const medalColor = entry.rank === 1 && entry.sales > 0 ? "#FFD700" : entry.rank === 2 && entry.sales > 0 ? "#C0C0C0" : entry.rank === 3 && entry.sales > 0 ? "#CD7F32" : null;
+                return (
+                  <div
+                    key={entry.userId}
+                    className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {medalColor ? (
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                      ) : (
+                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
+                          {entry.rank}
+                        </span>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">
+                        {entry.rank}{getRankSuffix(entry.rank)}
+                      </span>
+                      <span className={`text-xs truncate ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                        {entry.name}{isMe ? " ●" : ""}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 3rd Place tile */}
-          <div className="glass-panel p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="text-muted-foreground"><Medal className="w-4 h-4" style={{ color: "#CD7F32" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🥉 3rd Place</span>
+                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
+                      {entry.sales}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            {top3.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">—</p>
-            ) : (
-              <div className="space-y-1">
-                {top3.map((e) => {
-                  const isMe = e.userId === user?.id;
-                  return (
-                    <div key={e.userId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${isMe ? "ring-1 ring-red-500/20" : ""}`}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CD7F32" }} />
-                        <span className="text-xs text-muted-foreground truncate">{e.name}{isMe ? " ●" : ""}</span>
-                      </div>
-                      <span className="text-xs font-mono flex-shrink-0 ml-2 text-muted-foreground">{e.sales}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* All-Time Weekly Record tile */}
