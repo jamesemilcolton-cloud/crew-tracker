@@ -1,6 +1,16 @@
 import { useMemo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame } from "lucide-react";
+import { startOfWeek, endOfWeek, format, subWeeks, addDays } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Profile {
   id: string;
@@ -34,8 +44,33 @@ const METRICS: { key: Metric; label: string; icon: React.ReactNode; suffix?: str
   { key: "activeTeamSize", label: "Active Team", icon: <Users className="w-4 h-4" /> },
 ];
 
+interface SalesRankedEntry {
+  userId: string;
+  name: string;
+  sales: number;
+  rank: number;
+}
+
+interface AllTimeRecord {
+  name: string;
+  sales: number;
+  weekCommencing: string;
+  rank: number;
+}
+
 export function Leaderboard() {
+  const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [salesRanking, setSalesRanking] = useState<SalesRankedEntry[]>([]);
+  const [allTimeRecords, setAllTimeRecords] = useState<AllTimeRecord[]>([]);
+
+  // Current week bounds
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const wsStr = format(weekStart, "yyyy-MM-dd");
+  const weStr = format(weekEnd, "yyyy-MM-dd");
+  const weekLabel = format(weekStart, "d MMMM yyyy");
 
   useEffect(() => {
     async function fetchData() {
@@ -86,6 +121,104 @@ export function Leaderboard() {
     fetchData();
   }, []);
 
+  // Fetch sales leaderboard data
+  useEffect(() => {
+    async function fetchSalesData() {
+      const [salesRes, profilesRes] = await Promise.all([
+        supabase.from("sales_entries").select("*"),
+        supabase.from("profiles").select("id, user_id, full_name"),
+      ]);
+
+      const allSales = salesRes.data ?? [];
+      const profiles = profilesRes.data ?? [];
+      const profileMap = new Map(profiles.map((p) => [p.user_id, p.full_name]));
+
+      // Current week leaderboard
+      const weekSales = allSales.filter(
+        (e) => e.entry_date >= wsStr && e.entry_date <= weStr
+      );
+
+      const userTotals = new Map<string, number>();
+      weekSales.forEach((e) => {
+        userTotals.set(e.user_id, (userTotals.get(e.user_id) || 0) + e.sales);
+      });
+
+      const sorted = Array.from(userTotals.entries())
+        .map(([userId, sales]) => ({
+          userId,
+          name: profileMap.get(userId) || "Unknown",
+          sales,
+          rank: 0,
+        }))
+        .sort((a, b) => b.sales - a.sales);
+
+      // Standard competition ranking
+      let currentRank = 1;
+      sorted.forEach((entry, i) => {
+        if (i > 0 && entry.sales < sorted[i - 1].sales) {
+          currentRank = i + 1;
+        }
+        entry.rank = currentRank;
+      });
+
+      setSalesRanking(sorted);
+
+      // All-time weekly records
+      if (allSales.length > 0) {
+        const dates = allSales.map((e) => e.entry_date).sort();
+        const earliest = new Date(dates[0]);
+        const latest = new Date(dates[dates.length - 1]);
+
+        const weeklyRecords: { userId: string; sales: number; weekStart: Date }[] = [];
+        let ws = startOfWeek(earliest, { weekStartsOn: 1 });
+
+        while (ws <= latest) {
+          const wsS = format(ws, "yyyy-MM-dd");
+          const weS = format(endOfWeek(ws, { weekStartsOn: 1 }), "yyyy-MM-dd");
+
+          // Group by user for this week
+          const weekEntries = allSales.filter(
+            (e) => e.entry_date >= wsS && e.entry_date <= weS
+          );
+
+          const userWeekTotals = new Map<string, number>();
+          weekEntries.forEach((e) => {
+            userWeekTotals.set(e.user_id, (userWeekTotals.get(e.user_id) || 0) + e.sales);
+          });
+
+          userWeekTotals.forEach((sales, userId) => {
+            if (sales > 0) {
+              weeklyRecords.push({ userId, sales, weekStart: ws });
+            }
+          });
+
+          ws = addDays(ws, 7);
+        }
+
+        // Sort descending by sales, take top 5
+        weeklyRecords.sort((a, b) => b.sales - a.sales);
+        const top5 = weeklyRecords.slice(0, 5);
+
+        // Standard competition ranking
+        let rank = 1;
+        const ranked: AllTimeRecord[] = top5.map((r, i) => {
+          if (i > 0 && r.sales < top5[i - 1].sales) {
+            rank = i + 1;
+          }
+          return {
+            name: profileMap.get(r.userId) || "Unknown",
+            sales: r.sales,
+            weekCommencing: format(r.weekStart, "d MMM yyyy"),
+            rank,
+          };
+        });
+
+        setAllTimeRecords(ranked);
+      }
+    }
+    fetchSalesData();
+  }, [wsStr, weStr]);
+
   const metricRankings = useMemo(() => {
     const map: Record<Metric, LeaderboardEntry[]> = {} as any;
     METRICS.forEach((m) => {
@@ -97,12 +230,110 @@ export function Leaderboard() {
   const displayName = (entry: LeaderboardEntry) =>
     entry.crewName ? `${entry.name} (${entry.crewName})` : entry.name;
 
+  const getRankSuffix = (rank: number) => {
+    if (rank % 100 >= 11 && rank % 100 <= 13) return "th";
+    switch (rank % 10) {
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* ===== SALES LEADERBOARD SECTION ===== */}
+      <div className="glass-panel p-4 border border-red-500/20">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "hsl(0 70% 50% / 0.15)" }}>
+            <Flame className="w-3.5 h-3.5" style={{ color: "hsl(0 70% 50%)" }} />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">This Week — Office Sales Leaderboard</h3>
+        </div>
+        <p className="text-[11px] text-muted-foreground mb-3 ml-8">
+          Week Commencing {weekLabel}
+        </p>
+
+        {salesRanking.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">No sales data this week</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16 text-xs">Rank</TableHead>
+                <TableHead className="text-xs">Name</TableHead>
+                <TableHead className="text-right text-xs w-24">Sales</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {salesRanking.map((entry) => {
+                const isMe = entry.userId === user?.id;
+                return (
+                  <TableRow
+                    key={entry.userId}
+                    className={`${isMe ? "bg-red-500/5" : ""} ${entry.rank === 1 ? "font-semibold" : ""}`}
+                  >
+                    <TableCell className="text-xs font-mono">
+                      <span className={entry.rank === 1 ? "text-red-500 font-bold" : "text-muted-foreground"}>
+                        {entry.rank}{getRankSuffix(entry.rank)}
+                      </span>
+                    </TableCell>
+                    <TableCell className={`text-xs ${isMe ? "text-foreground font-medium" : ""}`}>
+                      {entry.name}{isMe ? " ●" : ""}
+                    </TableCell>
+                    <TableCell className={`text-right text-xs font-mono ${entry.rank === 1 ? "text-red-500 font-bold" : ""}`}>
+                      {entry.sales}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      {/* ===== ALL-TIME WEEKLY SALES RECORDS ===== */}
+      {allTimeRecords.length > 0 && (
+        <div className="glass-panel p-4 border border-red-500/10">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "hsl(0 70% 50% / 0.1)" }}>
+              <Trophy className="w-3.5 h-3.5" style={{ color: "hsl(0 70% 50%)" }} />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">All-Time Weekly Sales Records</h3>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16 text-xs">Rank</TableHead>
+                <TableHead className="text-xs">Name</TableHead>
+                <TableHead className="text-right text-xs w-20">Sales</TableHead>
+                <TableHead className="text-right text-xs">Week Commencing</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allTimeRecords.map((record, i) => (
+                <TableRow key={i} className={record.rank === 1 ? "font-semibold" : ""}>
+                  <TableCell className="text-xs font-mono">
+                    <span className={record.rank === 1 ? "text-red-500 font-bold" : "text-muted-foreground"}>
+                      {record.rank}{getRankSuffix(record.rank)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs">{record.name}</TableCell>
+                  <TableCell className="text-right text-xs font-mono font-bold">{record.sales}</TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground">{record.weekCommencing}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* ===== EXISTING RECRUITMENT LEADERBOARD ===== */}
       <div className="glass-panel p-4">
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-medium text-foreground">Leaderboard</h3>
+          <h3 className="text-sm font-medium text-foreground">Recruitment Leaderboard</h3>
         </div>
       </div>
 
