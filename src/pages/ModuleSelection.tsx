@@ -1,9 +1,20 @@
 import { useNavigate } from "react-router-dom";
-import { Users, DollarSign, Trophy, Shield, LogOut, Lock } from "lucide-react";
+import { Users, DollarSign, Trophy, Shield, LogOut, Lock, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef, useState } from "react";
+
+const weekSummaryModule = {
+  id: "week-summary",
+  label: "WEEK SUMMARY",
+  subtitle: "Weekly Performance Overview",
+  icon: BarChart3,
+  path: "/week-summary",
+  hsl: "220 60% 50%",
+  hslDark: "220 60% 35%",
+  requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
+};
 
 const allModules = [
   {
@@ -162,6 +173,37 @@ export default function ModuleSelection() {
           </div>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 relative z-10">
+          {/* Week Summary - always first */}
+          {(() => {
+            const m = weekSummaryModule;
+            const Icon = m.icon;
+            const unlocked = isModuleUnlocked(m.requiredRoles);
+            return (
+              <button
+                key={m.id}
+                onClick={() => unlocked && navigate(m.path)}
+                disabled={!unlocked}
+                className={`w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 relative ${unlocked ? "active:scale-[0.98]" : "cursor-not-allowed"}`}
+                style={{
+                  background: unlocked
+                    ? `linear-gradient(135deg, hsl(${m.hsl} / 0.18), hsl(${m.hslDark} / 0.10))`
+                    : `linear-gradient(135deg, hsl(0 0% 50% / 0.08), hsl(0 0% 40% / 0.05))`,
+                  border: `1px solid ${unlocked ? `hsl(${m.hsl} / 0.25)` : "hsl(0 0% 50% / 0.12)"}`,
+                  opacity: unlocked ? 1 : 0.5,
+                }}
+              >
+                <Icon className="w-7 h-7" style={{ color: unlocked ? `hsl(${m.hsl})` : "hsl(0 0% 50%)" }} />
+                <span className={`text-base font-bold tracking-[0.2em] ${unlocked ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
+                <span className="text-xs text-muted-foreground">{m.subtitle}</span>
+                {!unlocked && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1 text-muted-foreground">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium">Locked</span>
+                  </div>
+                )}
+              </button>
+            );
+          })()}
           {allModules.map((m) => {
             const Icon = m.icon;
             const unlocked = isModuleUnlocked(m.requiredRoles);
@@ -269,7 +311,44 @@ export default function ModuleSelection() {
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center relative z-10 gap-6">
+        {/* Week Summary card - top of grid */}
+        {(() => {
+          const m = weekSummaryModule;
+          const Icon = m.icon;
+          const unlocked = isModuleUnlocked(m.requiredRoles);
+          const isHov = hovered === m.id;
+          return (
+            <button
+              onClick={() => unlocked && navigate(m.path)}
+              disabled={!unlocked}
+              onMouseEnter={() => setHovered(m.id)}
+              onMouseLeave={() => setHovered(null)}
+              className={`rounded-2xl px-10 py-5 flex items-center gap-4 transition-all duration-300 relative ${unlocked ? "" : "cursor-not-allowed"}`}
+              style={{
+                background: unlocked
+                  ? `linear-gradient(135deg, hsl(${m.hsl} / ${isHov ? 0.28 : 0.18}), hsl(${m.hslDark} / ${isHov ? 0.16 : 0.10}))`
+                  : `linear-gradient(135deg, hsl(0 0% 50% / 0.08), hsl(0 0% 40% / 0.05))`,
+                border: `1px solid ${unlocked ? `hsl(${m.hsl} / ${isHov ? 0.45 : 0.25})` : "hsl(0 0% 50% / 0.12)"}`,
+                opacity: unlocked ? 1 : 0.5,
+                filter: unlocked && isHov ? `drop-shadow(0 4px 12px hsl(${m.hsl} / 0.25))` : "none",
+                transform: unlocked && isHov ? "translateY(-4px)" : "translateY(0)",
+              }}
+            >
+              <Icon className="w-6 h-6" style={{ color: unlocked ? `hsl(${m.hsl})` : "hsl(0 0% 50%)", opacity: isHov ? 1 : 0.7 }} />
+              <div className="flex flex-col items-start">
+                <span className={`text-sm font-bold tracking-[0.2em] ${unlocked ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">{m.subtitle}</span>
+              </div>
+              {!unlocked && (
+                <div className="absolute top-2 right-3 flex items-center gap-1 text-muted-foreground">
+                  <Lock className="w-3 h-3" />
+                  <span className="text-[9px] font-medium">Locked</span>
+                </div>
+              )}
+            </button>
+          );
+        })()}
         <div className="relative" style={{ width: size, height: size }}>
           <svg
             viewBox={`0 0 ${size} ${size}`}

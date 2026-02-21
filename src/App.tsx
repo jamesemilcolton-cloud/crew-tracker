@@ -8,6 +8,7 @@ import ModuleSelection from "./pages/ModuleSelection";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import WeekSummaryPage from "./pages/WeekSummaryPage";
 import Manager from "./pages/Manager";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<ProtectedRoute><ModuleSelection /></ProtectedRoute>} />
+            <Route path="/week-summary" element={<ProtectedRoute><WeekSummaryPage /></ProtectedRoute>} />
             <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
             <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
             <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
