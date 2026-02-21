@@ -3,14 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame } from "lucide-react";
 import { startOfWeek, endOfWeek, format, subWeeks, addDays } from "date-fns";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface Profile {
   id: string;
@@ -243,91 +235,98 @@ export function Leaderboard() {
   return (
     <div className="space-y-4">
       {/* ===== SALES LEADERBOARD SECTION ===== */}
-      <div className="glass-panel p-4 border border-red-500/20">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "hsl(0 70% 50% / 0.15)" }}>
-            <Flame className="w-3.5 h-3.5" style={{ color: "hsl(0 70% 50%)" }} />
-          </div>
-          <h3 className="text-sm font-semibold text-foreground">This Week — Office Sales Leaderboard</h3>
+      <div className="glass-panel p-4">
+        <div className="flex items-center gap-2">
+          <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
+          <h3 className="text-sm font-medium text-foreground">🔥 Sales Leaderboard</h3>
         </div>
-        <p className="text-[11px] text-muted-foreground mb-3 ml-8">
-          Week Commencing {weekLabel}
-        </p>
-
-        {salesRanking.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">No sales data this week</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16 text-xs">Rank</TableHead>
-                <TableHead className="text-xs">Name</TableHead>
-                <TableHead className="text-right text-xs w-24">Sales</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {salesRanking.map((entry) => {
-                const isMe = entry.userId === user?.id;
-                return (
-                  <TableRow
-                    key={entry.userId}
-                    className={`${isMe ? "bg-red-500/5" : ""} ${entry.rank === 1 ? "font-semibold" : ""}`}
-                  >
-                    <TableCell className="text-xs font-mono">
-                      <span className={entry.rank === 1 ? "text-red-500 font-bold" : "text-muted-foreground"}>
-                        {entry.rank}{getRankSuffix(entry.rank)}
-                      </span>
-                    </TableCell>
-                    <TableCell className={`text-xs ${isMe ? "text-foreground font-medium" : ""}`}>
-                      {entry.name}{isMe ? " ●" : ""}
-                    </TableCell>
-                    <TableCell className={`text-right text-xs font-mono ${entry.rank === 1 ? "text-red-500 font-bold" : ""}`}>
-                      {entry.sales}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
       </div>
 
-      {/* ===== ALL-TIME WEEKLY SALES RECORDS ===== */}
-      {allTimeRecords.length > 0 && (
-        <div className="glass-panel p-4 border border-red-500/10">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {/* Sales (This Week) tile */}
+        <div className="glass-panel p-4">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "hsl(0 70% 50% / 0.1)" }}>
-              <Trophy className="w-3.5 h-3.5" style={{ color: "hsl(0 70% 50%)" }} />
-            </div>
-            <h3 className="text-sm font-semibold text-foreground">All-Time Weekly Sales Records</h3>
+            <div className="text-muted-foreground"><Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+            <span className="text-xs font-medium text-muted-foreground">Sales (This Week)</span>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16 text-xs">Rank</TableHead>
-                <TableHead className="text-xs">Name</TableHead>
-                <TableHead className="text-right text-xs w-20">Sales</TableHead>
-                <TableHead className="text-right text-xs">Week Commencing</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allTimeRecords.map((record, i) => (
-                <TableRow key={i} className={record.rank === 1 ? "font-semibold" : ""}>
-                  <TableCell className="text-xs font-mono">
-                    <span className={record.rank === 1 ? "text-red-500 font-bold" : "text-muted-foreground"}>
-                      {record.rank}{getRankSuffix(record.rank)}
+          {salesRanking.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No data</p>
+          ) : (
+            <div className="space-y-1">
+              {salesRanking.map((entry) => {
+                const isMe = entry.userId === user?.id;
+                const medalColor = entry.rank === 1 ? "#FFD700" : entry.rank === 2 ? "#C0C0C0" : entry.rank === 3 ? "#CD7F32" : null;
+                return (
+                  <div
+                    key={entry.userId}
+                    className={`flex items-center justify-between py-1.5 px-2 rounded-md ${entry.rank === 1 ? "bg-red-500/10" : ""} ${isMe ? "ring-1 ring-red-500/20" : ""}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {medalColor ? (
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                      ) : (
+                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
+                          {entry.rank}
+                        </span>
+                      )}
+                      <span className={`text-xs truncate ${entry.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {entry.name}{isMe ? " ●" : ""}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${entry.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={entry.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>
+                      {entry.sales}
                     </span>
-                  </TableCell>
-                  <TableCell className="text-xs">{record.name}</TableCell>
-                  <TableCell className="text-right text-xs font-mono font-bold">{record.sales}</TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">{record.weekCommencing}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* All-Time Weekly Record tile */}
+        <div className="glass-panel p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+            <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Record</span>
+          </div>
+
+          {allTimeRecords.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No data</p>
+          ) : (
+            <div className="space-y-1">
+              {allTimeRecords.map((record, i) => {
+                const medalColor = record.rank === 1 ? "#FFD700" : record.rank === 2 ? "#C0C0C0" : record.rank === 3 ? "#CD7F32" : null;
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {medalColor ? (
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                      ) : (
+                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
+                          {record.rank}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <span className={`text-xs truncate block ${record.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                          {record.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>
+                      {record.sales}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ===== EXISTING RECRUITMENT LEADERBOARD ===== */}
       <div className="glass-panel p-4">
