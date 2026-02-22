@@ -20,6 +20,7 @@ export interface CrewNode {
   isLeader: boolean;
   isPredicted: boolean;
   children: CrewNode[];
+  weeklySales?: number;
 }
 
 interface CrewBubbleForecastProps {
@@ -424,6 +425,7 @@ const NODE_GAP = 12;
 
 function WrappingTreeNode({ node, crewName }: { node: CrewNode; crewName?: string }) {
   const hasChildren = node.children.length > 0;
+  const showSalesBadge = node.weeklySales !== undefined && node.weeklySales >= 3;
 
   return (
     <div className="flex flex-col items-center" style={{ minWidth: NODE_WIDTH }}>
@@ -443,17 +445,36 @@ function WrappingTreeNode({ node, crewName }: { node: CrewNode; crewName?: strin
           opacity: node.isPredicted ? 0.55 : 1,
         }}
       >
-        <span
-          className="truncate px-2"
-          style={{
-            fontSize: 12,
-            fontWeight: node.isLeader ? 600 : 400,
-            fontStyle: node.isPredicted ? "italic" : "normal",
-            color: node.isPredicted ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))",
-          }}
-        >
-          {node.name}
-        </span>
+        <div className="flex items-center gap-1 px-2">
+          <span
+            className="truncate"
+            style={{
+              fontSize: 12,
+              fontWeight: node.isLeader ? 600 : 400,
+              fontStyle: node.isPredicted ? "italic" : "normal",
+              color: node.isPredicted ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))",
+            }}
+          >
+            {node.name}
+          </span>
+          {node.weeklySales !== undefined && !node.isPredicted && (
+            <span
+              className="text-[10px] font-mono shrink-0"
+              style={{
+                color: showSalesBadge ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                fontWeight: showSalesBadge ? 600 : 400,
+              }}
+            >
+              {node.weeklySales}
+            </span>
+          )}
+          {showSalesBadge && (
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: "hsl(var(--primary))" }}
+            />
+          )}
+        </div>
         {crewName && (
           <span className="text-[9px] text-muted-foreground truncate px-2">{crewName}</span>
         )}
@@ -501,18 +522,72 @@ function WrappingTreeNode({ node, crewName }: { node: CrewNode; crewName?: strin
   );
 }
 
-// ============= Compact snapshot for Summary page =============
+// Helper to attach weekly sales to tree nodes
+function attachWeeklySales(node: CrewNode, salesMap: Map<string, number>, profileUserMap: Map<string, string>): CrewNode {
+  const userId = profileUserMap.get(node.id);
+  const sales = userId ? (salesMap.get(userId) ?? 0) : 0;
+  return {
+    ...node,
+    weeklySales: node.isPredicted ? undefined : sales,
+    children: node.children.map(c => attachWeeklySales(c, salesMap, profileUserMap)),
+  };
+}
+
 export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) {
   const { profile } = useAuth();
   const { profiles: sharedProfiles } = useProfiles();
   const allProfiles = sharedProfiles as Profile[];
 
+  // Fetch current week sales for all users
+  const [salesMap, setSalesMap] = useState<Map<string, number>>(new Map());
+  
+  useEffect(() => {
+    async function fetchSales() {
+      const now = new Date();
+      const day = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+      monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      const startStr = monday.toISOString().split("T")[0];
+      const endStr = sunday.toISOString().split("T")[0];
+
+      const { data } = await supabase
+        .from("sales_entries")
+        .select("user_id, sales")
+        .gte("entry_date", startStr)
+        .lte("entry_date", endStr);
+      
+      if (data) {
+        const map = new Map<string, number>();
+        data.forEach(row => {
+          map.set(row.user_id, (map.get(row.user_id) || 0) + row.sales);
+        });
+        setSalesMap(map);
+      }
+    }
+    fetchSales();
+  }, []);
+
+  const profileUserMap = useMemo(() => {
+    const m = new Map<string, string>();
+    allProfiles.forEach(p => m.set(p.id, p.user_id));
+    // Also map candidate IDs - they won't have profiles
+    candidates.forEach(c => {
+      if (c.recruitedBy) m.set(c.id, ""); // candidates don't have user_ids
+    });
+    return m;
+  }, [allProfiles, candidates]);
+
   const tree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
       return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
     }
-    return buildRecursiveTree(profile.id, profile.full_name, allProfiles, candidates);
-  }, [candidates, allProfiles, profile]);
+    const baseTree = buildRecursiveTree(profile.id, profile.full_name, allProfiles, candidates);
+    return attachWeeklySales(baseTree, salesMap, profileUserMap);
+  }, [candidates, allProfiles, profile, salesMap, profileUserMap]);
 
   const totalNodes = countNodes(tree);
 

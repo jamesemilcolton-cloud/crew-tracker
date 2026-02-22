@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy, ChevronLeft, ChevronRight, Lock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSalesData, SalesEntry } from "@/hooks/useSalesData";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const FIELD_LABELS = ["Doors", "Spoken", "Presentations", "Closes", "Tablets", "Sales"] as const;
 type FieldKey = "doors" | "spoken" | "presentations" | "closes" | "tablets" | "sales";
@@ -63,12 +64,53 @@ export default function Sales() {
     return out;
   }, [formData]);
 
-  const handleSave = () => {
-    if (!allFieldsFilled) return;
-    saveDayMutation.mutate({ date: currentDate, data: numericData }, {
+  // Week locking logic
+  const isWeekLocked = useMemo(() => {
+    if (weekOffset >= 0) return false; // current or future week not locked
+    return true; // past weeks are locked
+  }, [weekOffset]);
+
+  const isManagerRole = userRole?.role === "manager" && userRole?.super_admin;
+  const [managerUnlocked, setManagerUnlocked] = useState(false);
+
+  // Reset manager unlock when week changes
+  useEffect(() => { setManagerUnlocked(false); }, [weekOffset]);
+
+  const effectivelyLocked = isWeekLocked && !managerUnlocked;
+
+  // Extreme data confirmation
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingSave, setPendingSave] = useState<{ date: string; data: Record<FieldKey, number> } | null>(null);
+
+  const EXTREME_THRESHOLDS: Partial<Record<FieldKey, number>> = {
+    doors: 250, spoken: 150, sales: 15,
+  };
+
+  const hasExtremeValues = (data: Record<FieldKey, number>) => {
+    return Object.entries(EXTREME_THRESHOLDS).some(([key, threshold]) => data[key as FieldKey] > threshold!);
+  };
+
+  const doSave = (date: string, data: Record<FieldKey, number>) => {
+    saveDayMutation.mutate({ date, data }, {
       onSuccess: () => toast.success("Day saved"),
       onError: () => toast.error("Failed to save"),
     });
+  };
+
+  const handleSave = () => {
+    if (!allFieldsFilled || effectivelyLocked) return;
+    if (hasExtremeValues(numericData)) {
+      setPendingSave({ date: currentDate, data: numericData });
+      setConfirmOpen(true);
+      return;
+    }
+    doSave(currentDate, numericData);
+  };
+
+  const handleConfirmExtreme = () => {
+    if (pendingSave) doSave(pendingSave.date, pendingSave.data);
+    setConfirmOpen(false);
+    setPendingSave(null);
   };
 
   const savedDays = new Set(currentWeekEntries.map((e) => e.entry_date));
@@ -165,7 +207,39 @@ export default function Sales() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-6 space-y-6">
+      {/* Extreme Data Confirmation Modal */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-[hsl(var(--module-sales))]" />
+              Confirm Entry
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            One or more values exceed typical thresholds. Are you sure this data is correct?
+          </p>
+          {pendingSave && (
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {FIELD_KEYS.map((key, i) => {
+                const isExtreme = EXTREME_THRESHOLDS[key] && pendingSave.data[key] > EXTREME_THRESHOLDS[key]!;
+                return (
+                  <div key={key} className={`rounded p-2 text-center ${isExtreme ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}>
+                    <div className="text-muted-foreground">{FIELD_LABELS[i]}</div>
+                    <div className={`font-mono font-bold ${isExtreme ? "text-destructive" : "text-foreground"}`}>{pendingSave.data[key]}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleConfirmExtreme} className="bg-[hsl(var(--module-sales))] hover:bg-[hsl(var(--module-sales)/0.85)]">Yes, Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-5 space-y-5">
         {/* 1. Week Navigation */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={() => setWeekOffset((o) => o - 1)} className="text-muted-foreground hover:text-foreground">
@@ -179,6 +253,24 @@ export default function Sales() {
             <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
+
+        {/* Locked week indicator */}
+        {isWeekLocked && (
+          <div className="flex items-center justify-between bg-muted/30 rounded-lg px-4 py-2.5">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Lock className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">This week is locked</span>
+            </div>
+            {isManagerRole && !managerUnlocked && (
+              <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setManagerUnlocked(true)}>
+                Unlock as Manager
+              </Button>
+            )}
+            {managerUnlocked && (
+              <span className="text-xs text-primary font-medium">Unlocked by Manager</span>
+            )}
+          </div>
+        )}
 
         {/* 2. Day Selector & Entry */}
         <div className="glass-panel p-4">
@@ -228,7 +320,7 @@ export default function Sales() {
 
           <Button
             onClick={handleSave}
-            disabled={saveDayMutation.isPending || !allFieldsFilled}
+            disabled={saveDayMutation.isPending || !allFieldsFilled || effectivelyLocked}
             className="w-full bg-[hsl(var(--module-sales))] hover:bg-[hsl(var(--module-sales)/0.85)] text-foreground font-medium disabled:opacity-40"
           >
             {saveDayMutation.isPending ? "Saving…" : existingEntry ? (
@@ -244,7 +336,7 @@ export default function Sales() {
           {/* Primary LOA */}
           <Card className="border-[hsl(var(--module-sales)/0.3)] bg-card">
             <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-[10px] text-muted-foreground font-medium">LOA (Spoken → Sale)</CardTitle>
+              <CardTitle className="text-[10px] text-muted-foreground font-medium">LOA (Spoken – Sale)</CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3">
               <div className="flex items-center gap-1.5">
@@ -262,7 +354,7 @@ export default function Sales() {
           {/* Close LOA */}
           <Card className="border-border/50 bg-card">
             <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-[10px] text-muted-foreground font-medium">LOA (Close → Sale)</CardTitle>
+              <CardTitle className="text-[10px] text-muted-foreground font-medium">LOA (Close – Sale)</CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3">
               <span className="text-xl font-bold font-mono text-orange-400">
