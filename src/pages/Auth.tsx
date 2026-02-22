@@ -130,7 +130,14 @@ export default function Auth() {
       if (error) setError(error.message);
     } else {
       const { error } = await signIn(email, password);
-      if (error) setError(error.message);
+      if (error) {
+        // Check if this is an unconfirmed email
+        if (error.message?.toLowerCase().includes("email not confirmed")) {
+          setError("Please verify your email before logging in. Check your inbox for a confirmation link.");
+        } else {
+          setError(error.message);
+        }
+      }
     }
     setSubmitting(false);
   };
