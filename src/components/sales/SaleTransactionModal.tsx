@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AGE_BANDS, AgeBand, getAskAmounts, calculateCommission } from "@/lib/commission";
+import { Check } from "lucide-react";
 
 interface SaleTransactionModalProps {
   open: boolean;
@@ -22,6 +23,8 @@ interface SaleTransactionModalProps {
 export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, totalSales }: SaleTransactionModalProps) {
   const [ageBand, setAgeBand] = useState<AgeBand | "">("");
   const [askAmount, setAskAmount] = useState<number | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const askAmounts = ageBand ? getAskAmounts(ageBand as AgeBand) : [];
   const commission = ageBand && askAmount !== null ? calculateCommission(ageBand as AgeBand, askAmount) : null;
@@ -36,8 +39,46 @@ export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, to
     if (open) {
       setAgeBand("");
       setAskAmount(null);
+      setShowConfirmation(false);
+      setHasInteracted(false);
     }
   }, [open]);
+
+  // Track user interaction
+  useEffect(() => {
+    if (ageBand || askAmount !== null) {
+      setHasInteracted(true);
+    }
+  }, [ageBand, askAmount]);
+
+  const resetForm = useCallback(() => {
+    setAgeBand("");
+    setAskAmount(null);
+    setHasInteracted(false);
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    if (!commission || !ageBand || askAmount === null) return;
+
+    // Safety: prevent submission if user hasn't interacted since last reset
+    if (!hasInteracted) return;
+
+    onConfirm({
+      ageBand: ageBand as AgeBand,
+      askAmount,
+      isaUpfront: commission.isa,
+      ownerUpfront: commission.owner,
+      totalWire: commission.totalWire,
+      qualityPending: commission.qualityPending,
+    });
+
+    // Show confirmation then reset
+    setShowConfirmation(true);
+    setTimeout(() => {
+      setShowConfirmation(false);
+      resetForm();
+    }, 700);
+  }, [commission, ageBand, askAmount, hasInteracted, onConfirm, resetForm]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
@@ -47,6 +88,18 @@ export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, to
             Sale {saleNumber} of {totalSales}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Success confirmation overlay */}
+        {showConfirmation && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-sm font-medium animate-in fade-in zoom-in duration-200" style={{ color: "hsl(142 70% 45%)" }}>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "hsl(142 70% 45% / 0.15)" }}>
+                <Check className="w-4 h-4" />
+              </div>
+              Sale Added
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           {/* Age Band */}
@@ -107,22 +160,11 @@ export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, to
           <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
           <Button
             size="sm"
-            disabled={!commission}
-            onClick={() => {
-              if (commission && ageBand && askAmount !== null) {
-                onConfirm({
-                  ageBand: ageBand as AgeBand,
-                  askAmount,
-                  isaUpfront: commission.isa,
-                  ownerUpfront: commission.owner,
-                  totalWire: commission.totalWire,
-                  qualityPending: commission.qualityPending,
-                });
-              }
-            }}
+            disabled={!commission || !hasInteracted || showConfirmation}
+            onClick={handleConfirm}
             className="bg-[hsl(var(--module-sales))] hover:bg-[hsl(var(--module-sales)/0.85)] text-foreground"
           >
-            Confirm Sale
+            {showConfirmation ? "Added" : "Add Sale"}
           </Button>
         </DialogFooter>
       </DialogContent>
