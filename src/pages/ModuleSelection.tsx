@@ -5,18 +5,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef, useState } from "react";
 
-const weekSummaryModule = {
-  id: "week-summary",
-  label: "WEEK SUMMARY",
-  subtitle: "Weekly Performance Overview",
-  icon: BarChart3,
-  path: "/week-summary",
-  hsl: "220 60% 50%",
-  hslDark: "220 60% 35%",
-  requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
-};
 
 const allModules = [
+  {
+    id: "week-summary",
+    label: "WEEK SUMMARY",
+    subtitle: "Weekly Performance Overview",
+    icon: BarChart3,
+    path: "/week-summary",
+    hsl: "220 60% 50%",
+    hslDark: "220 60% 35%",
+    requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
+  },
   {
     id: "sales",
     label: "SALES",
@@ -173,37 +173,6 @@ export default function ModuleSelection() {
           </div>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 relative z-10">
-          {/* Week Summary - always first */}
-          {(() => {
-            const m = weekSummaryModule;
-            const Icon = m.icon;
-            const unlocked = isModuleUnlocked(m.requiredRoles);
-            return (
-              <button
-                key={m.id}
-                onClick={() => unlocked && navigate(m.path)}
-                disabled={!unlocked}
-                className={`w-full max-w-sm rounded-2xl p-6 flex flex-col items-center gap-3 transition-all duration-300 relative ${unlocked ? "active:scale-[0.98]" : "cursor-not-allowed"}`}
-                style={{
-                  background: unlocked
-                    ? `linear-gradient(135deg, hsl(${m.hsl} / 0.18), hsl(${m.hslDark} / 0.10))`
-                    : `linear-gradient(135deg, hsl(0 0% 50% / 0.08), hsl(0 0% 40% / 0.05))`,
-                  border: `1px solid ${unlocked ? `hsl(${m.hsl} / 0.25)` : "hsl(0 0% 50% / 0.12)"}`,
-                  opacity: unlocked ? 1 : 0.5,
-                }}
-              >
-                <Icon className="w-7 h-7" style={{ color: unlocked ? `hsl(${m.hsl})` : "hsl(0 0% 50%)" }} />
-                <span className={`text-base font-bold tracking-[0.2em] ${unlocked ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
-                <span className="text-xs text-muted-foreground">{m.subtitle}</span>
-                {!unlocked && (
-                  <div className="absolute top-3 right-3 flex items-center gap-1 text-muted-foreground">
-                    <Lock className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-medium">Locked</span>
-                  </div>
-                )}
-              </button>
-            );
-          })()}
           {allModules.map((m) => {
             const Icon = m.icon;
             const unlocked = isModuleUnlocked(m.requiredRoles);
@@ -270,9 +239,11 @@ export default function ModuleSelection() {
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
+  const segAngle = 360 / allModules.length; // 90° per segment
+
   const segmentPaths = allModules.map((_, i) => {
-    const startAngle = i * 120 - 150 + gap / 2;
-    const endAngle = startAngle + 120 - gap;
+    const startAngle = i * segAngle - 180 + gap / 2;
+    const endAngle = startAngle + segAngle - gap;
     const ox1 = center + outerR * Math.cos(toRad(startAngle));
     const oy1 = center + outerR * Math.sin(toRad(startAngle));
     const ox2 = center + outerR * Math.cos(toRad(endAngle));
@@ -285,7 +256,7 @@ export default function ModuleSelection() {
   });
 
   const labelPositions = allModules.map((_, i) => {
-    const midAngle = i * 120 - 150 + 60;
+    const midAngle = i * segAngle - 180 + segAngle / 2;
     const lr = (outerR + innerR) / 2;
     return {
       x: center + lr * Math.cos(toRad(midAngle)),
@@ -312,43 +283,6 @@ export default function ModuleSelection() {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center relative z-10 gap-6">
-        {/* Week Summary card - top of grid */}
-        {(() => {
-          const m = weekSummaryModule;
-          const Icon = m.icon;
-          const unlocked = isModuleUnlocked(m.requiredRoles);
-          const isHov = hovered === m.id;
-          return (
-            <button
-              onClick={() => unlocked && navigate(m.path)}
-              disabled={!unlocked}
-              onMouseEnter={() => setHovered(m.id)}
-              onMouseLeave={() => setHovered(null)}
-              className={`rounded-2xl px-10 py-5 flex items-center gap-4 transition-all duration-300 relative ${unlocked ? "" : "cursor-not-allowed"}`}
-              style={{
-                background: unlocked
-                  ? `linear-gradient(135deg, hsl(${m.hsl} / ${isHov ? 0.28 : 0.18}), hsl(${m.hslDark} / ${isHov ? 0.16 : 0.10}))`
-                  : `linear-gradient(135deg, hsl(0 0% 50% / 0.08), hsl(0 0% 40% / 0.05))`,
-                border: `1px solid ${unlocked ? `hsl(${m.hsl} / ${isHov ? 0.45 : 0.25})` : "hsl(0 0% 50% / 0.12)"}`,
-                opacity: unlocked ? 1 : 0.5,
-                filter: unlocked && isHov ? `drop-shadow(0 4px 12px hsl(${m.hsl} / 0.25))` : "none",
-                transform: unlocked && isHov ? "translateY(-4px)" : "translateY(0)",
-              }}
-            >
-              <Icon className="w-6 h-6" style={{ color: unlocked ? `hsl(${m.hsl})` : "hsl(0 0% 50%)", opacity: isHov ? 1 : 0.7 }} />
-              <div className="flex flex-col items-start">
-                <span className={`text-sm font-bold tracking-[0.2em] ${unlocked ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
-                <span className="text-[10px] text-muted-foreground mt-0.5">{m.subtitle}</span>
-              </div>
-              {!unlocked && (
-                <div className="absolute top-2 right-3 flex items-center gap-1 text-muted-foreground">
-                  <Lock className="w-3 h-3" />
-                  <span className="text-[9px] font-medium">Locked</span>
-                </div>
-              )}
-            </button>
-          );
-        })()}
         <div className="relative" style={{ width: size, height: size }}>
           <svg
             viewBox={`0 0 ${size} ${size}`}
@@ -358,7 +292,7 @@ export default function ModuleSelection() {
           >
             <defs>
               {allModules.map((m, i) => {
-                const midAngle = i * 120 - 150 + 60;
+                const midAngle = i * segAngle - 180 + segAngle / 2;
                 const gx1 = center + innerR * Math.cos(toRad(midAngle));
                 const gy1 = center + innerR * Math.sin(toRad(midAngle));
                 const gx2 = center + outerR * Math.cos(toRad(midAngle));
@@ -367,6 +301,19 @@ export default function ModuleSelection() {
                   <linearGradient key={m.id} id={`grad-${m.id}`} x1={gx1} y1={gy1} x2={gx2} y2={gy2} gradientUnits="userSpaceOnUse">
                     <stop offset="0%" stopColor={`hsl(${m.hslDark})`} stopOpacity="0.18" />
                     <stop offset="100%" stopColor={`hsl(${m.hsl})`} stopOpacity="0.14" />
+                  </linearGradient>
+                );
+              })}
+              {allModules.map((m, i) => {
+                const midAngle = i * segAngle - 180 + segAngle / 2;
+                const gx1 = center + innerR * Math.cos(toRad(midAngle));
+                const gy1 = center + innerR * Math.sin(toRad(midAngle));
+                const gx2 = center + outerR * Math.cos(toRad(midAngle));
+                const gy2 = center + outerR * Math.sin(toRad(midAngle));
+                return (
+                  <linearGradient key={`hover-${m.id}`} id={`grad-hover-${m.id}`} x1={gx1} y1={gy1} x2={gx2} y2={gy2} gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor={`hsl(${m.hslDark})`} stopOpacity="0.30" />
+                    <stop offset="100%" stopColor={`hsl(${m.hsl})`} stopOpacity="0.24" />
                   </linearGradient>
                 );
               })}
