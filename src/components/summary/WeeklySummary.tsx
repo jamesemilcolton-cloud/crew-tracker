@@ -8,8 +8,14 @@ import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target } from "lucide-react";
+import {
+  CrewBubbleSnapshot,
+  getDescendantProfileIds,
+  buildRecursiveTree,
+  CrewNode,
+} from "@/components/crew/CrewBubbleForecast";
 import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
-import { CrewBubbleSnapshot, getDescendantProfileIds } from "@/components/crew/CrewBubbleForecast";
+
 
 interface Profile {
   id: string;
@@ -17,6 +23,81 @@ interface Profile {
   full_name: string;
   leader_id: string | null;
   crew_name: string;
+}
+
+/** Map pipeline stage to a display role label */
+function getRoleLabel(stage: string): string {
+  switch (stage) {
+    case "start": return "Brand Ambassador";
+    case "solo": return "Solo";
+    case "promoted": return "Leader";
+    default: return "";
+  }
+}
+
+const TREE_NODE_W = 160;
+const TREE_NODE_H = 44;
+const TREE_NODE_GAP = 14;
+
+function SummaryTreeNode({
+  node, salesMap, profileUserMap, candidateStageMap,
+}: {
+  node: CrewNode;
+  salesMap: Map<string, number>;
+  profileUserMap: Map<string, string>;
+  candidateStageMap: Map<string, string>;
+}) {
+  const hasChildren = node.children.length > 0;
+  const userId = profileUserMap.get(node.id);
+  const weeklySales = userId ? salesMap.get(userId) ?? 0 : 0;
+
+  let roleLabel = "";
+  if (node.isLeader) {
+    roleLabel = "Leader";
+  } else {
+    const stage = candidateStageMap.get(node.id);
+    if (stage) roleLabel = getRoleLabel(stage);
+  }
+
+  return (
+    <div className="flex flex-col items-center" style={{ minWidth: TREE_NODE_W }}>
+      <div
+        className="relative flex flex-col items-center justify-center select-none"
+        style={{
+          width: TREE_NODE_W, minHeight: TREE_NODE_H,
+          borderRadius: node.isLeader ? 16 : 8,
+          border: node.isLeader ? "1.5px solid hsl(var(--primary))" : "1px solid hsl(var(--border) / 0.5)",
+          background: node.isLeader ? "hsl(var(--primary) / 0.08)" : "hsl(var(--muted) / 0.15)",
+        }}
+      >
+        <span className="absolute text-[10px] font-mono font-medium" style={{ top: 3, right: 6, color: weeklySales > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+          {weeklySales} Sale{weeklySales !== 1 ? "s" : ""}
+        </span>
+        <span className="truncate px-2 mt-1" style={{ fontSize: 12, fontWeight: node.isLeader ? 600 : 400, color: "hsl(var(--foreground))", maxWidth: TREE_NODE_W - 8 }}>
+          {node.name}
+        </span>
+        {roleLabel && (
+          <span className="text-[9px] px-2 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{roleLabel}</span>
+        )}
+      </div>
+      {hasChildren && (
+        <div className="flex flex-col items-center">
+          <div style={{ width: 1.5, height: 18, background: "hsl(var(--border))" }} />
+          {node.children.length > 1 && (
+            <div style={{ height: 1.5, background: "hsl(var(--border))", width: `${(Math.min(node.children.length, 8) - 1) * (TREE_NODE_W + TREE_NODE_GAP)}px`, maxWidth: "90vw" }} />
+          )}
+          <div className="flex flex-wrap items-start justify-center" style={{ gap: TREE_NODE_GAP, maxWidth: "90vw" }}>
+            {node.children.map((child) => (
+              <div key={child.id} className="flex flex-col items-center">
+                <div style={{ width: 1.5, height: 14, background: "hsl(var(--border))" }} />
+                <SummaryTreeNode node={child} salesMap={salesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function getWeekBounds(offset: number = 0) {
@@ -388,7 +469,61 @@ export function WeeklySummary() {
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
   }, [isLeader, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
 
-  // SECTION 4: Personal Best
+  // Crew tree data for Week Summary crew structure
+  const [treeCandidates, setTreeCandidates] = useState<any[]>([]);
+  useEffect(() => {
+    async function fetch() {
+      const { data } = await supabase
+        .from("candidates")
+        .select("id, name, stage, recruited_by, archived_at, phone, notes, source, status, potential_start_date, has_sales_pitch_access, has_evo_app_access")
+        .is("archived_at", null);
+      if (data) setTreeCandidates(data);
+    }
+    fetch();
+  }, []);
+
+  const treeCandidatesForBuild = useMemo(() => treeCandidates.map((c) => ({
+    id: c.id, name: c.name, phone: c.phone, notes: c.notes,
+    source: c.source as "LinkedIn" | "Office", stage: c.stage as any,
+    status: c.status as any, potentialStartDate: c.potential_start_date ?? undefined,
+    hasSalesPitchAccess: c.has_sales_pitch_access, hasEvoAppAccess: c.has_evo_app_access,
+    history: [], createdAt: "", recruitedBy: c.recruited_by ?? undefined, archivedAt: c.archived_at,
+  })), [treeCandidates]);
+
+  const subtreeTreeCandidates = useMemo(() => {
+    if (!profile || allProfiles.length === 0) return treeCandidatesForBuild;
+    const subtreeIds = getDescendantProfileIds(profile.id, allProfiles);
+    return treeCandidatesForBuild.filter((c) => c.recruitedBy && subtreeIds.has(c.recruitedBy));
+  }, [treeCandidatesForBuild, allProfiles, profile]);
+
+  const crewTree = useMemo(() => {
+    if (!profile || allProfiles.length === 0) return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
+    return buildRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeTreeCandidates);
+  }, [subtreeTreeCandidates, allProfiles, profile]);
+
+  const crewSalesMap = useMemo(() => {
+    const map = new Map<string, number>();
+    crewSalesEntries.forEach((e: any) => { map.set(e.user_id, (map.get(e.user_id) || 0) + (e.sales || 0)); });
+    return map;
+  }, [crewSalesEntries]);
+
+  const profileUserMap = useMemo(() => {
+    const m = new Map<string, string>();
+    allProfiles.forEach((p) => m.set(p.id, p.user_id));
+    return m;
+  }, [allProfiles]);
+
+  const candidateStageMap = useMemo(() => {
+    const m = new Map<string, string>();
+    treeCandidates.forEach((c: any) => m.set(c.id, c.stage));
+    return m;
+  }, [treeCandidates]);
+
+  const crewTreeNodeCount = useMemo(() => {
+    function count(n: CrewNode): number { return 1 + n.children.reduce((s, c) => s + count(c), 0); }
+    return count(crewTree);
+  }, [crewTree]);
+
   const personalBest = useMemo(() => {
     const records: { metric: string; previousBest: number; current: number }[] = [];
     const trackMetrics: { key: PipelineStage; label: string }[] = [
@@ -815,16 +950,44 @@ export function WeeklySummary() {
           </Card>
         )}
 
-        {/* SECTION: Crew Bubble Snapshot */}
+        {/* SECTION: Crew Structure with Role Labels & Weekly Sales */}
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <GitBranch className="w-4 h-4 text-primary" />
               Crew Structure
+              {crewTreeNodeCount > 1 && (
+                <span className="text-xs font-normal text-muted-foreground">{crewTreeNodeCount} members</span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <CrewBubbleSnapshot candidates={allCandidates} />
+            {crewTreeNodeCount <= 1 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No crew members yet.</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}>
+                  <div className="p-4 flex justify-center">
+                    <SummaryTreeNode
+                      node={crewTree}
+                      salesMap={crewSalesMap}
+                      profileUserMap={profileUserMap}
+                      candidateStageMap={candidateStageMap}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
+                    <span>Leader</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-4 rounded border border-border/50 bg-muted/15" />
+                    <span>Brand Ambassador</span>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
