@@ -205,6 +205,73 @@ export default function Manager() {
     return "outline";
   };
 
+  const renderUserTable = (userList: ManagedUser[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Phone</TableHead>
+          <TableHead>Pipeline Stage</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Assigned Leader</TableHead>
+          <TableHead>Promote</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {userList.map((u) => {
+          const isSelf = u.user_id === user?.id;
+          const isBA = u.role === "brand_ambassador";
+          const isLeader = u.role === "leader";
+          const canToggle = isBA || isLeader;
+
+          return (
+            <TableRow key={u.user_id}>
+              <TableCell className="font-medium">{u.full_name}</TableCell>
+              <TableCell className="text-muted-foreground">{u.phone || "—"}</TableCell>
+              <TableCell>{stageLabel(u.stage)}</TableCell>
+              <TableCell>
+                <Badge variant={roleBadgeVariant(u.role)}>
+                  {roleLabel(u.role)}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{u.leader_name ?? "The Office"}</TableCell>
+              <TableCell>
+                {!isSelf && canToggle ? (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={u.role === "leader"}
+                      onCheckedChange={() => handlePromoteToggle(u)}
+                      disabled={actionLoading === u.user_id}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {u.role === "leader" ? "Leader" : "BA"}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell className="text-right">
+                {!isSelf && !u.super_admin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(u)}
+                    disabled={actionLoading === u.user_id}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                ) : null}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
@@ -221,87 +288,70 @@ export default function Manager() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-6">
-        <div className="glass-panel overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Pipeline Stage</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Assigned Leader</TableHead>
-                <TableHead>Promote</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Loading users...
-                  </TableCell>
-                </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No users found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((u) => {
-                  const isSelf = u.user_id === user?.id;
-                  const isBA = u.role === "brand_ambassador";
-                  const isLeader = u.role === "leader";
-                  const canToggle = isBA || isLeader;
+      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-6 space-y-6">
+        {loading ? (
+          <div className="text-center text-muted-foreground py-8">Loading users...</div>
+        ) : users.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">No users found.</div>
+        ) : (
+          <>
+            {/* Unassigned / Office Users */}
+            {(() => {
+              const officeUsers = users.filter(u => u.leader_id === null && u.role === "brand_ambassador");
+              if (officeUsers.length === 0) return null;
+              return (
+                <section>
+                  <h2 className="text-sm font-semibold text-foreground mb-2">Unassigned / Office</h2>
+                  <div className="glass-panel overflow-hidden">
+                    {renderUserTable(officeUsers)}
+                  </div>
+                </section>
+              );
+            })()}
 
-                  return (
-                    <TableRow key={u.user_id}>
-                      <TableCell className="font-medium">{u.full_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{u.phone || "—"}</TableCell>
-                      <TableCell>{stageLabel(u.stage)}</TableCell>
-                      <TableCell>
-                        <Badge variant={roleBadgeVariant(u.role)}>
-                          {roleLabel(u.role)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{u.leader_name ?? "The Office"}</TableCell>
-                      <TableCell>
-                        {!isSelf && canToggle ? (
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={u.role === "leader"}
-                              onCheckedChange={() => handlePromoteToggle(u)}
-                              disabled={actionLoading === u.user_id}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {u.role === "leader" ? "Leader" : "BA"}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {!isSelf && !u.super_admin ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeleteTarget(u)}
-                            disabled={actionLoading === u.user_id}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            {/* Leaders */}
+            {(() => {
+              const leaders = users.filter(u => u.role === "leader");
+              if (leaders.length === 0) return null;
+              return (
+                <section>
+                  <h2 className="text-sm font-semibold text-foreground mb-2">Leaders</h2>
+                  <div className="glass-panel overflow-hidden">
+                    {renderUserTable(leaders)}
+                  </div>
+                </section>
+              );
+            })()}
+
+            {/* Assigned Brand Ambassadors */}
+            {(() => {
+              const assignedBAs = users.filter(u => u.leader_id !== null && u.role === "brand_ambassador");
+              if (assignedBAs.length === 0) return null;
+              return (
+                <section>
+                  <h2 className="text-sm font-semibold text-foreground mb-2">Brand Ambassadors</h2>
+                  <div className="glass-panel overflow-hidden">
+                    {renderUserTable(assignedBAs)}
+                  </div>
+                </section>
+              );
+            })()}
+
+            {/* Managers (always show) */}
+            {(() => {
+              const managers = users.filter(u => u.role === "manager");
+              if (managers.length === 0) return null;
+              return (
+                <section>
+                  <h2 className="text-sm font-semibold text-foreground mb-2">Managers</h2>
+                  <div className="glass-panel overflow-hidden">
+                    {renderUserTable(managers)}
+                  </div>
+                </section>
+              );
+            })()}
+          </>
+        )}
       </main>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
