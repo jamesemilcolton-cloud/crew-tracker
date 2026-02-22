@@ -466,26 +466,11 @@ export function WeeklySummary() {
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
   }, [isLeader, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
 
-  // Crew tree data for Week Summary crew structure
-  const [treeCandidates, setTreeCandidates] = useState<any[]>([]);
-  useEffect(() => {
-    async function fetch() {
-      const { data } = await supabase
-        .from("candidates")
-        .select("id, name, stage, recruited_by, archived_at, phone, notes, source, status, potential_start_date, has_sales_pitch_access, has_evo_app_access")
-        .is("archived_at", null);
-      if (data) setTreeCandidates(data);
-    }
-    fetch();
-  }, []);
-
-  const treeCandidatesForBuild = useMemo(() => treeCandidates.map((c) => ({
-    id: c.id, name: c.name, phone: c.phone, notes: c.notes,
-    source: c.source as "LinkedIn" | "Office", stage: c.stage as any,
-    status: c.status as any, potentialStartDate: c.potential_start_date ?? undefined,
-    hasSalesPitchAccess: c.has_sales_pitch_access, hasEvoAppAccess: c.has_evo_app_access,
-    history: [], createdAt: "", recruitedBy: c.recruited_by ?? undefined, archivedAt: c.archived_at,
-  })), [treeCandidates]);
+  // Reuse allCandidates from useCandidates("all") instead of a separate fetch
+  const treeCandidatesForBuild = useMemo(() => allCandidates.map((c) => ({
+    ...c,
+    recruitedBy: c.recruitedBy ?? undefined,
+  })), [allCandidates]);
 
   const subtreeTreeCandidates = useMemo(() => {
     if (!profile || allProfiles.length === 0) return treeCandidatesForBuild;
@@ -512,9 +497,9 @@ export function WeeklySummary() {
 
   const candidateStageMap = useMemo(() => {
     const m = new Map<string, string>();
-    treeCandidates.forEach((c: any) => m.set(c.id, c.stage));
+    allCandidates.forEach((c) => m.set(c.id, c.stage));
     return m;
-  }, [treeCandidates]);
+  }, [allCandidates]);
 
   const crewTreeNodeCount = useMemo(() => {
     function count(n: CrewNode): number { return 1 + n.children.reduce((s, c) => s + count(c), 0); }

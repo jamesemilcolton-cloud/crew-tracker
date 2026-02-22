@@ -63,24 +63,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let initialised = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+
+        if (event === "INITIAL_SESSION") {
+          // Handled by the initial getSession call below
+          return;
+        }
+
+        // Only react to real auth changes (login, logout, token refresh)
         if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-            fetchRole(session.user.id);
-          }, 0);
+          fetchProfile(session.user.id);
+          fetchRole(session.user.id);
         } else {
           setProfile(null);
           setUserRole(null);
         }
-        setLoading(false);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (initialised) return;
+      initialised = true;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {

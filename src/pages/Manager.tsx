@@ -253,7 +253,7 @@ export default function Manager() {
                     disabled={actionLoading === u.user_id}
                   >
                     <UserMinus className="w-4 h-4 mr-1" />
-                    Demote
+                    {actionLoading === u.user_id ? "Checking crew…" : "Demote"}
                   </Button>
                 )}
                 {(isSelf || u.role === "manager") && (
