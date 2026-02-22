@@ -82,13 +82,13 @@ function ParticleCanvas() {
     resize();
     window.addEventListener("resize", resize);
 
-    const colors = [
-      "180,180,180",
-      "180,180,180",
-      "180,180,180",
-      "94,234,212",
-      "205,92,92",
-      "218,165,72",
+      const colors = [
+      "160,160,160",
+      "160,160,160",
+      "160,160,160",
+      "74,214,192",
+      "185,72,72",
+      "198,145,52",
     ];
 
     type Particle = { x: number; y: number; vx: number; vy: number; size: number; opacity: number; maxOpacity: number; color: string; phase: number; phaseSpeed: number };
@@ -103,7 +103,7 @@ function ParticleCanvas() {
         vy: (Math.random() - 0.5) * 0.3,
         size: Math.random() * 2 + 0.5,
         opacity: 0,
-        maxOpacity: Math.random() * 0.07 + 0.03,
+        maxOpacity: Math.random() * 0.05 + 0.02,
         color: colors[Math.floor(Math.random() * colors.length)],
         phase: Math.random() * Math.PI * 2,
         phaseSpeed: Math.random() * 0.005 + 0.002,
@@ -364,7 +364,7 @@ export default function ModuleSelection() {
                   style={{
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     filter: unlocked && isHovered
-                      ? `drop-shadow(0 4px 6px hsl(${m.hsl} / 0.25)) drop-shadow(0 0 20px hsl(${m.hsl} / 0.15))`
+                      ? `drop-shadow(0 3px 4px hsl(${m.hsl} / 0.18)) drop-shadow(0 0 14px hsl(${m.hsl} / 0.10))`
                       : "none",
                     transform: unlocked && isHovered ? "translateY(-3px)" : "translateY(0)",
                     transformOrigin: "center",
@@ -389,7 +389,7 @@ export default function ModuleSelection() {
               style={{
                 transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 filter: isManagerUnlocked && isManagerHovered
-                  ? `drop-shadow(0 4px 6px hsl(${managerModule.hsl} / 0.25)) drop-shadow(0 0 20px hsl(${managerModule.hsl} / 0.15))`
+                  ? `drop-shadow(0 3px 4px hsl(${managerModule.hsl} / 0.18)) drop-shadow(0 0 14px hsl(${managerModule.hsl} / 0.10))`
                   : "none",
                 transform: isManagerUnlocked && isManagerHovered ? "translateY(-3px)" : "translateY(0)",
                 transformOrigin: "center",

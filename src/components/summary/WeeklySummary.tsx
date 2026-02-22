@@ -589,7 +589,7 @@ export function WeeklySummary() {
                       return (
                         <div key={key} className="text-center" style={{ gridColumn: `${i * 2 + 1} / ${i * 2 + 2}` }}>
                           <div className={`text-[9px] ${isSpokenWeak ? "text-destructive/70" : "text-muted-foreground"}`}>
-                            {key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}
+                            {GAUGE_LABELS[key]}
                           </div>
                           <div className={`text-sm font-bold ${isSpokenWeak ? "text-destructive" : "text-foreground"}`}>{individualMeans[key]}</div>
                         </div>
@@ -627,13 +627,27 @@ export function WeeklySummary() {
                         const changed = individualSim.adjusted[key] !== individualMeans[key];
                         return (
                           <span key={key} className="inline-flex items-center gap-0.5">
-                            <span className="text-muted-foreground">{key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
+                            <span className="text-muted-foreground">{GAUGE_LABELS[key]}</span>
                             <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{individualSim.adjusted[key]}</span>
                             {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
                           </span>
                         );
                       })}
                     </div>
+                    {(() => {
+                      const daysLogged = ownSalesEntries.length;
+                      const currentWeeklySales = individualMeans.sales * daysLogged;
+                      const projectedWeeklySales = individualSim.adjusted.sales * daysLogged;
+                      const delta = projectedWeeklySales - currentWeeklySales;
+                      const deltaPerWeek = daysLogged > 0 ? delta / daysLogged * 7 : 0;
+                      if (deltaPerWeek < 0.5) {
+                        return <p className="text-[10px] text-muted-foreground/70 mt-1">Impact minimal. Focus on activity volume.</p>;
+                      } else if (deltaPerWeek > 1) {
+                        return <p className="text-[10px] text-primary/80 mt-1 font-medium">High leverage improvement. Estimated +{deltaPerWeek.toFixed(1)} sales/week.</p>;
+                      } else {
+                        return <p className="text-[10px] text-muted-foreground mt-1">Estimated improvement: +{deltaPerWeek.toFixed(1)} sales/week.</p>;
+                      }
+                    })()}
                   </div>
                 )}
               </>
@@ -679,7 +693,7 @@ export function WeeklySummary() {
                       return (
                         <div key={key} className="text-center" style={{ gridColumn: `${i * 2 + 1} / ${i * 2 + 2}` }}>
                           <div className={`text-[9px] ${isSpokenWeak ? "text-destructive/70" : "text-muted-foreground"}`}>
-                            {key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}
+                            {GAUGE_LABELS[key]}
                           </div>
                           <div className={`text-sm font-bold ${isSpokenWeak ? "text-destructive" : "text-foreground"}`}>{crewMeans[key]}</div>
                         </div>
@@ -716,13 +730,27 @@ export function WeeklySummary() {
                         const changed = crewSim.adjusted[key] !== crewMeans[key];
                         return (
                           <span key={key} className="inline-flex items-center gap-0.5">
-                            <span className="text-muted-foreground">{key === "presentations" ? "Pres" : key === "tablets" ? "Tabs" : GAUGE_LABELS[key]}</span>
+                            <span className="text-muted-foreground">{GAUGE_LABELS[key]}</span>
                             <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{crewSim.adjusted[key]}</span>
                             {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
                           </span>
                         );
                       })}
                     </div>
+                    {(() => {
+                      const crewDaysLogged = crewSalesEntries.length;
+                      const currentWeeklySales = crewMeans.sales * crewDaysLogged;
+                      const projectedWeeklySales = crewSim.adjusted.sales * crewDaysLogged;
+                      const delta = projectedWeeklySales - currentWeeklySales;
+                      const deltaPerWeek = crewDaysLogged > 0 ? delta / crewDaysLogged * 7 : 0;
+                      if (deltaPerWeek < 0.5) {
+                        return <p className="text-[10px] text-muted-foreground/70 mt-1">Impact minimal. Focus on activity volume.</p>;
+                      } else if (deltaPerWeek > 1) {
+                        return <p className="text-[10px] text-primary/80 mt-1 font-medium">High leverage improvement. Estimated +{deltaPerWeek.toFixed(1)} sales/week.</p>;
+                      } else {
+                        return <p className="text-[10px] text-muted-foreground mt-1">Estimated improvement: +{deltaPerWeek.toFixed(1)} sales/week.</p>;
+                      }
+                    })()}
                   </div>
                 )}
               </div>
