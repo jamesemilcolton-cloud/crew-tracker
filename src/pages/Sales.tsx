@@ -9,7 +9,7 @@ import { useSalesData, SalesEntry } from "@/hooks/useSalesData";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Leaderboard } from "@/components/Leaderboard";
+
 
 const FIELD_LABELS = ["Doors", "Spoken", "Presentations", "Closes", "Tablets", "Sales"] as const;
 type FieldKey = "doors" | "spoken" | "presentations" | "closes" | "tablets" | "sales";
@@ -23,7 +23,7 @@ export default function Sales() {
   const {
     currentWeekEntries, saveDayMutation, getDateForDay, getEntryForDate,
     getWeekTotals, calcLOA, calcCloseLOA, getWeeklyLOAData, getPrevWeekTotals,
-    getPersonalBestSales, teamEntries, profiles, DAYS, isCurrentWeek, weekLabel,
+    getPersonalBestSales, DAYS, isCurrentWeek, weekLabel,
   } = useSalesData(weekOffset);
 
   const [selectedDay, setSelectedDay] = useState(() => {
@@ -402,10 +402,6 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        {/* 6. Crew Leaderboard */}
-        {role && role !== "brand_ambassador" && (
-          <Leaderboard />
-        )}
       </main>
     </div>
   );
