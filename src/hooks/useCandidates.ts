@@ -7,6 +7,8 @@ function rowToCandidate(row: any, history: any[]): Candidate {
   return {
     id: row.id,
     name: row.name,
+    firstName: row.first_name || "",
+    lastName: row.last_name || "",
     phone: row.phone,
     notes: row.notes,
     source: row.source as any,
@@ -75,6 +77,8 @@ export function useCandidates(scope: "own" | "all" = "own") {
     const { data, error } = await supabase.from("candidates").insert({
       user_id: user.id,
       name: candidate.name,
+      first_name: candidate.firstName || "",
+      last_name: candidate.lastName || "",
       phone: candidate.phone,
       notes: candidate.notes,
       source: candidate.source,

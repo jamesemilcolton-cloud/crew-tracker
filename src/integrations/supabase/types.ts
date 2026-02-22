@@ -79,9 +79,11 @@ export type Database = {
           created_at: string
           drop_off_date: string | null
           drop_off_reason: string | null
+          first_name: string
           has_evo_app_access: boolean
           has_sales_pitch_access: boolean
           id: string
+          last_name: string
           name: string
           notes: string
           phone: string
@@ -98,9 +100,11 @@ export type Database = {
           created_at?: string
           drop_off_date?: string | null
           drop_off_reason?: string | null
+          first_name?: string
           has_evo_app_access?: boolean
           has_sales_pitch_access?: boolean
           id?: string
+          last_name?: string
           name: string
           notes?: string
           phone?: string
@@ -117,9 +121,11 @@ export type Database = {
           created_at?: string
           drop_off_date?: string | null
           drop_off_reason?: string | null
+          first_name?: string
           has_evo_app_access?: boolean
           has_sales_pitch_access?: boolean
           id?: string
+          last_name?: string
           name?: string
           notes?: string
           phone?: string
