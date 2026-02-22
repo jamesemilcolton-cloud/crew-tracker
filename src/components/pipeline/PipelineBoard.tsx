@@ -181,8 +181,50 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         <NewCandidateForm onAdd={handleAdd} />
       </div>
 
-      {/* TOP SECTION: Pipeline Board */}
-      <div className="flex gap-4 overflow-hidden">
+      {/* MOBILE: stacked single-column layout / DESKTOP: original layout */}
+
+      {/* 1. Upcoming Starts — full width on mobile, bottom-right on desktop */}
+      <div className="md:hidden">
+        <div className="glass-panel p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-medium text-foreground">Upcoming Starts</h3>
+            <span className="text-[10px] text-muted-foreground font-mono">{upcomingStarts.length}</span>
+          </div>
+          <div className="space-y-2">
+            {upcomingStarts.length === 0 && (
+              <p className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No upcoming starts</p>
+            )}
+            {upcomingStarts.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setSelectedCandidate(c)}
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">{c.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-primary">
+                  <Calendar className="w-3 h-3" />
+                  {c.potentialStartDate
+                    ? new Date(c.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                    : "TBD"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Funnel Analytics — full width on mobile */}
+      <div className="md:hidden">
+        <PipelineAnalytics candidates={candidates} trendRange={trendRange} signupDate={signupDate} />
+      </div>
+
+      {/* 3. Pipeline stages — vertical stack on mobile, horizontal board on desktop */}
+      <div className="hidden md:flex gap-4 overflow-hidden">
+        {/* Desktop pipeline board */}
         <div className="flex gap-3 overflow-x-auto flex-1 pb-2 custom-scrollbar">
           {columns.map(({ stage, config, candidates: stageCandidates }) => (
             <div
@@ -208,7 +250,6 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
             </div>
           ))}
         </div>
-
         {selectedCandidate && (
           <div className="flex-shrink-0 w-72">
             <CandidateDetail candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={handleUpdate} onArchive={handleArchive} />
@@ -216,8 +257,38 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         )}
       </div>
 
-      {/* BOTTOM SECTION: Funnel Chart + Upcoming Starts side by side */}
-      <div className="flex gap-4">
+      {/* Mobile pipeline stages — vertical stack */}
+      <div className="md:hidden space-y-3 overflow-x-hidden">
+        {columns.map(({ stage, config, candidates: stageCandidates }) => (
+          <div
+            key={stage}
+            className={`glass-panel p-3 transition-all duration-200 ${dragOverStage === stage ? "ring-2 ring-primary/50 bg-primary/5" : ""}`}
+            onDrop={(e) => handleDrop(stage, e)}
+            onDragOver={(e) => handleDragOver(stage, e)}
+            onDragLeave={handleDragLeave}
+          >
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(var(${config.colorVar}))` }} />
+              <h3 className="text-xs font-medium text-foreground">{config.label}</h3>
+              <span className="text-[10px] text-muted-foreground font-mono ml-auto">{stageCandidates.length}</span>
+            </div>
+            <div className="space-y-1">
+              {stageCandidates.map((candidate) => (
+                <CandidateCard key={candidate.id} candidate={candidate} onClick={setSelectedCandidate} />
+              ))}
+              {stageCandidates.length === 0 && (
+                <div className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No candidates</div>
+              )}
+            </div>
+          </div>
+        ))}
+        {selectedCandidate && (
+          <CandidateDetail candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={handleUpdate} onArchive={handleArchive} />
+        )}
+      </div>
+
+      {/* DESKTOP BOTTOM: Funnel + Upcoming Starts side by side */}
+      <div className="hidden md:flex gap-4">
         <div className="flex-1 min-w-0">
           <PipelineAnalytics candidates={candidates} trendRange={trendRange} signupDate={signupDate} />
         </div>
