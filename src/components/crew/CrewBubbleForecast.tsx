@@ -7,6 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
 
+/** Hook to fetch manager/super_admin user_ids so they can be excluded from crew trees */
+function useManagerUserIds() {
+  const [managerUserIds, setManagerUserIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "manager")
+      .eq("super_admin", true)
+      .then(({ data }) => {
+        if (data) setManagerUserIds(new Set(data.map((r) => r.user_id)));
+      });
+  }, []);
+  return managerUserIds;
+}
+
 interface Profile {
   id: string;
   user_id: string;
@@ -450,10 +466,20 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
 }
 
 export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) {
-  const { profile } = useAuth();
+  const { profile, userRole } = useAuth();
   const { profiles: sharedProfiles } = useProfiles();
-  const allProfiles = sharedProfiles as Profile[];
+  const allProfilesRaw = sharedProfiles as Profile[];
+  const managerUserIds = useManagerUserIds();
 
+  // Filter out manager/super_admin profiles from the tree
+  const allProfiles = useMemo(
+    () => allProfilesRaw.filter((p) => !managerUserIds.has(p.user_id)),
+    [allProfilesRaw, managerUserIds]
+  );
+
+  // Managers should not appear in crew bubble at all
+  const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
+  
   const subtreeCandidates = useMemo(() => {
     if (!profile || allProfiles.length === 0) return candidates;
     return getSubtreeCandidates(profile.id, allProfiles, candidates);
@@ -468,7 +494,7 @@ export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) 
 
   const totalNodes = countNodes(tree);
 
-  if (totalNodes <= 1) return null;
+  if (isManager || totalNodes <= 1) return null;
 
   return <CrewTree tree={tree} />;
 }
@@ -481,9 +507,19 @@ const CONFIDENCE_STYLES: Record<ForecastConfidence, { color: string; bg: string 
 
 export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);
-  const { profile } = useAuth();
+  const { profile, userRole } = useAuth();
   const { profiles: sharedProfiles } = useProfiles();
-  const allProfiles = sharedProfiles as Profile[];
+  const allProfilesRaw = sharedProfiles as Profile[];
+  const managerUserIds = useManagerUserIds();
+
+  // Filter out manager/super_admin profiles from the tree
+  const allProfiles = useMemo(
+    () => allProfilesRaw.filter((p) => !managerUserIds.has(p.user_id)),
+    [allProfilesRaw, managerUserIds]
+  );
+
+  // Managers should not see crew bubble forecast
+  const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
 
   // Filter candidates to only this leader's recursive subtree
   const subtreeCandidates = useMemo(() => {
@@ -526,6 +562,8 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const topCrewName = profile ? (allProfiles.find(p => p.id === profile.id)?.crew_name || "") : "";
 
   const confStyle = CONFIDENCE_STYLES[forecast.confidence];
+
+  if (isManager) return null;
 
   return (
     <div className="space-y-4">
