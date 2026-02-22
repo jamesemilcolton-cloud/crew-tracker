@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Users, DollarSign, Trophy, Shield, LogOut, Lock, BarChart3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Users, DollarSign, Trophy, Shield, Lock, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ProfileDropdown } from "@/components/ProfileDropdown";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef, useState } from "react";
 
@@ -149,7 +149,7 @@ function ParticleCanvas() {
 
 export default function ModuleSelection() {
   const navigate = useNavigate();
-  const { profile, userRole, signOut } = useAuth();
+  const { profile, userRole } = useAuth();
   const isMobile = useIsMobile();
   const [hovered, setHovered] = useState<string | null>(null);
 
@@ -165,12 +165,7 @@ export default function ModuleSelection() {
         <ParticleCanvas />
         <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 relative z-10">
           <h1 className="text-sm font-semibold text-foreground tracking-widest uppercase">Mission Control</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{profile?.full_name}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
+          <ProfileDropdown />
         </header>
         <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 relative z-10">
           {allModules.map((m) => {
@@ -274,12 +269,7 @@ export default function ModuleSelection() {
 
       <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-card/30 backdrop-blur-xl relative z-10">
         <h1 className="text-sm font-semibold text-foreground tracking-[0.25em] uppercase">Mission Control</h1>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{profile?.full_name}</span>
-          <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-            <LogOut className="w-4 h-4" />
-          </Button>
-        </div>
+        <ProfileDropdown />
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center relative z-10 gap-6">

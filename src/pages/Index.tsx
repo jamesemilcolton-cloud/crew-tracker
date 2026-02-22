@@ -6,9 +6,10 @@ import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, ChevronDown, LogOut, ArrowLeft } from "lucide-react";
+import { Users, Linkedin, GitBranch, ChevronDown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { ProfileDropdown } from "@/components/ProfileDropdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("pipeline");
   const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const signupDate = useMemo(() => profile?.created_at ? new Date(profile.created_at) : undefined, [profile?.created_at]);
 
   const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, moveStage, archiveCandidate, dropCandidate, restoreCandidate, refetch: refetchOwn } = useCandidates("own");
@@ -114,11 +115,8 @@ const Index = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <div className="flex items-center gap-2 ml-2">
-                <span className="text-xs text-muted-foreground">{profile?.full_name}</span>
-                <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-                  <LogOut className="w-4 h-4" />
-                </Button>
+              <div className="ml-2">
+                <ProfileDropdown />
               </div>
             </div>
           </div>
@@ -134,7 +132,7 @@ const Index = () => {
                 <Users className="w-3.5 h-3.5 text-primary" />
               </div>
               <h1 className="text-sm font-semibold text-foreground tracking-tight">Recruitment</h1>
-              <span className="text-xs text-muted-foreground ml-auto">{profile?.full_name}</span>
+              <div className="ml-auto"><ProfileDropdown /></div>
             </div>
             {/* Vertical nav */}
             <nav className="flex flex-col gap-1 pb-3">
@@ -172,16 +170,6 @@ const Index = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Logout - full width */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={signOut}
-                className="w-full justify-start gap-3 text-sm text-muted-foreground hover:text-foreground px-3 py-2.5 h-auto"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
             </nav>
           </div>
         </div>
@@ -199,7 +187,6 @@ const Index = () => {
             onRestoreCandidate={handleRestoreCandidate}
             onMoveStage={handleMoveStage}
             loading={ownLoading}
-            onDataDeleted={() => { refetchOwn(); refetchAll(); }}
             signupDate={signupDate}
           />
         )}

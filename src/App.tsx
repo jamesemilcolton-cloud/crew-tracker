@@ -14,6 +14,7 @@ import WeekSummaryPage from "./pages/WeekSummaryPage";
 import Manager from "./pages/Manager";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
                 <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
                 <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

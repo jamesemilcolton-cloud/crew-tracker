@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { WeeklySummary } from "@/components/summary/WeeklySummary";
+import { ProfileDropdown } from "@/components/ProfileDropdown";
 
 const WeekSummaryPage = () => {
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -22,12 +23,7 @@ const WeekSummaryPage = () => {
               </div>
               <h1 className="text-sm font-semibold text-foreground tracking-tight">Week Summary</h1>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{profile?.full_name}</span>
-              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
+            <ProfileDropdown />
           </div>
         </div>
       </header>
