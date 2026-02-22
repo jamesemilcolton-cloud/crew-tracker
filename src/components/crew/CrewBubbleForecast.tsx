@@ -14,6 +14,36 @@ interface Profile {
   crew_name: string;
 }
 
+/**
+ * Shared descendant resolution: returns all profile IDs recursively
+ * downstream from a given root profile (inclusive).
+ * Used by both Crew Bubble and Crew Forecast to ensure identical scoping.
+ */
+export function getDescendantProfileIds(
+  rootProfileId: string,
+  allProfiles: Profile[],
+  visited: Set<string> = new Set()
+): Set<string> {
+  if (visited.has(rootProfileId)) return visited;
+  visited.add(rootProfileId);
+  const children = allProfiles.filter((p) => p.leader_id === rootProfileId);
+  children.forEach((child) => getDescendantProfileIds(child.id, allProfiles, visited));
+  return visited;
+}
+
+/**
+ * Filters candidates to only those recruited by profiles within the subtree.
+ * This prevents data leakage from parallel branches.
+ */
+function getSubtreeCandidates(
+  rootProfileId: string,
+  allProfiles: Profile[],
+  allCandidates: Candidate[]
+): Candidate[] {
+  const subtreeIds = getDescendantProfileIds(rootProfileId, allProfiles);
+  return allCandidates.filter((c) => c.recruitedBy && subtreeIds.has(c.recruitedBy));
+}
+
 export interface CrewNode {
   id: string;
   name: string;
@@ -538,6 +568,12 @@ export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) 
   const { profiles: sharedProfiles } = useProfiles();
   const allProfiles = sharedProfiles as Profile[];
 
+  // Filter candidates to this leader's subtree only
+  const subtreeCandidates = useMemo(() => {
+    if (!profile || allProfiles.length === 0) return candidates;
+    return getSubtreeCandidates(profile.id, allProfiles, candidates);
+  }, [candidates, allProfiles, profile]);
+
   // Fetch current week sales for all users
   const [salesMap, setSalesMap] = useState<Map<string, number>>(new Map());
   
@@ -574,20 +610,19 @@ export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) 
   const profileUserMap = useMemo(() => {
     const m = new Map<string, string>();
     allProfiles.forEach(p => m.set(p.id, p.user_id));
-    // Also map candidate IDs - they won't have profiles
-    candidates.forEach(c => {
-      if (c.recruitedBy) m.set(c.id, ""); // candidates don't have user_ids
+    subtreeCandidates.forEach(c => {
+      if (c.recruitedBy) m.set(c.id, "");
     });
     return m;
-  }, [allProfiles, candidates]);
+  }, [allProfiles, subtreeCandidates]);
 
   const tree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
       return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
     }
-    const baseTree = buildRecursiveTree(profile.id, profile.full_name, allProfiles, candidates);
+    const baseTree = buildRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeCandidates);
     return attachWeeklySales(baseTree, salesMap, profileUserMap);
-  }, [candidates, allProfiles, profile, salesMap, profileUserMap]);
+  }, [subtreeCandidates, allProfiles, profile, salesMap, profileUserMap]);
 
   const totalNodes = countNodes(tree);
 
@@ -614,35 +649,41 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const { profiles: sharedProfiles } = useProfiles();
   const allProfiles = sharedProfiles as Profile[];
 
+  // Filter candidates to only this leader's recursive subtree
+  const subtreeCandidates = useMemo(() => {
+    if (!profile || allProfiles.length === 0) return candidates;
+    return getSubtreeCandidates(profile.id, allProfiles, candidates);
+  }, [candidates, allProfiles, profile]);
+
   const startToPromotionPct = useMemo(() => {
-    const reachedStart = candidates.filter((c) => reachedStage(c, "start")).length;
-    const reachedPromoted = candidates.filter((c) => reachedStage(c, "promoted")).length;
+    const reachedStart = subtreeCandidates.filter((c) => reachedStage(c, "start")).length;
+    const reachedPromoted = subtreeCandidates.filter((c) => reachedStage(c, "promoted")).length;
     if (reachedStart === 0) return 0;
     return Math.round((reachedPromoted / reachedStart) * 100);
-  }, [candidates]);
+  }, [subtreeCandidates]);
 
-  const forecast = useMemo(() => computeWeightedForecast(candidates), [candidates]);
+  const forecast = useMemo(() => computeWeightedForecast(subtreeCandidates), [subtreeCandidates]);
 
   const currentTree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
       return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
     }
-    return buildRecursiveTree(profile.id, profile.full_name, allProfiles, candidates);
-  }, [candidates, allProfiles, profile]);
+    return buildRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeCandidates);
+  }, [subtreeCandidates, allProfiles, profile]);
 
   const predictedTree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
       return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
     }
-    return buildPredictedRecursiveTree(profile.id, profile.full_name, allProfiles, candidates, forecast);
-  }, [candidates, allProfiles, profile, forecast]);
+    return buildPredictedRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeCandidates, forecast);
+  }, [subtreeCandidates, allProfiles, profile, forecast]);
 
   const isTopLeader = profile ? !profile.leader_id : false;
 
   const managementResult = useMemo<ManagementResult | null>(() => {
     if (!isTopLeader || !profile) return null;
-    return simulateManagementTimeline(currentTree, forecast, candidates);
-  }, [isTopLeader, profile, currentTree, forecast, candidates]);
+    return simulateManagementTimeline(currentTree, forecast, subtreeCandidates);
+  }, [isTopLeader, profile, currentTree, forecast, subtreeCandidates]);
 
   const tree = showPredicted ? predictedTree : currentTree;
   const totalNodes = countNodes(tree);
