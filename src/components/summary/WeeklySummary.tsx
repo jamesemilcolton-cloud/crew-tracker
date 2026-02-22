@@ -70,15 +70,12 @@ function SummaryTreeNode({
           background: node.isLeader ? "hsl(var(--primary) / 0.08)" : "hsl(var(--muted) / 0.15)",
         }}
       >
-        <span className="absolute text-[10px] font-mono font-medium" style={{ top: 3, right: 6, color: weeklySales > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-          {weeklySales} Sale{weeklySales !== 1 ? "s" : ""}
-        </span>
-        <span className="truncate px-2 mt-1" style={{ fontSize: 12, fontWeight: node.isLeader ? 600 : 400, color: "hsl(var(--foreground))", maxWidth: TREE_NODE_W - 8 }}>
+        <span className="truncate px-2" style={{ fontSize: 12, fontWeight: node.isLeader ? 600 : 400, color: "hsl(var(--foreground))", maxWidth: TREE_NODE_W - 8 }}>
           {node.name}
         </span>
-        {roleLabel && (
-          <span className="text-[9px] px-2 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{roleLabel}</span>
-        )}
+        <span className="text-[9px] px-2 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {roleLabel ? `${roleLabel} — ${weeklySales} Sale${weeklySales !== 1 ? "s" : ""}` : `${weeklySales} Sale${weeklySales !== 1 ? "s" : ""}`}
+        </span>
       </div>
       {hasChildren && (
         <div className="flex flex-col items-center">
