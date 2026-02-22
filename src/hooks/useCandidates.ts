@@ -132,20 +132,28 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
   const dropCandidate = useCallback(async (id: string, reason: string) => {
     if (!user) return;
-    await supabase.from("candidates").update({
-      status: "dropped",
+    const { error } = await supabase.from("candidates").update({
+      status: "Dropped",
       drop_off_reason: reason,
       drop_off_date: new Date().toISOString(),
-    }).eq("id", id);
+    }).eq("id", id).eq("user_id", user.id);
+    if (error) {
+      console.error("Drop candidate error:", error);
+      throw error;
+    }
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
   const restoreCandidate = useCallback(async (id: string) => {
     if (!user) return;
-    await supabase.from("candidates").update({
+    const { error } = await supabase.from("candidates").update({
       status: null,
       drop_off_date: null,
-    }).eq("id", id);
+    }).eq("id", id).eq("user_id", user.id);
+    if (error) {
+      console.error("Restore candidate error:", error);
+      throw error;
+    }
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
