@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage, KPI_TARGETS } from "@/lib/types";
-import { Target, AlertTriangle, TrendingDown } from "lucide-react";
+import { Target, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { format, subWeeks, startOfWeek, parseISO } from "date-fns";
 
@@ -152,26 +152,6 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
     return worstGap > 0 ? { label: worstLabel, actual: worstActual, target: worstTarget, isObsOverride: false } : null;
   }, [stageCounts, isLowObs, obsCount]);
 
-  // Most Common Drop-Off Stage
-  const mostCommonDropOff = useMemo(() => {
-    let worstDropOff = 0;
-    let worstLabel = "";
-
-    for (let i = 1; i < FUNNEL_STAGES.length; i++) {
-      const from = FUNNEL_STAGES[i - 1];
-      const to = FUNNEL_STAGES[i];
-      const prevCount = stageCounts[from] || 0;
-      const currCount = stageCounts[to] || 0;
-      const dropPct = prevCount > 0 ? Math.round(((prevCount - currCount) / prevCount) * 100) : 0;
-
-      if (dropPct > worstDropOff) {
-        worstDropOff = dropPct;
-        worstLabel = `${STAGE_CONFIG[from].label} → ${STAGE_CONFIG[to].label}`;
-      }
-    }
-
-    return worstDropOff > 0 ? { label: worstLabel, dropPct: worstDropOff } : null;
-  }, [stageCounts]);
 
   // Promotion tracking (separate metric using lifetime data)
   const promotionPct = useMemo(() => {
@@ -290,15 +270,6 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
             )}
           </div>
 
-          {/* Most Common Drop-Off */}
-          {mostCommonDropOff && !isLowObs && (
-            <div className="bg-muted/20 border border-border/30 rounded-md p-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                <TrendingDown className="w-3.5 h-3.5" />
-                Most Common Drop-Off: {mostCommonDropOff.label} ({mostCommonDropOff.dropPct}% loss)
-              </div>
-            </div>
-          )}
 
           {/* Focus Area */}
           {focusArea && (
