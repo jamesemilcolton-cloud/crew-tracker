@@ -9,7 +9,7 @@ import { useSalesData, SalesEntry } from "@/hooks/useSalesData";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import SalesCrewTree from "@/components/sales/SalesCrewTree";
+import { Leaderboard } from "@/components/Leaderboard";
 
 const FIELD_LABELS = ["Doors", "Spoken", "Presentations", "Closes", "Tablets", "Sales"] as const;
 type FieldKey = "doors" | "spoken" | "presentations" | "closes" | "tablets" | "sales";
@@ -402,13 +402,9 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        {/* 6. Crew Structure Tree */}
+        {/* 6. Crew Leaderboard */}
         {role && role !== "brand_ambassador" && (
-          <SalesCrewTree
-            teamEntries={teamEntries}
-            weekLabel={weekLabel}
-            isCurrentWeek={isCurrentWeek}
-          />
+          <Leaderboard />
         )}
       </main>
     </div>
