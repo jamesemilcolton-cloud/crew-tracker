@@ -139,14 +139,10 @@ export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, to
 
           {/* Calculated values */}
           {commission && (
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/30">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/30">
               <div className="bg-muted/30 rounded-md p-2 text-center">
                 <div className="text-[9px] uppercase text-muted-foreground">ISA Upfront</div>
                 <div className="text-sm font-bold text-foreground">£{commission.isa.toFixed(2)}</div>
-              </div>
-              <div className="bg-[hsl(var(--module-sales)/0.1)] rounded-md p-2 text-center">
-                <div className="text-[9px] uppercase text-muted-foreground">Total Wire</div>
-                <div className="text-sm font-bold text-[hsl(var(--module-sales))]">£{commission.totalWire.toFixed(2)}</div>
               </div>
               <div className="bg-muted/20 rounded-md p-2 text-center opacity-60">
                 <div className="text-[9px] uppercase text-muted-foreground">Quality (30%)</div>
