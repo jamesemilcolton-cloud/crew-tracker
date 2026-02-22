@@ -25,6 +25,8 @@ export default function Profile() {
     }
   }, [profile]);
 
+  const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
+
   const handleSave = async () => {
     if (!user || !profile) return;
     setSaving(true);
@@ -42,8 +44,8 @@ export default function Profile() {
       }).eq("user_id", user.id);
       if (error) throw error;
 
-      // Sync name to any linked candidate records (matched by phone)
-      if (profile.phone) {
+      // Sync name to linked candidate records (matched by phone) — only for non-managers
+      if (!isManager && profile.phone) {
         await supabase.from("candidates").update({
           name: fullName,
           first_name: trimmedFirst,
@@ -97,8 +99,8 @@ export default function Profile() {
               <Input id="crewName" value={crewName} onChange={e => setCrewName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Phone Number (ID)</Label>
-              <Input value={profile?.phone || "—"} disabled className="opacity-60" />
+              <Label>{isManager ? "Email (ID)" : "Phone Number (ID)"}</Label>
+              <Input value={isManager ? (user?.email || "—") : (profile?.phone || "—")} disabled className="opacity-60" />
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
