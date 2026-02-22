@@ -9,6 +9,7 @@ import { useSalesData, SalesEntry } from "@/hooks/useSalesData";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import SalesCrewTree from "@/components/sales/SalesCrewTree";
 
 const FIELD_LABELS = ["Doors", "Spoken", "Presentations", "Closes", "Tablets", "Sales"] as const;
 type FieldKey = "doors" | "spoken" | "presentations" | "closes" | "tablets" | "sales";
@@ -135,57 +136,9 @@ export default function Sales() {
     else if (currLOANum > prevLOANum) loaTrend = "worse";
   }
 
-  
 
   const role = userRole?.role;
-  const myProfileId = profile?.id;
-  const myUserId = profile?.user_id;
 
-  const getCrewMembers = () => {
-    if (!role || role === "brand_ambassador") return [];
-    const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
-    let relevantUserIds: string[];
-    if (role === "manager" && userRole?.super_admin) {
-      relevantUserIds = profiles.map((p) => p.user_id);
-    } else {
-      // Build hierarchy map and recursively collect all descendants
-      const childrenMap = new Map<string, string[]>();
-      profiles.forEach((p) => {
-        if (p.leader_id) {
-          const existing = childrenMap.get(p.leader_id) || [];
-          existing.push(p.id);
-          childrenMap.set(p.leader_id, existing);
-        }
-      });
-      const getDescendantUserIds = (profileId: string): string[] => {
-        const children = childrenMap.get(profileId) || [];
-        const result: string[] = [];
-        for (const childId of children) {
-          const child = profiles.find((p) => p.id === childId);
-          if (child) result.push(child.user_id);
-          result.push(...getDescendantUserIds(childId));
-        }
-        return result;
-      };
-      relevantUserIds = myProfileId ? getDescendantUserIds(myProfileId) : [];
-    }
-    const members = relevantUserIds.map((uid) => {
-      const p = profileMap.get(uid);
-      const entries = teamEntries.filter((e) => e.user_id === uid);
-      const totals = getWeekTotals(entries);
-      const loaNum = totals.sales > 0 ? Math.round(totals.spoken / totals.sales) : Infinity;
-      return { userId: uid, name: p?.full_name || "Unknown", sales: totals.sales, spoken: totals.spoken, loa: calcLOA(totals.spoken, totals.sales), loaNum };
-    });
-    members.sort((a, b) => {
-      if (b.sales !== a.sales) return b.sales - a.sales;
-      if (a.loaNum !== b.loaNum) return a.loaNum - b.loaNum;
-      return a.name.localeCompare(b.name);
-    });
-    return members;
-  };
-
-  const crewMembers = getCrewMembers();
-  const hasCrew = crewMembers.length > 0;
 
   // Prevent navigating into the future
   const canGoForward = weekOffset < 0;
@@ -449,53 +402,13 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        {/* 6. Crew Leaderboard / Personal Summary */}
+        {/* 6. Crew Structure Tree */}
         {role && role !== "brand_ambassador" && (
-          hasCrew ? (
-            <Card className="border-border/50 bg-card">
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-xs text-muted-foreground font-medium">
-                  Crew Sales Leaderboard – {isCurrentWeek ? "This Week" : weekLabel}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-muted-foreground border-b border-border/30">
-                      <th className="text-left pb-2 font-medium w-8">#</th>
-                      <th className="text-left pb-2 font-medium">Name</th>
-                      <th className="text-right pb-2 font-medium">Sales</th>
-                      <th className="text-right pb-2 font-medium">Spoken</th>
-                      <th className="text-right pb-2 font-medium">LOA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {crewMembers.map((m, idx) => {
-                      const isMe = m.userId === myUserId;
-                      return (
-                        <tr key={m.userId} className={`border-b border-border/10 ${isMe ? "bg-[hsl(var(--module-sales)/0.08)]" : ""}`}>
-                          <td className="py-2 font-mono text-muted-foreground">{idx + 1}</td>
-                          <td className="py-2 text-foreground">{m.name}{isMe && <span className="text-muted-foreground ml-1 text-[10px]">(you)</span>}</td>
-                          <td className="py-2 text-right font-mono font-semibold text-foreground">{m.sales}</td>
-                          <td className="py-2 text-right font-mono text-muted-foreground">{m.spoken}</td>
-                          <td className="py-2 text-right font-mono text-[hsl(var(--module-sales))]">{m.loa}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-border/50 bg-card">
-              <CardContent className="px-4 py-6 text-center">
-                <p className="text-lg font-bold font-mono text-foreground mb-1">
-                  Your Sales This Week: {weekTotals.sales}
-                </p>
-                <p className="text-xs text-muted-foreground">No one on your crew yet.</p>
-              </CardContent>
-            </Card>
-          )
+          <SalesCrewTree
+            teamEntries={teamEntries}
+            weekLabel={weekLabel}
+            isCurrentWeek={isCurrentWeek}
+          />
         )}
       </main>
     </div>
