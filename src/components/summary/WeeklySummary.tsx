@@ -15,6 +15,7 @@ import {
   buildRecursiveTree,
   CrewNode,
 } from "@/components/crew/CrewBubbleForecast";
+import { CrewTree } from "@/components/crew/CrewTree";
 import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
 
 
@@ -36,67 +37,7 @@ function getRoleLabel(stage: string): string {
   }
 }
 
-const TREE_NODE_W = 160;
-const TREE_NODE_H = 44;
-const TREE_NODE_GAP = 14;
-
-function SummaryTreeNode({
-  node, salesMap, profileUserMap, candidateStageMap,
-}: {
-  node: CrewNode;
-  salesMap: Map<string, number>;
-  profileUserMap: Map<string, string>;
-  candidateStageMap: Map<string, string>;
-}) {
-  const hasChildren = node.children.length > 0;
-  const userId = profileUserMap.get(node.id);
-  const weeklySales = userId ? salesMap.get(userId) ?? 0 : 0;
-
-  let roleLabel = "";
-  if (node.isLeader) {
-    roleLabel = "Leader";
-  } else {
-    const stage = candidateStageMap.get(node.id);
-    if (stage) roleLabel = getRoleLabel(stage);
-  }
-
-  return (
-    <div className="flex flex-col items-center" style={{ minWidth: TREE_NODE_W }}>
-      <div
-        className="relative flex flex-col items-center justify-center select-none"
-        style={{
-          width: TREE_NODE_W, minHeight: TREE_NODE_H,
-          borderRadius: node.isLeader ? 16 : 8,
-          border: node.isLeader ? "1.5px solid hsl(var(--primary))" : "1px solid hsl(var(--border) / 0.5)",
-          background: node.isLeader ? "hsl(var(--primary) / 0.08)" : "hsl(var(--muted) / 0.15)",
-        }}
-      >
-        <span className="truncate px-2" style={{ fontSize: 12, fontWeight: node.isLeader ? 600 : 400, color: "hsl(var(--foreground))", maxWidth: TREE_NODE_W - 8 }}>
-          {node.name}
-        </span>
-        <span className="text-[9px] px-2 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-          {roleLabel ? `${roleLabel} — ${weeklySales} Sale${weeklySales !== 1 ? "s" : ""}` : `${weeklySales} Sale${weeklySales !== 1 ? "s" : ""}`}
-        </span>
-      </div>
-      {hasChildren && (
-        <div className="flex flex-col items-center">
-          <div style={{ width: 1.5, height: 18, background: "hsl(var(--border))" }} />
-          {node.children.length > 1 && (
-            <div style={{ height: 1.5, background: "hsl(var(--border))", width: `${(Math.min(node.children.length, 8) - 1) * (TREE_NODE_W + TREE_NODE_GAP)}px`, maxWidth: "90vw" }} />
-          )}
-          <div className="flex flex-wrap items-start justify-center" style={{ gap: TREE_NODE_GAP, maxWidth: "90vw" }}>
-            {node.children.map((child) => (
-              <div key={child.id} className="flex flex-col items-center">
-                <div style={{ width: 1.5, height: 14, background: "hsl(var(--border))" }} />
-                <SummaryTreeNode node={child} salesMap={salesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// Summary tree rendering is now handled by the shared CrewTree component
 
 function getWeekBounds(offset: number = 0) {
   const now = new Date();
@@ -1038,16 +979,13 @@ export function WeeklySummary() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}>
-              <div className="p-4 flex justify-center">
-                <SummaryTreeNode
-                  node={crewTree}
-                  salesMap={crewSalesMap}
-                  profileUserMap={profileUserMap}
-                  candidateStageMap={candidateStageMap}
-                />
-              </div>
-            </div>
+            <CrewTree
+              tree={crewTree}
+              showSales
+              salesMap={crewSalesMap}
+              profileUserMap={profileUserMap}
+              candidateStageMap={candidateStageMap}
+            />
             {crewTreeNodeCount > 1 && (
               <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
                 <div className="flex items-center gap-2">

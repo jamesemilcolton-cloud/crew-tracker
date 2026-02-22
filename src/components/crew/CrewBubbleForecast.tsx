@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { CrewTree } from "./CrewTree";
 import { Target } from "lucide-react";
 import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { GitBranch, Shield } from "lucide-react";
@@ -448,193 +449,28 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
   return { status: "beyond", weeksToManagement: null, confidence: forecast.confidence };
 }
 
-// ============= NEW WRAPPING TREE NODE =============
-const NODE_WIDTH = 140;
-const NODE_HEIGHT = 32;
-const NODE_GAP = 12;
-
-function WrappingTreeNode({ node, crewName }: { node: CrewNode; crewName?: string }) {
-  const hasChildren = node.children.length > 0;
-  const showSalesBadge = node.weeklySales !== undefined && node.weeklySales >= 3;
-
-  return (
-    <div className="flex flex-col items-center" style={{ minWidth: NODE_WIDTH }}>
-      {/* Node bubble */}
-      <div
-        className="relative flex flex-col items-center justify-center select-none"
-        style={{
-          width: NODE_WIDTH,
-          minHeight: NODE_HEIGHT,
-          borderRadius: node.isLeader ? 16 : 8,
-          border: node.isLeader
-            ? `1.5px ${node.isPredicted ? "dashed" : "solid"} hsl(var(--primary))`
-            : "none",
-          background: node.isLeader
-            ? node.isPredicted ? "hsl(var(--primary) / 0.03)" : "hsl(var(--primary) / 0.08)"
-            : "transparent",
-          opacity: node.isPredicted ? 0.55 : 1,
-        }}
-      >
-        <div className="flex items-center gap-1 px-2">
-          <span
-            className="truncate"
-            style={{
-              fontSize: 12,
-              fontWeight: node.isLeader ? 600 : 400,
-              fontStyle: node.isPredicted ? "italic" : "normal",
-              color: node.isPredicted ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))",
-            }}
-          >
-            {node.name}
-          </span>
-          {node.weeklySales !== undefined && !node.isPredicted && (
-            <span
-              className="text-[10px] font-mono shrink-0"
-              style={{
-                color: showSalesBadge ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                fontWeight: showSalesBadge ? 600 : 400,
-              }}
-            >
-              {node.weeklySales}
-            </span>
-          )}
-          {showSalesBadge && (
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: "hsl(var(--primary))" }}
-            />
-          )}
-        </div>
-        {crewName && (
-          <span className="text-[9px] text-muted-foreground truncate px-2">{crewName}</span>
-        )}
-      </div>
-
-      {/* Children with dynamic wrapping */}
-      {hasChildren && (
-        <div className="flex flex-col items-center">
-          {/* Vertical connector from parent */}
-          <div style={{ width: 1.5, height: 20, background: "hsl(var(--border))" }} />
-
-          {/* Horizontal connector bar */}
-          {node.children.length > 1 && (
-            <div
-              style={{
-                height: 1.5,
-                background: "hsl(var(--border))",
-                width: `${(Math.min(node.children.length, 8) - 1) * (NODE_WIDTH + NODE_GAP)}px`,
-                maxWidth: "90vw",
-                marginBottom: 0,
-              }}
-            />
-          )}
-
-          {/* Children with flex wrap */}
-          <div className="flex flex-wrap items-start justify-center" style={{ gap: NODE_GAP, maxWidth: "90vw" }}>
-            {node.children.map((child) => (
-              <div key={child.id} className="flex flex-col items-center">
-                {/* Vertical connector into child */}
-                <div
-                  style={{
-                    width: child.isPredicted ? 0 : 1.5,
-                    height: 16,
-                    background: child.isPredicted ? "transparent" : "hsl(var(--border))",
-                    borderLeft: child.isPredicted ? "1.5px dashed hsl(var(--border))" : undefined,
-                  }}
-                />
-                <WrappingTreeNode node={child} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Helper to attach weekly sales to tree nodes
-function attachWeeklySales(node: CrewNode, salesMap: Map<string, number>, profileUserMap: Map<string, string>): CrewNode {
-  const userId = profileUserMap.get(node.id);
-  const sales = userId ? (salesMap.get(userId) ?? 0) : 0;
-  return {
-    ...node,
-    weeklySales: node.isPredicted ? undefined : sales,
-    children: node.children.map(c => attachWeeklySales(c, salesMap, profileUserMap)),
-  };
-}
-
 export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) {
   const { profile } = useAuth();
   const { profiles: sharedProfiles } = useProfiles();
   const allProfiles = sharedProfiles as Profile[];
 
-  // Filter candidates to this leader's subtree only
   const subtreeCandidates = useMemo(() => {
     if (!profile || allProfiles.length === 0) return candidates;
     return getSubtreeCandidates(profile.id, allProfiles, candidates);
   }, [candidates, allProfiles, profile]);
 
-  // Fetch current week sales for all users
-  const [salesMap, setSalesMap] = useState<Map<string, number>>(new Map());
-  
-  useEffect(() => {
-    async function fetchSales() {
-      const now = new Date();
-      const day = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-      monday.setHours(0, 0, 0, 0);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      
-      const startStr = monday.toISOString().split("T")[0];
-      const endStr = sunday.toISOString().split("T")[0];
-
-      const { data } = await supabase
-        .from("sales_entries")
-        .select("user_id, sales")
-        .gte("entry_date", startStr)
-        .lte("entry_date", endStr);
-      
-      if (data) {
-        const map = new Map<string, number>();
-        data.forEach(row => {
-          map.set(row.user_id, (map.get(row.user_id) || 0) + row.sales);
-        });
-        setSalesMap(map);
-      }
-    }
-    fetchSales();
-  }, []);
-
-  const profileUserMap = useMemo(() => {
-    const m = new Map<string, string>();
-    allProfiles.forEach(p => m.set(p.id, p.user_id));
-    subtreeCandidates.forEach(c => {
-      if (c.recruitedBy) m.set(c.id, "");
-    });
-    return m;
-  }, [allProfiles, subtreeCandidates]);
-
   const tree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
       return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
     }
-    const baseTree = buildRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeCandidates);
-    return attachWeeklySales(baseTree, salesMap, profileUserMap);
-  }, [subtreeCandidates, allProfiles, profile, salesMap, profileUserMap]);
+    return buildRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeCandidates);
+  }, [subtreeCandidates, allProfiles, profile]);
 
   const totalNodes = countNodes(tree);
 
   if (totalNodes <= 1) return null;
 
-  return (
-    <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
-      <div className="flex justify-center py-4 px-2">
-        <WrappingTreeNode node={tree} />
-      </div>
-    </div>
-  );
+  return <CrewTree tree={tree} />;
 }
 
 const CONFIDENCE_STYLES: Record<ForecastConfidence, { color: string; bg: string }> = {
@@ -814,13 +650,8 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
       </div>
 
       {/* Tree container — vertical scroll only, NO horizontal scroll */}
-      <div
-        className="glass-panel overflow-y-auto overflow-x-hidden"
-        style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}
-      >
-        <div className="p-8 flex justify-center">
-          <WrappingTreeNode node={tree} crewName={topCrewName || undefined} />
-        </div>
+      <div className="glass-panel">
+        <CrewTree tree={tree} />
       </div>
     </div>
   );
