@@ -23,6 +23,8 @@ export interface StageChange {
 export interface Candidate {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   phone: string;
   notes: string;
   source: CandidateSource;

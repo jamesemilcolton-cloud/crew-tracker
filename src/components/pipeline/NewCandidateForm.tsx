@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/form";
 
 const candidateSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100, "Name too long"),
+  firstName: z.string().trim().min(1, "First name is required").max(50, "First name too long"),
+  lastName: z.string().trim().min(1, "Last name is required").max(50, "Last name too long"),
   phone: z.string().trim().min(1, "Phone number is required").max(20, "Phone number too long"),
   source: z.enum(["LinkedIn", "Office"] as const, { required_error: "Source is required" }),
   notes: z.string().trim().max(2000, "Notes too long").default(""),
@@ -42,12 +43,14 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
 
   const form = useForm<CandidateFormValues>({
     resolver: zodResolver(candidateSchema),
-    defaultValues: { name: "", phone: "", notes: "" },
+    defaultValues: { firstName: "", lastName: "", phone: "", notes: "" },
   });
 
   async function onSubmit(data: CandidateFormValues) {
     await onAdd({
-      name: data.name,
+      name: `${data.firstName} ${data.lastName}`.trim(),
+      firstName: data.firstName,
+      lastName: data.lastName,
       phone: data.phone,
       notes: data.notes,
       source: data.source,
@@ -74,8 +77,11 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="name" render={({ field }) => (
-              <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="Full name" {...field} /></FormControl><FormMessage /></FormItem>
+            <FormField control={form.control} name="firstName" render={({ field }) => (
+              <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="First name" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="lastName" render={({ field }) => (
+              <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Last name" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="phone" render={({ field }) => (
               <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl><FormMessage /></FormItem>
