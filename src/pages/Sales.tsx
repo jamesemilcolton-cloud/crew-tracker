@@ -106,7 +106,26 @@ export default function Sales() {
     if (role === "manager" && userRole?.super_admin) {
       relevantUserIds = profiles.map((p) => p.user_id);
     } else {
-      relevantUserIds = profiles.filter((p) => p.leader_id === myProfileId).map((p) => p.user_id);
+      // Build hierarchy map and recursively collect all descendants
+      const childrenMap = new Map<string, string[]>();
+      profiles.forEach((p) => {
+        if (p.leader_id) {
+          const existing = childrenMap.get(p.leader_id) || [];
+          existing.push(p.id);
+          childrenMap.set(p.leader_id, existing);
+        }
+      });
+      const getDescendantUserIds = (profileId: string): string[] => {
+        const children = childrenMap.get(profileId) || [];
+        const result: string[] = [];
+        for (const childId of children) {
+          const child = profiles.find((p) => p.id === childId);
+          if (child) result.push(child.user_id);
+          result.push(...getDescendantUserIds(childId));
+        }
+        return result;
+      };
+      relevantUserIds = myProfileId ? getDescendantUserIds(myProfileId) : [];
     }
     const members = relevantUserIds.map((uid) => {
       const p = profileMap.get(uid);
