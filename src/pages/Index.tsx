@@ -55,7 +55,8 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
-          <div className="flex items-center justify-between h-14">
+          {/* DESKTOP header */}
+          <div className="hidden md:flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={() => navigate("/home")} className="text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4 mr-1" /> Modules
@@ -108,6 +109,68 @@ const Index = () => {
                 </Button>
               </div>
             </div>
+          </div>
+
+          {/* MOBILE header */}
+          <div className="md:hidden">
+            {/* Top bar: back + title */}
+            <div className="flex items-center gap-3 h-12">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/home")} className="text-muted-foreground hover:text-foreground px-2">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <div className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Users className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <h1 className="text-sm font-semibold text-foreground tracking-tight">Recruitment</h1>
+              <span className="text-xs text-muted-foreground ml-auto">{profile?.full_name}</span>
+            </div>
+            {/* Vertical nav */}
+            <nav className="flex flex-col gap-1 pb-3">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+              {/* Time frame selector - full width */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between gap-1.5 text-sm px-3 py-2.5 h-auto">
+                    {currentRangeLabel}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="bg-popover z-50 w-[calc(100vw-2rem)]">
+                  {TREND_OPTIONS.map((opt) => (
+                    <DropdownMenuItem
+                      key={opt.value}
+                      onClick={() => setTrendRange(opt.value)}
+                      className={trendRange === opt.value ? "bg-accent" : ""}
+                    >
+                      {opt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Logout - full width */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="w-full justify-start gap-3 text-sm text-muted-foreground hover:text-foreground px-3 py-2.5 h-auto"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            </nav>
           </div>
         </div>
       </header>
