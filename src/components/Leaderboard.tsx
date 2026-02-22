@@ -77,6 +77,7 @@ export function Leaderboard() {
   const [profitRanking, setProfitRanking] = useState<ProfitRankedEntry[]>([]);
   const [allTimeProfitRecords, setAllTimeProfitRecords] = useState<AllTimeProfitRecord[]>([]);
   const [crewProfitRanking, setCrewProfitRanking] = useState<CrewProfitEntry[]>([]);
+  const [crewAvgProfitRanking, setCrewAvgProfitRanking] = useState<CrewProfitEntry[]>([]);
   const [allTimeCrewProfitRecords, setAllTimeCrewProfitRecords] = useState<AllTimeCrewProfitRecord[]>([]);
 
   // Current week bounds
@@ -251,6 +252,20 @@ export function Leaderboard() {
       });
 
       setCrewProfitRanking(crewEntries);
+
+      // Average Profit Per Agent ranking (sorted by avgWirePerSeller)
+      const avgRanked = [...crewEntries]
+        .sort((a, b) => b.avgWirePerSeller - a.avgWirePerSeller)
+        .map((entry, i, arr) => {
+          let rank = 1;
+          if (i > 0 && entry.avgWirePerSeller < arr[i - 1].avgWirePerSeller) {
+            rank = i + 1;
+          } else if (i > 0) {
+            rank = arr[i - 1].rank;
+          }
+          return { ...entry, rank };
+        });
+      setCrewAvgProfitRanking(avgRanked);
 
       // All-time weekly profit records
       const weeklyRecords: { userId: string; totalWire: number; weekStart: Date }[] = [];
@@ -534,6 +549,49 @@ export function Leaderboard() {
               </div>
             )}
           </div>
+        </div>
+        {/* Average Profit Per Agent (Crew) */}
+        <div className="glass-panel p-4 mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-muted-foreground"><Users className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+            <span className="text-xs font-medium text-muted-foreground">📊 Average Profit Per Agent (Crew) — This Week</span>
+          </div>
+          {crewAvgProfitRanking.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
+          ) : (
+            <div className="divide-y divide-border/30">
+              {crewAvgProfitRanking.map((entry) => {
+                const isMe = entry.userId === user?.id;
+                const isFirst = entry.rank === 1 && entry.avgWirePerSeller > 0;
+                const medalColor = entry.rank === 1 && entry.avgWirePerSeller > 0 ? "#FFD700" : entry.rank === 2 && entry.avgWirePerSeller > 0 ? "#C0C0C0" : entry.rank === 3 && entry.avgWirePerSeller > 0 ? "#CD7F32" : null;
+                return (
+                  <div
+                    key={entry.userId}
+                    className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {medalColor ? (
+                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
+                      ) : (
+                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
+                          {entry.rank}
+                        </span>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">
+                        {entry.rank}{getRankSuffix(entry.rank)}
+                      </span>
+                      <span className={`text-xs truncate ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                        {entry.name}{entry.crewName ? ` (${entry.crewName})` : ""}{isMe ? " ●" : ""}
+                      </span>
+                    </div>
+                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
+                      {entry.avgWirePerSeller > 0 ? `£${entry.avgWirePerSeller.toFixed(2)}` : "–"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
