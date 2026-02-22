@@ -89,6 +89,46 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "check_crew") {
+      // Check if a leader has any direct or recursive downstream crew
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("user_id", target_user_id)
+        .single();
+
+      if (!profile) {
+        return new Response(JSON.stringify({ has_crew: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check direct reports
+      const { data: directReports, error: drError } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("leader_id", profile.id)
+        .limit(1);
+
+      if (drError) throw drError;
+
+      // Also check candidates recruited by this profile
+      const { data: recruits, error: rcError } = await adminClient
+        .from("candidates")
+        .select("id")
+        .eq("recruited_by", profile.id)
+        .is("archived_at", null)
+        .limit(1);
+
+      if (rcError) throw rcError;
+
+      const hasCrew = (directReports && directReports.length > 0) || (recruits && recruits.length > 0);
+
+      return new Response(JSON.stringify({ has_crew: hasCrew }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "update_role") {
       // Update role in user_roles table
       const { error } = await adminClient

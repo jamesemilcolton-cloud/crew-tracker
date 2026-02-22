@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, UserCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Shield, UserCheck, UserMinus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -37,6 +36,8 @@ interface ManagedUser {
   stage: string | null;
 }
 
+type RoleAction = { type: "promote" | "demote"; user: ManagedUser } | null;
+
 export default function Manager() {
   const navigate = useNavigate();
   const { user, userRole, session } = useAuth();
@@ -44,8 +45,9 @@ export default function Manager() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [roleAction, setRoleAction] = useState<RoleAction>(null);
+  const [crewWarning, setCrewWarning] = useState<ManagedUser | null>(null);
 
-  // Server-side check already handled by RLS + route guard, but double check
   useEffect(() => {
     if (userRole && !(userRole.role === "manager" && userRole.super_admin)) {
       navigate("/home", { replace: true });
@@ -55,46 +57,23 @@ export default function Manager() {
   const fetchUsers = async () => {
     setLoading(true);
 
-    // Get all profiles
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, full_name, phone, leader_id");
 
-    // Get all roles
     const { data: roles } = await supabase
       .from("user_roles")
       .select("user_id, role, super_admin");
 
-    // Get latest stage per user from candidates (their own pipeline stage as a recruit)
-    // Actually the "stage" here means the candidate's own pipeline stage if they are also a candidate
-    // Let's get the latest candidate stage where recruited_by links to their profile
-    // Actually per the spec: "Current pipeline stage" - this is their stage as a candidate in someone's pipeline
     const { data: candidates } = await supabase
       .from("candidates")
       .select("name, stage, recruited_by")
       .is("archived_at", null);
 
-    // Get all profiles for leader name mapping
-    const profileMap = new Map<string, { full_name: string; user_id: string }>();
-    const profileByUserId = new Map<string, string>();
-    if (profiles) {
-      for (const p of profiles) {
-        profileMap.set(p.user_id, { full_name: p.full_name, user_id: p.user_id });
-        profileByUserId.set(p.user_id, p.full_name);
-      }
-    }
-
-    // Build leader name lookup by profile id
-    const leaderNameById = new Map<string, string>();
-    if (profiles) {
-      for (const p of profiles) {
-        // Need profile.id -> full_name mapping
-      }
-    }
-    // We need profile.id too
     const { data: profilesWithId } = await supabase
       .from("profiles")
       .select("id, user_id, full_name");
+
     const profileIdToName = new Map<string, string>();
     if (profilesWithId) {
       for (const p of profilesWithId) {
@@ -109,8 +88,6 @@ export default function Manager() {
       }
     }
 
-    // Find candidate stage for each user by matching their name
-    // This is approximate - match by profile name to candidate name
     const stageByName = new Map<string, string>();
     if (candidates) {
       for (const c of candidates) {
@@ -144,17 +121,52 @@ export default function Manager() {
     }
   }, [userRole]);
 
-  const handlePromote = async (targetUser: ManagedUser) => {
+  const handlePromoteClick = (targetUser: ManagedUser) => {
+    setRoleAction({ type: "promote", user: targetUser });
+  };
+
+  const handleDemoteClick = async (targetUser: ManagedUser) => {
+    // Check for crew before showing demotion dialog
     setActionLoading(targetUser.user_id);
     try {
-      const { error } = await supabase.functions.invoke("admin-manage-user", {
-        body: { action: "update_role", target_user_id: targetUser.user_id, role: "leader" },
+      const { data, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: { action: "check_crew", target_user_id: targetUser.user_id },
       });
       if (error) throw error;
-      toast.success(`${targetUser.full_name} promoted to Leader`);
+
+      if (data?.has_crew) {
+        setCrewWarning(targetUser);
+      } else {
+        setRoleAction({ type: "demote", user: targetUser });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to check crew status");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleConfirmRoleChange = async () => {
+    if (!roleAction) return;
+    const { type, user: targetUser } = roleAction;
+    const newRole = type === "promote" ? "leader" : "brand_ambassador";
+
+    setActionLoading(targetUser.user_id);
+    setRoleAction(null);
+
+    try {
+      const { error } = await supabase.functions.invoke("admin-manage-user", {
+        body: { action: "update_role", target_user_id: targetUser.user_id, role: newRole },
+      });
+      if (error) throw error;
+      toast.success(
+        type === "promote"
+          ? `${targetUser.full_name} promoted to Leader`
+          : `${targetUser.full_name} demoted to Brand Ambassador`
+      );
       await fetchUsers();
     } catch (err: any) {
-      toast.error(err.message || "Failed to promote user");
+      toast.error(err.message || `Failed to ${type} user`);
     } finally {
       setActionLoading(null);
     }
@@ -179,15 +191,6 @@ export default function Manager() {
     }
   };
 
-  const stageLabel = (stage: string | null) => {
-    if (!stage) return "—";
-    const labels: Record<string, string> = {
-      obs: "Obs", final: "Final", offered: "Offered",
-      start: "Start", solo: "Solo", promoted: "Promoted",
-    };
-    return labels[stage] ?? stage;
-  };
-
   const roleLabel = (role: string) => {
     const labels: Record<string, string> = {
       brand_ambassador: "Brand Ambassador",
@@ -210,7 +213,7 @@ export default function Manager() {
           <TableHead>Name</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Leader</TableHead>
-          <TableHead>Promote</TableHead>
+          <TableHead>Promote / Demote</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -218,6 +221,7 @@ export default function Manager() {
         {userList.map((u) => {
           const isSelf = u.user_id === user?.id;
           const isBA = u.role === "brand_ambassador";
+          const isLeader = u.role === "leader";
 
           return (
             <TableRow key={u.user_id}>
@@ -229,17 +233,30 @@ export default function Manager() {
               </TableCell>
               <TableCell className="text-muted-foreground">{u.leader_name ?? "The Office"}</TableCell>
               <TableCell>
-                {!isSelf && isBA ? (
+                {!isSelf && isBA && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePromote(u)}
+                    onClick={() => handlePromoteClick(u)}
                     disabled={actionLoading === u.user_id}
                   >
                     <UserCheck className="w-4 h-4 mr-1" />
                     Promote
                   </Button>
-                ) : (
+                )}
+                {!isSelf && isLeader && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => handleDemoteClick(u)}
+                    disabled={actionLoading === u.user_id}
+                  >
+                    <UserMinus className="w-4 h-4 mr-1" />
+                    Demote
+                  </Button>
+                )}
+                {(isSelf || u.role === "manager") && (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
               </TableCell>
@@ -328,7 +345,7 @@ export default function Manager() {
               );
             })()}
 
-            {/* Managers (always show) */}
+            {/* Managers */}
             {(() => {
               const managers = users.filter(u => u.role === "manager");
               if (managers.length === 0) return null;
@@ -345,6 +362,63 @@ export default function Manager() {
         )}
       </main>
 
+      {/* Promote / Demote Confirmation */}
+      <AlertDialog open={!!roleAction} onOpenChange={(open) => !open && setRoleAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {roleAction?.type === "promote" ? "Promote to Leader" : "Demote to Brand Ambassador"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {roleAction?.type === "promote" ? (
+                <>
+                  Are you sure you want to promote <strong>{roleAction?.user.full_name}</strong> to Leader?
+                  <br /><br />
+                  This will unlock Recruitment and Leaderboards access.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to demote <strong>{roleAction?.user.full_name}</strong>?
+                  <br /><br />
+                  This will remove Recruitment and Leaderboards access.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRoleChange}
+              className={
+                roleAction?.type === "demote"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : undefined
+              }
+            >
+              {roleAction?.type === "promote" ? "Confirm Promotion" : "Confirm Demotion"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Crew Warning */}
+      <AlertDialog open={!!crewWarning} onOpenChange={(open) => !open && setCrewWarning(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot Demote</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{crewWarning?.full_name}</strong> has active crew members.
+              <br /><br />
+              Reassign or remove their crew before demotion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>OK</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Disable Account */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
