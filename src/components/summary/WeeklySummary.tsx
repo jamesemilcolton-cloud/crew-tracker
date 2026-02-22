@@ -75,9 +75,29 @@ export function WeeklySummary() {
   const [exporting, setExporting] = useState(false);
 
   const { profiles: sharedProfiles, loading: profilesLoading } = useProfiles();
-  const allProfiles = sharedProfiles as Profile[];
+  const allProfilesRaw = sharedProfiles as Profile[];
 
-  const isLeader = (userRole?.role === "leader") || (userRole?.role === "manager" && !!userRole?.super_admin);
+  // Fetch manager user_ids to exclude from crew tree
+  const [managerUserIds, setManagerUserIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "manager")
+      .eq("super_admin", true)
+      .then(({ data }) => {
+        if (data) setManagerUserIds(new Set(data.map((r) => r.user_id)));
+      });
+  }, []);
+
+  // Filter out manager/super_admin profiles from tree building
+  const allProfiles = useMemo(
+    () => allProfilesRaw.filter((p) => !managerUserIds.has(p.user_id)),
+    [allProfilesRaw, managerUserIds]
+  );
+
+  const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
+  const isLeader = userRole?.role === "leader";
 
   // Sales snapshot data
   const [salesLoading, setSalesLoading] = useState(true);
@@ -967,7 +987,8 @@ export function WeeklySummary() {
           </Card>
         )}
 
-        {/* SECTION: Crew Bubble with Role Labels & Weekly Sales */}
+        {/* SECTION: Crew Bubble with Role Labels & Weekly Sales (hidden for managers) */}
+        {!isManager && (
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -1000,6 +1021,7 @@ export function WeeklySummary() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* SECTION 4: Personal Best (only if records achieved) */}
         {personalBest.length > 0 && (
