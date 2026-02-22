@@ -55,13 +55,20 @@ function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date
     if (stage === "obs") {
       const created = new Date(c.createdAt);
       if (created >= start && created <= end) count++;
+      return;
     }
-    c.history.forEach((h) => {
-      if (h.to === stage) {
-        const d = parseISO(h.date);
-        if (d >= start && d <= end) count++;
-      }
+    // Use snapshot approach: check if candidate's final position in the range includes this stage
+    const historyInRange = c.history.filter((h) => {
+      const d = parseISO(h.date);
+      return d >= start && d <= end;
     });
+    if (historyInRange.length > 0) {
+      const lastEntry = historyInRange[historyInRange.length - 1];
+      const finalIdx = STAGES_ORDER.indexOf(lastEntry.to as PipelineStage);
+      const stageIdx = STAGES_ORDER.indexOf(stage);
+      // Candidate counts for this stage if their final position is at or beyond it
+      if (finalIdx >= stageIdx) count++;
+    }
   });
   return count;
 }
@@ -353,47 +360,8 @@ export function WeeklySummary() {
 
   const thisWeek = useMemo(() => getWeekBounds(0), []);
 
-  const [allOwnCandidates, setAllOwnCandidates] = useState<Candidate[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-    async function fetchAllOwn() {
-      const { data: rows } = await supabase
-        .from("candidates")
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: true });
-      if (!rows) return;
-      const ids = rows.map((r) => r.id);
-      let historyRows: any[] = [];
-      if (ids.length > 0) {
-        const { data } = await supabase
-          .from("candidate_stage_history")
-          .select("*")
-          .in("candidate_id", ids)
-          .order("changed_at", { ascending: true });
-        historyRows = data ?? [];
-      }
-      const historyMap: Record<string, any[]> = {};
-      (historyRows ?? []).forEach((h) => {
-        if (!historyMap[h.candidate_id]) historyMap[h.candidate_id] = [];
-        historyMap[h.candidate_id].push(h);
-      });
-      setAllOwnCandidates(rows.map((r) => ({
-        id: r.id, name: r.name, phone: r.phone, notes: r.notes,
-        source: r.source as any, stage: r.stage as PipelineStage,
-        status: r.status as any, potentialStartDate: r.potential_start_date,
-        hasSalesPitchAccess: r.has_sales_pitch_access, hasEvoAppAccess: r.has_evo_app_access,
-        recruitedBy: r.recruited_by, archivedAt: r.archived_at,
-        history: (historyMap[r.id] ?? []).map((h: any) => ({
-          from: h.from_stage as PipelineStage, to: h.to_stage as PipelineStage,
-          date: h.changed_at?.split("T")[0] ?? "", note: h.note,
-        })),
-        createdAt: r.created_at,
-      })));
-    }
-    fetchAllOwn();
-  }, [user]);
+  // Use ownCandidates from useCandidates("own") instead of a separate fetch
+  const allOwnCandidates = ownCandidates;
 
   // SECTION 1: Recruitment KPIs
   const kpiStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash", "contact_before_start", "start", "solo", "promoted"];
@@ -439,9 +407,9 @@ export function WeeklySummary() {
     return { freeAds, paidAds, cvs, linkedInObs };
   }, [adUploads, cvDownloads, thisWeek, thisWeekCounts]);
 
-  // SECTION 3: Crew Summary (leaders only)
+  // SECTION 3: Crew Summary (leaders + managers)
   const crewSummary = useMemo(() => {
-    if (!isLeader || !profile) return null;
+    if ((!isLeader && !isManager) || !profile) return null;
 
     // Recursive descendant resolution (excluding leader themselves)
     const descendantIds = getDescendantProfileIds(profile.id, allProfiles);
@@ -477,7 +445,7 @@ export function WeeklySummary() {
     const potentialNewStarts = allSubtreeCandidates.filter((c) => c.stage === "contact_before_start" && !c.archivedAt).length;
 
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
-  }, [isLeader, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
+  }, [isLeader, isManager, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
 
   // Reuse allCandidates from useCandidates("all") instead of a separate fetch
   const treeCandidatesForBuild = useMemo(() => allCandidates.map((c) => ({
@@ -583,7 +551,7 @@ export function WeeklySummary() {
     }
   }, [thisWeek]);
 
-  const loading = candidatesLoading || linkedInLoading || allCandidatesLoading || profilesLoading;
+  const loading = candidatesLoading || linkedInLoading || allCandidatesLoading || profilesLoading || salesLoading;
 
   const crewName = profile ? (allProfiles.find(p => p.user_id === profile.user_id)?.crew_name || "") : "";
   const mondayLabel = format(thisWeek.start, "do MMMM yyyy");
@@ -801,18 +769,14 @@ export function WeeklySummary() {
               <div className="text-sm text-muted-foreground py-3 text-center">No sales data logged this week.</div>
             )}
 
-            {/* Your Commission Summary */}
+        {/* Your Commission Summary */}
             {ownTransactions.length > 0 && (
               <div className="border-t border-border/30 pt-3 space-y-2">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Commission</div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="bg-muted/30 rounded-md p-2 text-center">
                     <div className="text-[9px] uppercase text-muted-foreground">ISA Upfront</div>
                     <div className="text-sm font-bold text-foreground">£{ownFinancials.isaUpfront.toFixed(2)}</div>
-                  </div>
-                  <div className="bg-[hsl(0_70%_50%/0.1)] rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">Total Wire</div>
-                    <div className="text-sm font-bold" style={{ color: "hsl(0 70% 50%)" }}>£{ownFinancials.totalWire.toFixed(2)}</div>
                   </div>
                   <div className="bg-muted/20 rounded-md p-2 text-center opacity-60">
                     <div className="text-[9px] uppercase text-muted-foreground">Quality (30%)</div>
@@ -946,8 +910,8 @@ export function WeeklySummary() {
           </CardContent>
         </Card>
 
-        {/* SECTION 3: Crew Summary (Leaders only) */}
-        {isLeader && crewSummary && (
+        {/* SECTION 3: Crew Summary (Leaders + Managers) */}
+        {(isLeader || isManager) && crewSummary && (
           <Card className="border-border/50 bg-card/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">

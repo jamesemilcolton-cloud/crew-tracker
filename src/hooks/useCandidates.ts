@@ -189,6 +189,7 @@ export function useCandidates(scope: "own" | "all" = "own") {
     const { error } = await supabase.from("candidates").update({
       status: null,
       drop_off_date: null,
+      drop_off_reason: null,
     }).eq("id", id).eq("user_id", user.id);
     if (error) {
       console.error("Restore candidate error:", error);
