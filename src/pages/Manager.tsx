@@ -144,19 +144,17 @@ export default function Manager() {
     }
   }, [userRole]);
 
-  const handlePromoteToggle = async (targetUser: ManagedUser) => {
-    const newRole = targetUser.role === "brand_ambassador" ? "leader" : "brand_ambassador";
+  const handlePromote = async (targetUser: ManagedUser) => {
     setActionLoading(targetUser.user_id);
-
     try {
       const { error } = await supabase.functions.invoke("admin-manage-user", {
-        body: { action: "update_role", target_user_id: targetUser.user_id, role: newRole },
+        body: { action: "update_role", target_user_id: targetUser.user_id, role: "leader" },
       });
       if (error) throw error;
-      toast.success(`${targetUser.full_name} ${newRole === "leader" ? "promoted to Leader" : "demoted to Brand Ambassador"}`);
+      toast.success(`${targetUser.full_name} promoted to Leader`);
       await fetchUsers();
     } catch (err: any) {
-      toast.error(err.message || "Failed to update role");
+      toast.error(err.message || "Failed to promote user");
     } finally {
       setActionLoading(null);
     }
@@ -210,10 +208,8 @@ export default function Manager() {
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>Pipeline Stage</TableHead>
           <TableHead>Role</TableHead>
-          <TableHead>Assigned Leader</TableHead>
+          <TableHead>Leader</TableHead>
           <TableHead>Promote</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
@@ -222,14 +218,10 @@ export default function Manager() {
         {userList.map((u) => {
           const isSelf = u.user_id === user?.id;
           const isBA = u.role === "brand_ambassador";
-          const isLeader = u.role === "leader";
-          const canToggle = isBA || isLeader;
 
           return (
             <TableRow key={u.user_id}>
               <TableCell className="font-medium">{u.full_name}</TableCell>
-              <TableCell className="text-muted-foreground">{u.phone || "—"}</TableCell>
-              <TableCell>{stageLabel(u.stage)}</TableCell>
               <TableCell>
                 <Badge variant={roleBadgeVariant(u.role)}>
                   {roleLabel(u.role)}
@@ -237,17 +229,16 @@ export default function Manager() {
               </TableCell>
               <TableCell className="text-muted-foreground">{u.leader_name ?? "The Office"}</TableCell>
               <TableCell>
-                {!isSelf && canToggle ? (
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={u.role === "leader"}
-                      onCheckedChange={() => handlePromoteToggle(u)}
-                      disabled={actionLoading === u.user_id}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {u.role === "leader" ? "Leader" : "BA"}
-                    </span>
-                  </div>
+                {!isSelf && isBA ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePromote(u)}
+                    disabled={actionLoading === u.user_id}
+                  >
+                    <UserCheck className="w-4 h-4 mr-1" />
+                    Promote
+                  </Button>
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
