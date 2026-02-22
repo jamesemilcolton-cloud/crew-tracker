@@ -11,7 +11,6 @@ interface Profile {
   user_id: string;
   full_name: string;
   leader_id: string | null;
-  crew_name: string;
 }
 
 /**
@@ -687,7 +686,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   const tree = showPredicted ? predictedTree : currentTree;
   const totalNodes = countNodes(tree);
-  const topCrewName = profile ? (allProfiles.find(p => p.id === profile.id)?.crew_name || "") : "";
+  const topCrewName = profile ? (allProfiles.find(p => p.id === profile.id)?.full_name || "") : "";
 
   const confStyle = CONFIDENCE_STYLES[forecast.confidence];
 

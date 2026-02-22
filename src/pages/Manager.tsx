@@ -265,7 +265,7 @@ export default function Manager() {
                           {roleLabel(u.role)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{u.leader_name ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{u.leader_name ?? "The Office"}</TableCell>
                       <TableCell>
                         {!isSelf && canToggle ? (
                           <div className="flex items-center gap-2">
