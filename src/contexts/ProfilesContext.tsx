@@ -9,6 +9,7 @@ export interface SharedProfile {
   first_name: string;
   last_name: string;
   leader_id: string | null;
+  crew_name: string;
 }
 
 interface ProfilesContextType {
@@ -33,7 +34,7 @@ export function ProfilesProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     const { data } = await supabase
       .from("profiles")
-      .select("id, user_id, full_name, first_name, last_name, leader_id");
+      .select("id, user_id, full_name, first_name, last_name, leader_id, crew_name");
     setProfiles((data ?? []) as SharedProfile[]);
     setLoading(false);
   };
