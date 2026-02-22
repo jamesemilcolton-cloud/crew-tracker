@@ -1,23 +1,24 @@
 import { Candidate, STAGES_ORDER } from "@/lib/types";
-import { Calendar, HelpCircle } from "lucide-react";
+import { Calendar, HelpCircle, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface CandidateCardProps {
   candidate: Candidate;
   onClick: (candidate: Candidate) => void;
+  onDropOff?: (candidate: Candidate) => void;
 }
 
 const OFFERED_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("contact_before_start"));
 const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 
-export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
+export function CandidateCard({ candidate, onClick, onDropOff }: CandidateCardProps) {
   const showAccessIndicators = OFFERED_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
   let isDragging = false;
 
   return (
     <div
-      className="candidate-card animate-fade-in cursor-grab active:cursor-grabbing"
+      className="candidate-card animate-fade-in cursor-grab active:cursor-grabbing relative group"
       draggable
       onDragStart={(e) => {
         isDragging = true;
@@ -37,6 +38,18 @@ export function CandidateCard({ candidate, onClick }: CandidateCardProps) {
     >
       <div className="flex items-start justify-between mb-2">
         <h4 className="font-medium text-sm text-foreground truncate flex-1">{candidate.name}</h4>
+        {onDropOff && (
+          <button
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 ml-1"
+            title="Drop off candidate"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDropOff(candidate);
+            }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">

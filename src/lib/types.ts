@@ -9,7 +9,7 @@ export type PipelineStage =
   | "solo"
   | "promoted";
 
-export type CandidateStatus = "Offered" | "Declined" | "Dropped";
+export type CandidateStatus = "Offered" | "Declined" | "Dropped" | "dropped";
 
 export type CandidateSource = "LinkedIn" | "Office";
 
@@ -35,6 +35,8 @@ export interface Candidate {
   createdAt: string;
   recruitedBy?: string;
   archivedAt?: string | null;
+  dropOffReason?: string | null;
+  dropOffDate?: string | null;
 }
 
 export interface KPITarget {

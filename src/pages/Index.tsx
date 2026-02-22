@@ -31,7 +31,7 @@ const Index = () => {
   const { profile, signOut } = useAuth();
   const signupDate = useMemo(() => profile?.created_at ? new Date(profile.created_at) : undefined, [profile?.created_at]);
 
-  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, archiveCandidate, refetch: refetchOwn } = useCandidates("own");
+  const { candidates: ownCandidates, loading: ownLoading, addCandidate, updateCandidate, archiveCandidate, dropCandidate, restoreCandidate, refetch: refetchOwn } = useCandidates("own");
   const { candidates: allCandidates, loading: allLoading, refetch: refetchAll } = useCandidates("all");
 
   const handleAddCandidate = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
@@ -46,6 +46,14 @@ const Index = () => {
   };
   const handleArchiveCandidate = async (id: string) => {
     await archiveCandidate(id);
+    refetchAll();
+  };
+  const handleDropCandidate = async (id: string, reason: string) => {
+    await dropCandidate(id, reason);
+    refetchAll();
+  };
+  const handleRestoreCandidate = async (id: string) => {
+    await restoreCandidate(id);
     refetchAll();
   };
 
@@ -183,6 +191,8 @@ const Index = () => {
             onAddCandidate={handleAddCandidate}
             onUpdateCandidate={handleUpdateCandidate}
             onArchiveCandidate={handleArchiveCandidate}
+            onDropCandidate={handleDropCandidate}
+            onRestoreCandidate={handleRestoreCandidate}
             loading={ownLoading}
             onDataDeleted={() => { refetchOwn(); refetchAll(); }}
             signupDate={signupDate}
