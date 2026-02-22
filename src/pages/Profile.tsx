@@ -29,15 +29,29 @@ export default function Profile() {
     if (!user || !profile) return;
     setSaving(true);
     try {
+      const trimmedFirst = firstName.trim();
+      const trimmedLast = lastName.trim();
+      const fullName = `${trimmedFirst} ${trimmedLast}`.trim();
+
+      // Update profile
       const { error } = await supabase.from("profiles").update({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        first_name: trimmedFirst,
+        last_name: trimmedLast,
+        full_name: fullName,
         crew_name: crewName.trim(),
       }).eq("user_id", user.id);
       if (error) throw error;
+
+      // Sync name to any linked candidate records (matched by phone)
+      if (profile.phone) {
+        await supabase.from("candidates").update({
+          name: fullName,
+          first_name: trimmedFirst,
+          last_name: trimmedLast,
+        }).eq("phone", profile.phone);
+      }
+
       toast.success("Profile updated");
-      // Refresh the page to update AuthContext profile
       window.location.reload();
     } catch (err) {
       console.error(err);
