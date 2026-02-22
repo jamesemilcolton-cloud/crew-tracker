@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target } from "lucide-react";
 import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
-import { CrewBubbleSnapshot } from "@/components/crew/CrewBubbleForecast";
+import { CrewBubbleSnapshot, getDescendantProfileIds } from "@/components/crew/CrewBubbleForecast";
 
 interface Profile {
   id: string;
@@ -352,25 +352,41 @@ export function WeeklySummary() {
   const crewSummary = useMemo(() => {
     if (!isLeader || !profile) return null;
 
-    const activeTeam = allCandidates.filter((c) =>
-      c.recruitedBy === profile.id && ["start", "solo", "promoted"].includes(c.stage)
+    // Recursive descendant resolution (excluding leader themselves)
+    const descendantIds = getDescendantProfileIds(profile.id, allProfiles);
+    descendantIds.delete(profile.id); // exclude the leader
+    const headCount = descendantIds.size;
+
+    // Subtree candidates (all generations)
+    const subtreeCandidates = allCandidates.filter((c) => c.recruitedBy && descendantIds.has(c.recruitedBy));
+    // Also include direct recruits of the leader
+    const allSubtreeCandidates = allCandidates.filter(
+      (c) => c.recruitedBy === profile.id || (c.recruitedBy && descendantIds.has(c.recruitedBy))
     );
 
-    const totalTeamSize = activeTeam.length;
+    const activeTeam = allSubtreeCandidates.filter((c) => ["start", "solo", "promoted"].includes(c.stage));
     const brandAmbassadors = activeTeam.filter((c) => c.stage === "start" || c.stage === "solo").length;
     const leaders = activeTeam.filter((c) => c.stage === "promoted").length;
 
-    const startsThisWeek = countInRange(
-      allCandidates.filter((c) => c.recruitedBy === profile.id),
-      "start", thisWeek.start, thisWeek.end
-    );
-    const promotionsThisWeek = countInRange(
-      allCandidates.filter((c) => c.recruitedBy === profile.id),
-      "promoted", thisWeek.start, thisWeek.end
-    );
+    const startsThisWeek = countInRange(allSubtreeCandidates, "start", thisWeek.start, thisWeek.end);
+    const promotionsThisWeek = countInRange(allSubtreeCandidates, "promoted", thisWeek.start, thisWeek.end);
 
-    return { totalTeamSize, brandAmbassadors, leaders, netGrowth: startsThisWeek, startsThisWeek, promotionsThisWeek };
-  }, [isLeader, profile, allCandidates, thisWeek]);
+    // HCS: unique crew members with ≥1 sale this week (from crewSalesEntries)
+    const sellingUserIds = new Set<string>();
+    crewSalesEntries.forEach((entry: any) => {
+      if ((entry.sales || 0) >= 1) sellingUserIds.add(entry.user_id);
+    });
+    // Only count crew members (not the leader themselves)
+    const descendantUserIds = new Set(
+      allProfiles.filter((p) => descendantIds.has(p.id)).map((p) => p.user_id)
+    );
+    const hcs = [...sellingUserIds].filter((uid) => descendantUserIds.has(uid)).length;
+
+    // Potential New Starts: candidates in "offered" stage within recursive subtree
+    const potentialNewStarts = allSubtreeCandidates.filter((c) => c.stage === "offered" && !c.archivedAt).length;
+
+    return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
+  }, [isLeader, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
 
   // SECTION 4: Personal Best
   const personalBest = useMemo(() => {
@@ -768,9 +784,22 @@ export function WeeklySummary() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* Top row: Head Count, HCS, Potential New Starts */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                 {[
-                  { label: "Total Team Size", value: crewSummary.totalTeamSize },
+                  { label: "Head Count", value: crewSummary.headCount },
+                  { label: "HCS", value: crewSummary.hcs },
+                  { label: "Potential New Starts", value: crewSummary.potentialNewStarts },
+                ].map((item) => (
+                  <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
+                    <div className="text-2xl font-bold text-foreground">{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Bottom row: existing breakdown */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
                   { label: "Brand Ambassadors", value: crewSummary.brandAmbassadors },
                   { label: "Leaders", value: crewSummary.leaders },
                   { label: "Team Starts This Week", value: crewSummary.startsThisWeek },
