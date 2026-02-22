@@ -435,7 +435,7 @@ export function WeeklySummary() {
   }, [user]);
 
   // SECTION 1: Recruitment KPIs
-  const kpiStages: PipelineStage[] = ["obs", "final", "offered", "start", "solo", "promoted"];
+  const kpiStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash", "contact_before_start", "start", "solo", "promoted"];
   const thisWeekCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     kpiStages.forEach((s) => { counts[s] = countInRange(allOwnCandidates, s, thisWeek.start, thisWeek.end); });
@@ -444,9 +444,12 @@ export function WeeklySummary() {
 
   const conversions = useMemo(() => {
     const pairs: { from: PipelineStage; to: PipelineStage; label: string }[] = [
-      { from: "obs", to: "final", label: "OB → Final" },
-      { from: "final", to: "offered", label: "Final → Offered" },
-      { from: "offered", to: "start", label: "Offered → Start" },
+      { from: "obs", to: "questionnaire", label: "Obs → Quest" },
+      { from: "questionnaire", to: "bottom_line", label: "Quest → BL" },
+      { from: "bottom_line", to: "final", label: "BL → Final" },
+      { from: "final", to: "rehash", label: "Final → Rehash" },
+      { from: "rehash", to: "contact_before_start", label: "Rehash → CBS" },
+      { from: "contact_before_start", to: "start", label: "CBS → Start" },
       { from: "start", to: "solo", label: "Start → Solo" },
     ];
     return pairs.map(({ from, to, label }) => {
@@ -510,7 +513,7 @@ export function WeeklySummary() {
     const hcs = [...sellingUserIds].filter((uid) => descendantUserIds.has(uid)).length;
 
     // Potential New Starts: candidates in "offered" stage within recursive subtree
-    const potentialNewStarts = allSubtreeCandidates.filter((c) => c.stage === "offered" && !c.archivedAt).length;
+    const potentialNewStarts = allSubtreeCandidates.filter((c) => c.stage === "contact_before_start" && !c.archivedAt).length;
 
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
   }, [isLeader, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);

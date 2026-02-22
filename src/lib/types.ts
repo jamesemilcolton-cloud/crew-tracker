@@ -1,7 +1,10 @@
 export type PipelineStage =
   | "obs"
+  | "questionnaire"
+  | "bottom_line"
   | "final"
-  | "offered"
+  | "rehash"
+  | "contact_before_start"
   | "start"
   | "solo"
   | "promoted";
@@ -64,8 +67,11 @@ export interface LinkedInActivity {
 
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: string }> = {
   obs: { label: "Obs", colorVar: "--stage-obs" },
+  questionnaire: { label: "Questionnaire", colorVar: "--stage-questionnaire" },
+  bottom_line: { label: "Bottom Line", colorVar: "--stage-bottom-line" },
   final: { label: "Final", colorVar: "--stage-final" },
-  offered: { label: "Offered", colorVar: "--stage-offered" },
+  rehash: { label: "Rehash", colorVar: "--stage-rehash" },
+  contact_before_start: { label: "Contact Before Start", colorVar: "--stage-contact-before-start" },
   start: { label: "Start", colorVar: "--stage-start" },
   solo: { label: "Solo", colorVar: "--stage-solo" },
   promoted: { label: "Promoted", colorVar: "--stage-promoted" },
@@ -73,8 +79,11 @@ export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: stri
 
 export const STAGES_ORDER: PipelineStage[] = [
   "obs",
+  "questionnaire",
+  "bottom_line",
   "final",
-  "offered",
+  "rehash",
+  "contact_before_start",
   "start",
   "solo",
   "promoted",
@@ -82,9 +91,12 @@ export const STAGES_ORDER: PipelineStage[] = [
 
 // Fixed KPI target percentages for stage-to-stage conversion
 export const KPI_TARGETS: Record<string, number | null> = {
-  "obs→final": 80,
-  "final→offered": 75,
-  "offered→start": 67,
+  "obs→questionnaire": 100,
+  "questionnaire→bottom_line": 100,
+  "bottom_line→final": 80,
+  "final→rehash": 75,
+  "rehash→contact_before_start": 100,
+  "contact_before_start→start": 67,
   "start→solo": 50,
-  "solo→promoted": null, // dynamic, no fixed target
+  "solo→promoted": null, // separate metric, no fixed target
 };
