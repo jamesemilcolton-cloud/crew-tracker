@@ -58,22 +58,41 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
     return { start: rangeStart, end: thisSaturday };
   }, [trendRange, signupDate]);
 
-  // History-driven stage counts
+  // Stage counts using current stage snapshot per candidate (not raw history count)
+  // This prevents inflation when candidates move backward and forward
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
 
     candidates.forEach((c) => {
+      // For OBS: count if created within range
       const created = new Date(c.createdAt);
       if (created >= dateRange.start && created <= dateRange.end) {
         counts["obs"]++;
       }
-      c.history.forEach((h) => {
+
+      // For other stages: determine the latest stage this candidate reached within the date range
+      // by walking history chronologically and tracking the final position
+      const historyInRange = c.history.filter((h) => {
         const d = parseISO(h.date);
-        if (d >= dateRange.start && d <= dateRange.end) {
-          counts[h.to]++;
-        }
+        return d >= dateRange.start && d <= dateRange.end;
       });
+
+      if (historyInRange.length > 0) {
+        // The last history entry in range gives us the candidate's final position for this period
+        const lastEntry = historyInRange[historyInRange.length - 1];
+        const finalStage = lastEntry.to;
+        // Count the candidate once at their final stage (not at every intermediate stage)
+        if (finalStage !== "obs") {
+          counts[finalStage]++;
+        }
+        // Also count all stages between obs and final stage that were "passed through" 
+        // by checking if the candidate's final stage index is >= each stage's index
+        const finalIdx = STAGES_ORDER.indexOf(finalStage as PipelineStage);
+        for (let si = 1; si < finalIdx; si++) {
+          counts[STAGES_ORDER[si]]++;
+        }
+      }
     });
     return counts;
   }, [candidates, dateRange]);

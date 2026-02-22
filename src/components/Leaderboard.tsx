@@ -363,9 +363,18 @@ export function Leaderboard() {
   }, [wsStr, weStr, sharedProfiles]);
 
   const metricRankings = useMemo(() => {
-    const map: Record<Metric, LeaderboardEntry[]> = {} as any;
+    const map: Record<Metric, (LeaderboardEntry & { rank: number })[]> = {} as any;
     METRICS.forEach((m) => {
-      map[m.key] = [...entries].sort((a, b) => b[m.key] - a[m.key]);
+      const sorted = [...entries].sort((a, b) => b[m.key] - a[m.key]);
+      // Apply standard competition ranking (1, 1, 3, ...)
+      let currentRank = 1;
+      const ranked = sorted.map((entry, i) => {
+        if (i > 0 && entry[m.key] < sorted[i - 1][m.key]) {
+          currentRank = i + 1;
+        }
+        return { ...entry, rank: currentRank };
+      });
+      map[m.key] = ranked;
     });
     return map;
   }, [entries]);
@@ -589,23 +598,22 @@ export function Leaderboard() {
                   <p className="text-xs text-muted-foreground text-center py-4">No data</p>
                 ) : (
                   <div className="space-y-1">
-                    {ranked.map((entry, i) => (
-                      <div key={entry.profileId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${i === 0 ? "bg-primary/10" : ""}`}>
+                    {ranked.map((entry) => {
+                      const medalColor = entry.rank === 1 && entry[m.key] > 0 ? "#FFD700" : entry.rank === 2 && entry[m.key] > 0 ? "#C0C0C0" : entry.rank === 3 && entry[m.key] > 0 ? "#CD7F32" : null;
+                      return (
+                      <div key={entry.profileId} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${entry.rank === 1 && entry[m.key] > 0 ? "bg-primary/10" : ""}`}>
                         <div className="flex items-center gap-2 min-w-0">
-                          {i === 0 ? (
-                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#FFD700" }} />
-                          ) : i === 1 ? (
-                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#C0C0C0" }} />
-                          ) : i === 2 ? (
-                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CD7F32" }} />
+                          {medalColor ? (
+                            <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
                           ) : (
-                            <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{i + 1}</span>
+                            <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{entry.rank}</span>
                           )}
-                          <span className={`text-xs truncate ${i === 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{displayName(entry)}</span>
+                          <span className={`text-xs truncate ${entry.rank === 1 && entry[m.key] > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{displayName(entry)}</span>
                         </div>
-                        <span className={`text-xs font-mono flex-shrink-0 ml-2 ${i === 0 ? "font-bold text-primary" : "text-muted-foreground"}`}>{entry[m.key]}{m.suffix ?? ""}</span>
+                        <span className={`text-xs font-mono flex-shrink-0 ml-2 ${entry.rank === 1 && entry[m.key] > 0 ? "font-bold text-primary" : "text-muted-foreground"}`}>{entry[m.key]}{m.suffix ?? ""}</span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
