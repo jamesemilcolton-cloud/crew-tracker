@@ -97,17 +97,20 @@ export default function Auth() {
         return;
       }
 
-      // Check if phone number exists as a candidate in the pipeline
-      const { data: matchingCandidates } = await supabase
-        .from("candidates")
-        .select("id, phone")
-        .eq("phone", phone.trim())
-        .is("archived_at", null);
+      // Pipeline validation only applies when a specific leader is selected
+      if (leaderId !== THE_OFFICE_VALUE) {
+        // Check if phone number exists as a candidate in the pipeline
+        const { data: matchingCandidates } = await supabase
+          .from("candidates")
+          .select("id, phone")
+          .eq("phone", phone.trim())
+          .is("archived_at", null);
 
-      if (!matchingCandidates || matchingCandidates.length === 0) {
-        setError("No pipeline record found with this phone number. You must be added to a recruitment pipeline before creating an account.");
-        setSubmitting(false);
-        return;
+        if (!matchingCandidates || matchingCandidates.length === 0) {
+          setError("No pipeline record found with this phone number. You must be added to a recruitment pipeline before creating an account.");
+          setSubmitting(false);
+          return;
+        }
       }
 
       // Check if phone is already used by another profile
