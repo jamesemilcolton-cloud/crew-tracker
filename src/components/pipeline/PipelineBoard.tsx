@@ -50,7 +50,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   }, [activeCandidates]);
 
   const upcomingStarts = useMemo(() => {
-    const preStartStages: PipelineStage[] = ["contact_before_start"];
+    const preStartStages: PipelineStage[] = ["rehash"];
     return activeCandidates
       .filter((c) => preStartStages.includes(c.stage))
       .sort((a, b) => {
