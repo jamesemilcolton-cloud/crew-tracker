@@ -950,43 +950,39 @@ export function WeeklySummary() {
           </Card>
         )}
 
-        {/* SECTION: Crew Structure with Role Labels & Weekly Sales */}
+        {/* SECTION: Crew Bubble with Role Labels & Weekly Sales */}
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <GitBranch className="w-4 h-4 text-primary" />
-              Crew Structure
+              Crew Bubble
               {crewTreeNodeCount > 1 && (
                 <span className="text-xs font-normal text-muted-foreground">{crewTreeNodeCount} members</span>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {crewTreeNodeCount <= 1 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No crew members yet.</p>
-            ) : (
-              <>
-                <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}>
-                  <div className="p-4 flex justify-center">
-                    <SummaryTreeNode
-                      node={crewTree}
-                      salesMap={crewSalesMap}
-                      profileUserMap={profileUserMap}
-                      candidateStageMap={candidateStageMap}
-                    />
-                  </div>
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 340px)", minHeight: 200 }}>
+              <div className="p-4 flex justify-center">
+                <SummaryTreeNode
+                  node={crewTree}
+                  salesMap={crewSalesMap}
+                  profileUserMap={profileUserMap}
+                  candidateStageMap={candidateStageMap}
+                />
+              </div>
+            </div>
+            {crewTreeNodeCount > 1 && (
+              <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
+                  <span>Leader</span>
                 </div>
-                <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
-                    <span>Leader</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-4 rounded border border-border/50 bg-muted/15" />
-                    <span>Brand Ambassador</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-4 rounded border border-border/50 bg-muted/15" />
+                  <span>Brand Ambassador</span>
                 </div>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
