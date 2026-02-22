@@ -91,6 +91,7 @@ export function Leaderboard() {
   const [crewProfitRanking, setCrewProfitRanking] = useState<CrewProfitEntry[]>([]);
   const [crewAvgProfitRanking, setCrewAvgProfitRanking] = useState<CrewProfitEntry[]>([]);
   const [allTimeCrewProfitRecords, setAllTimeCrewProfitRecords] = useState<AllTimeCrewProfitRecord[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Current week bounds
   const now = new Date();
@@ -154,6 +155,7 @@ export function Leaderboard() {
       });
 
       setEntries(result);
+      setDataLoaded(true);
     }
     if (sharedProfiles.length > 0) fetchData();
   }, [sharedProfiles]);
@@ -411,7 +413,7 @@ export function Leaderboard() {
 
   const topProfitRecord = allTimeProfitRecords.length > 0 ? allTimeProfitRecords[0] : null;
 
-  if (profilesLoading || (entries.length === 0 && profitRanking.length === 0)) {
+  if (profilesLoading || !dataLoaded) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 bg-muted/30 rounded animate-pulse" />
