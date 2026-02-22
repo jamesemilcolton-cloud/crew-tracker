@@ -48,7 +48,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   }, [candidates]);
 
   const upcomingStarts = useMemo(() => {
-    const preStartStages: PipelineStage[] = ["offered"];
+    const preStartStages: PipelineStage[] = ["contact_before_start"];
     return candidates
       .filter((c) => preStartStages.includes(c.stage))
       .sort((a, b) => {

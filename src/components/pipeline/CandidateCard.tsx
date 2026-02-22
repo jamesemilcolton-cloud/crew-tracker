@@ -7,7 +7,7 @@ interface CandidateCardProps {
   onClick: (candidate: Candidate) => void;
 }
 
-const OFFERED_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("offered"));
+const OFFERED_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("contact_before_start"));
 const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 
 export function CandidateCard({ candidate, onClick }: CandidateCardProps) {

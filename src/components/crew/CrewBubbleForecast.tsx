@@ -280,7 +280,7 @@ function buildPredictedRecursiveTree(
     }
   });
 
-  const preStartStages: PipelineStage[] = ["obs", "final", "offered"];
+  const preStartStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash", "contact_before_start"];
   const inPipeline = recruitedCandidates.filter((c) => preStartStages.includes(c.stage) && !c.status);
   const predictedStarts: CrewNode[] = [];
   inPipeline.forEach((c) => {

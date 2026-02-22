@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage, KPI_TARGETS } from "@/lib/types";
-import { Target, AlertTriangle } from "lucide-react";
+import { Target, AlertTriangle, TrendingDown } from "lucide-react";
 import { useState } from "react";
 import { format, subWeeks, startOfWeek, parseISO } from "date-fns";
 
@@ -17,12 +17,18 @@ export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[
 
 const FUNNEL_COLORS: Record<string, string> = {
   obs: "hsl(217 91% 60%)",
+  questionnaire: "hsl(200 80% 55%)",
+  bottom_line: "hsl(260 70% 60%)",
   final: "hsl(239 84% 67%)",
-  offered: "hsl(38 92% 50%)",
+  rehash: "hsl(320 65% 55%)",
+  contact_before_start: "hsl(38 92% 50%)",
   start: "hsl(152 69% 40%)",
   solo: "hsl(45 93% 47%)",
   promoted: "hsl(280 67% 55%)",
 };
+
+// Stages used for funnel KPI (excluding promoted which is tracked separately)
+const FUNNEL_STAGES = STAGES_ORDER.filter((s) => s !== "promoted");
 
 interface PipelineAnalyticsProps {
   candidates: Candidate[];
@@ -90,12 +96,12 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
     return `${format(rangeStart, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
   }, [trendRange]);
 
-  // Funnel data
+  // Funnel data (excluding promoted)
   const funnelData = useMemo(() => {
     const baseCount = stageCounts["obs"];
-    return STAGES_ORDER.map((stage, i) => {
+    return FUNNEL_STAGES.map((stage, i) => {
       const count = stageCounts[stage] || 0;
-      const prevCount = i > 0 ? (stageCounts[STAGES_ORDER[i - 1]] || 0) : null;
+      const prevCount = i > 0 ? (stageCounts[FUNNEL_STAGES[i - 1]] || 0) : null;
       const stepConversion = prevCount && prevCount > 0 ? Math.round((count / prevCount) * 100) : null;
       return {
         stage,
@@ -110,16 +116,22 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
 
   const maxFunnelCount = useMemo(() => Math.max(...funnelData.map((d) => d.count), 1), [funnelData]);
 
+  // OBS override check
+  const obsCount = stageCounts["obs"] || 0;
+  const isLowObs = obsCount <= 2;
+
   // Focus area: find the stage transition with the biggest gap vs KPI target
   const focusArea = useMemo(() => {
+    if (isLowObs) return { label: "Primary Focus: Increase OBS volume", actual: obsCount, target: 0, isObsOverride: true };
+
     let worstGap = 0;
     let worstLabel = "";
     let worstActual = 0;
     let worstTarget = 0;
 
-    for (let i = 1; i < STAGES_ORDER.length; i++) {
-      const from = STAGES_ORDER[i - 1];
-      const to = STAGES_ORDER[i];
+    for (let i = 1; i < FUNNEL_STAGES.length; i++) {
+      const from = FUNNEL_STAGES[i - 1];
+      const to = FUNNEL_STAGES[i];
       const key = `${from}→${to}`;
       const target = KPI_TARGETS[key];
       if (target === null || target === undefined) continue;
@@ -137,15 +149,55 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
       }
     }
 
-    return worstGap > 0 ? { label: worstLabel, actual: worstActual, target: worstTarget } : null;
+    return worstGap > 0 ? { label: worstLabel, actual: worstActual, target: worstTarget, isObsOverride: false } : null;
+  }, [stageCounts, isLowObs, obsCount]);
+
+  // Most Common Drop-Off Stage
+  const mostCommonDropOff = useMemo(() => {
+    let worstDropOff = 0;
+    let worstLabel = "";
+
+    for (let i = 1; i < FUNNEL_STAGES.length; i++) {
+      const from = FUNNEL_STAGES[i - 1];
+      const to = FUNNEL_STAGES[i];
+      const prevCount = stageCounts[from] || 0;
+      const currCount = stageCounts[to] || 0;
+      const dropPct = prevCount > 0 ? Math.round(((prevCount - currCount) / prevCount) * 100) : 0;
+
+      if (dropPct > worstDropOff) {
+        worstDropOff = dropPct;
+        worstLabel = `${STAGE_CONFIG[from].label} → ${STAGE_CONFIG[to].label}`;
+      }
+    }
+
+    return worstDropOff > 0 ? { label: worstLabel, dropPct: worstDropOff } : null;
   }, [stageCounts]);
+
+  // Promotion tracking (separate metric using lifetime data)
+  const promotionPct = useMemo(() => {
+    // Use all candidates regardless of date range for lifetime rolling data
+    const startedCount = candidates.filter((c) => {
+      const stageIdx = STAGES_ORDER.indexOf(c.stage);
+      return stageIdx >= STAGES_ORDER.indexOf("start") || c.history.some((h) => STAGES_ORDER.indexOf(h.to) >= STAGES_ORDER.indexOf("start"));
+    }).length;
+
+    const promotedCount = candidates.filter((c) => c.stage === "promoted" || c.history.some((h) => h.to === "promoted")).length;
+
+    return startedCount > 0 ? Math.round((promotedCount / startedCount) * 100) : null;
+  }, [candidates]);
 
   // KPI target labels for funnel display
   const kpiTargetForStep = (i: number): number | null => {
     if (i === 0) return null;
-    const from = STAGES_ORDER[i - 1];
-    const to = STAGES_ORDER[i];
+    const from = FUNNEL_STAGES[i - 1];
+    const to = FUNNEL_STAGES[i];
     return KPI_TARGETS[`${from}→${to}`] ?? null;
+  };
+
+  const kpiGapForStep = (i: number, actualPct: number | null): number | null => {
+    const target = kpiTargetForStep(i);
+    if (target === null || actualPct === null) return null;
+    return target - actualPct;
   };
 
   return (
@@ -170,9 +222,10 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
               {funnelData.map((item, i) => {
                 const widthPct = Math.max((item.count / maxFunnelCount) * 100, 8);
                 const target = kpiTargetForStep(i);
+                const gap = kpiGapForStep(i, item.stepConversion);
                 return (
                   <div key={item.stage} className="flex items-center gap-3">
-                    <div className="w-20 shrink-0 text-right">
+                    <div className="w-28 shrink-0 text-right">
                       <span className="text-[11px] text-muted-foreground leading-tight">{item.label}</span>
                     </div>
                     <div className="flex-1 relative">
@@ -188,7 +241,7 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
                         <span className="text-xs font-bold text-background whitespace-nowrap">{item.count}</span>
                       </div>
                     </div>
-                    <div className="w-24 shrink-0 text-right">
+                    <div className="w-36 shrink-0 text-right">
                       {i === 0 ? (
                         <span className="text-[10px] font-medium text-muted-foreground">baseline</span>
                       ) : item.stepConversion !== null ? (
@@ -197,7 +250,12 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
                             {item.stepConversion}%
                           </span>
                           {target !== null && (
-                            <span className="text-muted-foreground ml-1">/ {target}%</span>
+                            <>
+                              <span className="text-muted-foreground ml-1">/ {target}%</span>
+                              {gap !== null && gap > 0 && (
+                                <span className="text-destructive ml-1">(-{gap}%)</span>
+                              )}
+                            </>
                           )}
                         </span>
                       ) : null}
@@ -206,6 +264,22 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
                 );
               })}
             </div>
+
+            {/* Promotion tracking - separate */}
+            <div className="mt-3 pt-2 border-t border-border/30">
+              <div className="flex items-center gap-3">
+                <div className="w-28 shrink-0 text-right">
+                  <span className="text-[11px] text-muted-foreground leading-tight">Start → Promoted</span>
+                </div>
+                <div className="flex-1">
+                  <span className="text-[11px] font-medium text-accent-foreground">
+                    {promotionPct !== null ? `${promotionPct}%` : "—"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground ml-1">(lifetime rolling, no target)</span>
+                </div>
+              </div>
+            </div>
+
             {funnelData[0].count > 0 && (
               <div className="mt-3 pt-2 border-t border-border/30 flex items-center gap-4 text-[10px] text-muted-foreground">
                 <span>Overall: {funnelData[0].count} → {funnelData[funnelData.length - 1].count}</span>
@@ -216,12 +290,24 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
             )}
           </div>
 
+          {/* Most Common Drop-Off */}
+          {mostCommonDropOff && !isLowObs && (
+            <div className="bg-muted/20 border border-border/30 rounded-md p-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                <TrendingDown className="w-3.5 h-3.5" />
+                Most Common Drop-Off: {mostCommonDropOff.label} ({mostCommonDropOff.dropPct}% loss)
+              </div>
+            </div>
+          )}
+
           {/* Focus Area */}
           {focusArea && (
             <div className="bg-status-waiting/10 border border-status-waiting/20 rounded-md p-3">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-status-waiting">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                Focus Area: Improve {focusArea.label} conversion (Currently {focusArea.actual}% vs Target {focusArea.target}%)
+                {focusArea.isObsOverride
+                  ? focusArea.label
+                  : `Focus Area: Improve ${focusArea.label} conversion (Currently ${focusArea.actual}% vs Target ${focusArea.target}%)`}
               </div>
             </div>
           )}
