@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error };
 
     if (data.user) {
-      const { error: profileError } = await supabase.from("profiles").insert({
+      // Use upsert to handle cases where profile might partially exist
+      const { error: profileError } = await supabase.from("profiles").upsert({
         user_id: data.user.id,
         first_name: firstName,
         last_name: lastName,
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         leader_id: leaderId || null,
         crew_name: crewName,
         phone: phone,
-      });
+      }, { onConflict: "user_id" });
       if (profileError) return { error: profileError };
       await fetchProfile(data.user.id);
       await fetchRole(data.user.id);
