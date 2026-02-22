@@ -77,6 +77,8 @@ export type Database = {
         Row: {
           archived_at: string | null
           created_at: string
+          drop_off_date: string | null
+          drop_off_reason: string | null
           has_evo_app_access: boolean
           has_sales_pitch_access: boolean
           id: string
@@ -94,6 +96,8 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           created_at?: string
+          drop_off_date?: string | null
+          drop_off_reason?: string | null
           has_evo_app_access?: boolean
           has_sales_pitch_access?: boolean
           id?: string
@@ -111,6 +115,8 @@ export type Database = {
         Update: {
           archived_at?: string | null
           created_at?: string
+          drop_off_date?: string | null
+          drop_off_reason?: string | null
           has_evo_app_access?: boolean
           has_sales_pitch_access?: boolean
           id?: string

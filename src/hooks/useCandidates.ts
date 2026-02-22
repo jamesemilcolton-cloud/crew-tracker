@@ -17,6 +17,8 @@ function rowToCandidate(row: any, history: any[]): Candidate {
     hasEvoAppAccess: row.has_evo_app_access,
     recruitedBy: row.recruited_by,
     archivedAt: row.archived_at,
+    dropOffReason: row.drop_off_reason,
+    dropOffDate: row.drop_off_date,
     history: history.map((h) => ({
       from: h.from_stage as PipelineStage,
       to: h.to_stage as PipelineStage,
@@ -105,6 +107,8 @@ export function useCandidates(scope: "own" | "all" = "own") {
     if (updates.hasEvoAppAccess !== undefined) dbUpdates.has_evo_app_access = updates.hasEvoAppAccess;
     if (updates.recruitedBy !== undefined) dbUpdates.recruited_by = updates.recruitedBy || null;
     if (updates.archivedAt !== undefined) dbUpdates.archived_at = updates.archivedAt;
+    if (updates.dropOffReason !== undefined) dbUpdates.drop_off_reason = updates.dropOffReason;
+    if (updates.dropOffDate !== undefined) dbUpdates.drop_off_date = updates.dropOffDate;
 
     await supabase.from("candidates").update(dbUpdates).eq("id", id);
 
@@ -126,5 +130,24 @@ export function useCandidates(scope: "own" | "all" = "own") {
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
-  return { candidates, loading, addCandidate, updateCandidate, archiveCandidate, refetch: fetchCandidates };
+  const dropCandidate = useCallback(async (id: string, reason: string) => {
+    if (!user) return;
+    await supabase.from("candidates").update({
+      status: "dropped",
+      drop_off_reason: reason,
+      drop_off_date: new Date().toISOString(),
+    }).eq("id", id);
+    await fetchCandidates();
+  }, [user, fetchCandidates]);
+
+  const restoreCandidate = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from("candidates").update({
+      status: null,
+      drop_off_date: null,
+    }).eq("id", id);
+    await fetchCandidates();
+  }, [user, fetchCandidates]);
+
+  return { candidates, loading, addCandidate, updateCandidate, archiveCandidate, dropCandidate, restoreCandidate, refetch: fetchCandidates };
 }
