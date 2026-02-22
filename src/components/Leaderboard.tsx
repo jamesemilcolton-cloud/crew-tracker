@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
-import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame } from "lucide-react";
+import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame, PoundSterling } from "lucide-react";
 import { startOfWeek, endOfWeek, format, subWeeks, addDays } from "date-fns";
 
 interface Profile {
@@ -37,32 +37,35 @@ const METRICS: { key: Metric; label: string; icon: React.ReactNode; suffix?: str
   { key: "activeTeamSize", label: "Active Team", icon: <Users className="w-4 h-4" /> },
 ];
 
-interface SalesRankedEntry {
+interface ProfitRankedEntry {
   userId: string;
   name: string;
-  sales: number;
+  totalWire: number;
+  salesCount: number;
   rank: number;
 }
 
-interface AllTimeRecord {
+interface AllTimeProfitRecord {
   name: string;
-  sales: number;
+  totalWire: number;
   weekCommencing: string;
   rank: number;
 }
 
-interface CrewSalesEntry {
+interface CrewProfitEntry {
   userId: string;
   name: string;
   crewName: string;
-  crewSales: number;
+  crewWire: number;
+  crewSalesCount: number;
+  avgWirePerSeller: number;
   rank: number;
   hasTeam: boolean;
 }
 
-interface AllTimeCrewRecord {
+interface AllTimeCrewProfitRecord {
   name: string;
-  crewSales: number;
+  crewWire: number;
   weekCommencing: string;
   rank: number;
 }
@@ -71,10 +74,10 @@ export function Leaderboard() {
   const { user } = useAuth();
   const { profiles: sharedProfiles, loading: profilesLoading } = useProfiles();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [salesRanking, setSalesRanking] = useState<SalesRankedEntry[]>([]);
-  const [allTimeRecords, setAllTimeRecords] = useState<AllTimeRecord[]>([]);
-  const [crewSalesRanking, setCrewSalesRanking] = useState<CrewSalesEntry[]>([]);
-  const [allTimeCrewRecords, setAllTimeCrewRecords] = useState<AllTimeCrewRecord[]>([]);
+  const [profitRanking, setProfitRanking] = useState<ProfitRankedEntry[]>([]);
+  const [allTimeProfitRecords, setAllTimeProfitRecords] = useState<AllTimeProfitRecord[]>([]);
+  const [crewProfitRanking, setCrewProfitRanking] = useState<CrewProfitEntry[]>([]);
+  const [allTimeCrewProfitRecords, setAllTimeCrewProfitRecords] = useState<AllTimeCrewProfitRecord[]>([]);
 
   // Current week bounds
   const now = new Date();
@@ -132,15 +135,15 @@ export function Leaderboard() {
     if (sharedProfiles.length > 0) fetchData();
   }, [sharedProfiles]);
 
-  // Fetch sales leaderboard data
+  // Fetch profit leaderboard data from sales_transactions
   useEffect(() => {
-    async function fetchSalesData() {
-      const [salesRes, rolesRes] = await Promise.all([
-        supabase.from("sales_entries").select("*"),
+    async function fetchProfitData() {
+      const [txRes, rolesRes] = await Promise.all([
+        supabase.from("sales_transactions").select("*"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
 
-      const allSales = salesRes.data ?? [];
+      const allTx = txRes.data ?? [];
       const profiles = sharedProfiles.map((p) => ({
         id: p.id, user_id: p.user_id, full_name: p.full_name, crew_name: p.crew_name || "", leader_id: p.leader_id,
       }));
@@ -148,39 +151,41 @@ export function Leaderboard() {
       const profileMap = new Map(profiles.map((p) => [p.user_id, p.full_name]));
       const profileIdToUserId = new Map(profiles.map((p) => [p.id, p.user_id]));
 
-      // Current week leaderboard — include ALL profiles
-      const weekSales = allSales.filter(
-        (e) => e.entry_date >= wsStr && e.entry_date <= weStr
+      // Current week profit leaderboard
+      const weekTx = allTx.filter(
+        (t) => t.date >= wsStr && t.date <= weStr
       );
 
-      const userTotals = new Map<string, number>();
-      weekSales.forEach((e) => {
-        userTotals.set(e.user_id, (userTotals.get(e.user_id) || 0) + e.sales);
+      const userWireTotals = new Map<string, number>();
+      const userSalesCounts = new Map<string, number>();
+      weekTx.forEach((t) => {
+        userWireTotals.set(t.user_id, (userWireTotals.get(t.user_id) || 0) + Number(t.total_wire));
+        userSalesCounts.set(t.user_id, (userSalesCounts.get(t.user_id) || 0) + 1);
       });
 
-      // Ensure every profile appears, even with 0 sales
-      const sorted = profiles
+      // Ensure every profile appears
+      const sorted: ProfitRankedEntry[] = profiles
         .map((p) => ({
           userId: p.user_id,
           name: p.full_name,
-          sales: userTotals.get(p.user_id) || 0,
+          totalWire: +(userWireTotals.get(p.user_id) || 0).toFixed(2),
+          salesCount: userSalesCounts.get(p.user_id) || 0,
           rank: 0,
         }))
-        .sort((a, b) => b.sales - a.sales);
+        .sort((a, b) => b.totalWire - a.totalWire);
 
       // Standard competition ranking
       let currentRank = 1;
       sorted.forEach((entry, i) => {
-        if (i > 0 && entry.sales < sorted[i - 1].sales) {
+        if (i > 0 && entry.totalWire < sorted[i - 1].totalWire) {
           currentRank = i + 1;
         }
         entry.rank = currentRank;
       });
 
-      setSalesRanking(sorted);
+      setProfitRanking(sorted);
 
-      // === CREW SALES CALCULATION ===
-      // Build hierarchy: profileId -> list of direct child profileIds
+      // === CREW PROFIT CALCULATION ===
       const childrenMap = new Map<string, string[]>();
       profiles.forEach((p) => {
         if (p.leader_id) {
@@ -190,7 +195,6 @@ export function Leaderboard() {
         }
       });
 
-      // Recursive function to get all descendant user_ids for a profile
       const getDescendantUserIds = (profileId: string): string[] => {
         const children = childrenMap.get(profileId) || [];
         const result: string[] = [];
@@ -202,50 +206,58 @@ export function Leaderboard() {
         return result;
       };
 
-      // Helper to calc crew sales for a given user totals map
-      const calcCrewSales = (leaderProfile: typeof profiles[0], salesTotals: Map<string, number>) => {
-        const leaderSales = salesTotals.get(leaderProfile.user_id) || 0;
+      const calcCrewWire = (leaderProfile: typeof profiles[0], wireTotals: Map<string, number>) => {
+        const leaderWire = wireTotals.get(leaderProfile.user_id) || 0;
         const descendantIds = getDescendantUserIds(leaderProfile.id);
-        const descendantSales = descendantIds.reduce((sum, uid) => sum + (salesTotals.get(uid) || 0), 0);
-        return leaderSales + descendantSales;
+        const descendantWire = descendantIds.reduce((sum, uid) => sum + (wireTotals.get(uid) || 0), 0);
+        return leaderWire + descendantWire;
       };
 
-      // Filter to leaders and managers only
+      const calcCrewSellerCount = (leaderProfile: typeof profiles[0], salesCounts: Map<string, number>) => {
+        const descendantIds = getDescendantUserIds(leaderProfile.id);
+        const allIds = [leaderProfile.user_id, ...descendantIds];
+        return allIds.filter((uid) => (salesCounts.get(uid) || 0) > 0).length;
+      };
+
       const roleSet = new Map(roles.map((r) => [r.user_id, r.role]));
       const leaderOrManager = profiles.filter((p) => {
         const role = roleSet.get(p.user_id);
         return role === "leader" || role === "manager";
       });
 
-      // Current week crew sales
-      const crewEntries: CrewSalesEntry[] = leaderOrManager.map((p) => {
+      // Current week crew profit
+      const crewEntries: CrewProfitEntry[] = leaderOrManager.map((p) => {
         const hasTeam = (childrenMap.get(p.id) || []).length > 0;
+        const crewWire = +(calcCrewWire(p, userWireTotals)).toFixed(2);
+        const sellerCount = calcCrewSellerCount(p, userSalesCounts);
         return {
           userId: p.user_id,
           name: p.full_name,
           crewName: p.crew_name || "",
-          crewSales: calcCrewSales(p, userTotals),
+          crewWire,
+          crewSalesCount: 0,
+          avgWirePerSeller: sellerCount > 0 ? +(crewWire / sellerCount).toFixed(2) : 0,
           rank: 0,
           hasTeam,
         };
-      }).sort((a, b) => b.crewSales - a.crewSales);
+      }).sort((a, b) => b.crewWire - a.crewWire);
 
       let crewRank = 1;
       crewEntries.forEach((entry, i) => {
-        if (i > 0 && entry.crewSales < crewEntries[i - 1].crewSales) {
+        if (i > 0 && entry.crewWire < crewEntries[i - 1].crewWire) {
           crewRank = i + 1;
         }
         entry.rank = crewRank;
       });
 
-      setCrewSalesRanking(crewEntries);
+      setCrewProfitRanking(crewEntries);
 
-      // All-time weekly records (individual)
-      const weeklyRecords: { userId: string; sales: number; weekStart: Date }[] = [];
-      const crewWeeklyRecords: { userId: string; name: string; crewSales: number; weekStart: Date }[] = [];
+      // All-time weekly profit records
+      const weeklyRecords: { userId: string; totalWire: number; weekStart: Date }[] = [];
+      const crewWeeklyRecords: { userId: string; name: string; crewWire: number; weekStart: Date }[] = [];
 
-      if (allSales.length > 0) {
-        const dates = allSales.map((e) => e.entry_date).sort();
+      if (allTx.length > 0) {
+        const dates = allTx.map((t) => t.date).sort();
         const earliest = new Date(dates[0]);
         const latest = new Date(dates[dates.length - 1]);
 
@@ -255,28 +267,30 @@ export function Leaderboard() {
           const wsS = format(ws, "yyyy-MM-dd");
           const weS = format(endOfWeek(ws, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
-          const weekEntries = allSales.filter(
-            (e) => e.entry_date >= wsS && e.entry_date <= weS
+          const weekEntries = allTx.filter(
+            (t) => t.date >= wsS && t.date <= weS
           );
 
-          const userWeekTotals = new Map<string, number>();
-          weekEntries.forEach((e) => {
-            userWeekTotals.set(e.user_id, (userWeekTotals.get(e.user_id) || 0) + e.sales);
+          const userWeekWire = new Map<string, number>();
+          const userWeekSales = new Map<string, number>();
+          weekEntries.forEach((t) => {
+            userWeekWire.set(t.user_id, (userWeekWire.get(t.user_id) || 0) + Number(t.total_wire));
+            userWeekSales.set(t.user_id, (userWeekSales.get(t.user_id) || 0) + 1);
           });
 
           // Individual records
-          userWeekTotals.forEach((sales, userId) => {
-            if (sales > 0) {
-              weeklyRecords.push({ userId, sales, weekStart: ws });
+          userWeekWire.forEach((wire, userId) => {
+            if (wire > 0) {
+              weeklyRecords.push({ userId, totalWire: +wire.toFixed(2), weekStart: ws });
             }
           });
 
           // Crew records for this week
           const currentWs = ws;
           leaderOrManager.forEach((p) => {
-            const total = calcCrewSales(p, userWeekTotals);
+            const total = calcCrewWire(p, userWeekWire);
             if (total > 0) {
-              crewWeeklyRecords.push({ userId: p.user_id, name: p.full_name, crewSales: total, weekStart: currentWs });
+              crewWeeklyRecords.push({ userId: p.user_id, name: p.full_name, crewWire: +total.toFixed(2), weekStart: currentWs });
             }
           });
 
@@ -284,37 +298,37 @@ export function Leaderboard() {
         }
 
         // Individual all-time top 5
-        weeklyRecords.sort((a, b) => b.sales - a.sales);
+        weeklyRecords.sort((a, b) => b.totalWire - a.totalWire);
         const top5 = weeklyRecords.slice(0, 5);
         let rank = 1;
-        const ranked: AllTimeRecord[] = top5.map((r, i) => {
-          if (i > 0 && r.sales < top5[i - 1].sales) rank = i + 1;
+        const ranked: AllTimeProfitRecord[] = top5.map((r, i) => {
+          if (i > 0 && r.totalWire < top5[i - 1].totalWire) rank = i + 1;
           return {
             name: profileMap.get(r.userId) || "Unknown",
-            sales: r.sales,
+            totalWire: r.totalWire,
             weekCommencing: format(r.weekStart, "d MMM yyyy"),
             rank,
           };
         });
-        setAllTimeRecords(ranked);
+        setAllTimeProfitRecords(ranked);
 
         // Crew all-time top 5
-        crewWeeklyRecords.sort((a, b) => b.crewSales - a.crewSales);
+        crewWeeklyRecords.sort((a, b) => b.crewWire - a.crewWire);
         const crewTop5 = crewWeeklyRecords.slice(0, 5);
         let crewRecRank = 1;
-        const crewRanked: AllTimeCrewRecord[] = crewTop5.map((r, i) => {
-          if (i > 0 && r.crewSales < crewTop5[i - 1].crewSales) crewRecRank = i + 1;
+        const crewRanked: AllTimeCrewProfitRecord[] = crewTop5.map((r, i) => {
+          if (i > 0 && r.crewWire < crewTop5[i - 1].crewWire) crewRecRank = i + 1;
           return {
             name: r.name,
-            crewSales: r.crewSales,
+            crewWire: r.crewWire,
             weekCommencing: format(r.weekStart, "d MMM yyyy"),
             rank: crewRecRank,
           };
         });
-        setAllTimeCrewRecords(crewRanked);
+        setAllTimeCrewProfitRecords(crewRanked);
       }
     }
-    if (sharedProfiles.length > 0) fetchSalesData();
+    if (sharedProfiles.length > 0) fetchProfitData();
   }, [wsStr, weStr, sharedProfiles]);
 
   const metricRankings = useMemo(() => {
@@ -338,9 +352,9 @@ export function Leaderboard() {
     }
   };
 
-  const topRecord = allTimeRecords.length > 0 ? allTimeRecords[0] : null;
+  const topProfitRecord = allTimeProfitRecords.length > 0 ? allTimeProfitRecords[0] : null;
 
-  if (profilesLoading || (entries.length === 0 && salesRanking.length === 0)) {
+  if (profilesLoading || (entries.length === 0 && profitRanking.length === 0)) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 bg-muted/30 rounded animate-pulse" />
@@ -355,25 +369,25 @@ export function Leaderboard() {
 
   return (
     <div className="space-y-6">
-      {/* ===== SECTION 1 — SALES ===== */}
+      {/* ===== SECTION 1 — PROFIT RANKINGS ===== */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-          <h2 className="text-sm font-semibold text-foreground">🔥 Sales — This Week</h2>
+          <PoundSterling className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
+          <h2 className="text-sm font-semibold text-foreground">💷 Profit — This Week</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {/* Full ranked list */}
+          {/* Individual profit ranking */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="text-muted-foreground"><Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">Office Ranking</span>
+              <div className="text-muted-foreground"><PoundSterling className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">Top Individual Profit</span>
             </div>
             <div className="divide-y divide-border/30">
-              {salesRanking.map((entry) => {
+              {profitRanking.map((entry) => {
                 const isMe = entry.userId === user?.id;
-                const isFirst = entry.rank === 1 && entry.sales > 0;
-                const medalColor = entry.rank === 1 && entry.sales > 0 ? "#FFD700" : entry.rank === 2 && entry.sales > 0 ? "#C0C0C0" : entry.rank === 3 && entry.sales > 0 ? "#CD7F32" : null;
+                const isFirst = entry.rank === 1 && entry.totalWire > 0;
+                const medalColor = entry.rank === 1 && entry.totalWire > 0 ? "#FFD700" : entry.rank === 2 && entry.totalWire > 0 ? "#C0C0C0" : entry.rank === 3 && entry.totalWire > 0 ? "#CD7F32" : null;
                 return (
                   <div
                     key={entry.userId}
@@ -395,7 +409,7 @@ export function Leaderboard() {
                       </span>
                     </div>
                     <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
-                      {entry.sales}
+                      £{entry.totalWire.toFixed(2)}
                     </span>
                   </div>
                 );
@@ -403,17 +417,17 @@ export function Leaderboard() {
             </div>
           </div>
 
-          {/* All-Time Weekly Record tile */}
+          {/* All-Time Weekly Profit Record */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Record</span>
+              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Profit Record</span>
             </div>
-            {!topRecord ? (
+            {!topProfitRecord ? (
               <p className="text-xs text-muted-foreground text-center py-4">No data</p>
             ) : (
               <div className="space-y-1">
-                {allTimeRecords.map((record, i) => {
+                {allTimeProfitRecords.map((record, i) => {
                   const medalColor = record.rank === 1 ? "#FFD700" : record.rank === 2 ? "#C0C0C0" : record.rank === 3 ? "#CD7F32" : null;
                   return (
                     <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}>
@@ -428,7 +442,7 @@ export function Leaderboard() {
                           <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
                         </div>
                       </div>
-                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>{record.sales}</span>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>£{record.totalWire.toFixed(2)}</span>
                     </div>
                   );
                 })}
@@ -437,21 +451,21 @@ export function Leaderboard() {
           </div>
         </div>
 
-        {/* Crew Sales Leaderboard */}
+        {/* Crew Profit Leaderboard */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🏆 Top Performing Crew — This Week</span>
+              <span className="text-xs font-medium text-muted-foreground">🏆 Top Crew Profit — This Week</span>
             </div>
-            {crewSalesRanking.length === 0 ? (
+            {crewProfitRanking.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
             ) : (
               <div className="divide-y divide-border/30">
-                {crewSalesRanking.map((entry) => {
+                {crewProfitRanking.map((entry) => {
                   const isMe = entry.userId === user?.id;
-                  const isFirst = entry.rank === 1 && entry.crewSales > 0;
-                  const medalColor = entry.rank === 1 && entry.crewSales > 0 ? "#FFD700" : entry.rank === 2 && entry.crewSales > 0 ? "#C0C0C0" : entry.rank === 3 && entry.crewSales > 0 ? "#CD7F32" : null;
+                  const isFirst = entry.rank === 1 && entry.crewWire > 0;
+                  const medalColor = entry.rank === 1 && entry.crewWire > 0 ? "#FFD700" : entry.rank === 2 && entry.crewWire > 0 ? "#C0C0C0" : entry.rank === 3 && entry.crewWire > 0 ? "#CD7F32" : null;
                   return (
                     <div
                       key={entry.userId}
@@ -473,10 +487,13 @@ export function Leaderboard() {
                             {entry.name}{entry.crewName ? ` (${entry.crewName})` : ""}{isMe ? " ●" : ""}
                           </span>
                           {!entry.hasTeam && <span className="text-[10px] text-muted-foreground">No crew yet</span>}
+                          {entry.avgWirePerSeller > 0 && (
+                            <span className="text-[10px] text-muted-foreground">Avg £{entry.avgWirePerSeller.toFixed(2)}/seller</span>
+                          )}
                         </div>
                       </div>
                       <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
-                        {entry.crewSales}
+                        £{entry.crewWire.toFixed(2)}
                       </span>
                     </div>
                   );
@@ -485,17 +502,17 @@ export function Leaderboard() {
             )}
           </div>
 
-          {/* All-Time Weekly Crew Record */}
+          {/* All-Time Weekly Crew Profit Record */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Crew Record</span>
+              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Crew Profit Record</span>
             </div>
-            {allTimeCrewRecords.length === 0 ? (
+            {allTimeCrewProfitRecords.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">No data</p>
             ) : (
               <div className="space-y-1">
-                {allTimeCrewRecords.map((record, i) => {
+                {allTimeCrewProfitRecords.map((record, i) => {
                   const medalColor = record.rank === 1 ? "#FFD700" : record.rank === 2 ? "#C0C0C0" : record.rank === 3 ? "#CD7F32" : null;
                   return (
                     <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}>
@@ -510,7 +527,7 @@ export function Leaderboard() {
                           <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
                         </div>
                       </div>
-                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>{record.crewSales}</span>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${record.rank === 1 ? "font-bold" : "text-muted-foreground"}`} style={record.rank === 1 ? { color: "hsl(0 70% 50%)" } : {}}>£{record.crewWire.toFixed(2)}</span>
                     </div>
                   );
                 })}

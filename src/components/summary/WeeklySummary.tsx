@@ -2,6 +2,7 @@ import { useMemo, useRef, useCallback, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
+import { SalesTransaction } from "@/hooks/useSalesTransactions";
 import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
@@ -141,6 +142,8 @@ export function WeeklySummary() {
   const [salesLoading, setSalesLoading] = useState(true);
   const [ownSalesEntries, setOwnSalesEntries] = useState<any[]>([]);
   const [crewSalesEntries, setCrewSalesEntries] = useState<any[]>([]);
+  const [ownTransactions, setOwnTransactions] = useState<SalesTransaction[]>([]);
+  const [crewTransactions, setCrewTransactions] = useState<SalesTransaction[]>([]);
 
   const currentWeekBounds = useMemo(() => {
     const now = new Date();
@@ -156,13 +159,22 @@ export function WeeklySummary() {
   useEffect(() => {
     if (!user) return;
     async function fetchOwnSales() {
-      const { data } = await supabase
-        .from("sales_entries")
-        .select("*")
-        .eq("user_id", user!.id)
-        .gte("entry_date", currentWeekBounds.start)
-        .lte("entry_date", currentWeekBounds.end);
-      setOwnSalesEntries(data ?? []);
+      const [salesRes, txRes] = await Promise.all([
+        supabase
+          .from("sales_entries")
+          .select("*")
+          .eq("user_id", user!.id)
+          .gte("entry_date", currentWeekBounds.start)
+          .lte("entry_date", currentWeekBounds.end),
+        supabase
+          .from("sales_transactions")
+          .select("*")
+          .eq("user_id", user!.id)
+          .gte("date", currentWeekBounds.start)
+          .lte("date", currentWeekBounds.end),
+      ]);
+      setOwnSalesEntries(salesRes.data ?? []);
+      setOwnTransactions((txRes.data ?? []) as SalesTransaction[]);
     }
     fetchOwnSales();
   }, [user, currentWeekBounds]);
@@ -175,26 +187,27 @@ export function WeeklySummary() {
     async function fetchCrewSales() {
       if (role === "brand_ambassador") {
         setCrewSalesEntries([]);
+        setCrewTransactions([]);
         setSalesLoading(false);
         return;
       }
 
-      // For leader: get full hierarchy descendant user_ids
-      // For manager: get all entries
       if (role === "manager" && userRole.super_admin) {
-        const { data } = await supabase
-          .from("sales_entries")
-          .select("*")
-          .gte("entry_date", currentWeekBounds.start)
-          .lte("entry_date", currentWeekBounds.end);
-        setCrewSalesEntries(data ?? []);
+        const [salesRes, txRes] = await Promise.all([
+          supabase.from("sales_entries").select("*")
+            .gte("entry_date", currentWeekBounds.start)
+            .lte("entry_date", currentWeekBounds.end),
+          supabase.from("sales_transactions").select("*")
+            .gte("date", currentWeekBounds.start)
+            .lte("date", currentWeekBounds.end),
+        ]);
+        setCrewSalesEntries(salesRes.data ?? []);
+        setCrewTransactions((txRes.data ?? []) as SalesTransaction[]);
       } else {
-        // Leader: need to resolve hierarchy from profiles
         const { data: profiles } = await supabase.from("profiles").select("id, user_id, leader_id");
         if (!profiles || !profile) { setSalesLoading(false); return; }
 
         const myProfileId = profile.id;
-        // Recursive: get all descendant user_ids
         function getDescendantUserIds(leaderId: string): string[] {
           const directReports = profiles!.filter((p) => p.leader_id === leaderId);
           const userIds: string[] = [];
@@ -207,13 +220,18 @@ export function WeeklySummary() {
         const crewUserIds = [user!.id, ...getDescendantUserIds(myProfileId)];
         const uniqueIds = [...new Set(crewUserIds)];
 
-        const { data } = await supabase
-          .from("sales_entries")
-          .select("*")
-          .in("user_id", uniqueIds)
-          .gte("entry_date", currentWeekBounds.start)
-          .lte("entry_date", currentWeekBounds.end);
-        setCrewSalesEntries(data ?? []);
+        const [salesRes, txRes] = await Promise.all([
+          supabase.from("sales_entries").select("*")
+            .in("user_id", uniqueIds)
+            .gte("entry_date", currentWeekBounds.start)
+            .lte("entry_date", currentWeekBounds.end),
+          supabase.from("sales_transactions").select("*")
+            .in("user_id", uniqueIds)
+            .gte("date", currentWeekBounds.start)
+            .lte("date", currentWeekBounds.end),
+        ]);
+        setCrewSalesEntries(salesRes.data ?? []);
+        setCrewTransactions((txRes.data ?? []) as SalesTransaction[]);
       }
       setSalesLoading(false);
     }
@@ -338,6 +356,38 @@ export function WeeklySummary() {
     if (!crewMeans || !crewDeviations || !crewConversions) return null;
     return calcSimulationWithPriority(crewMeans, crewDeviations, crewConversions);
   }, [crewMeans, crewDeviations, crewConversions]);
+
+  // Financial summaries from transactions
+  const ownFinancials = useMemo(() => {
+    return ownTransactions.reduce(
+      (acc, t) => ({
+        isaUpfront: acc.isaUpfront + Number(t.isa_upfront),
+        ownerUpfront: acc.ownerUpfront + Number(t.owner_upfront),
+        totalWire: acc.totalWire + Number(t.total_wire),
+        qualityPending: acc.qualityPending + Number(t.quality_pending),
+      }),
+      { isaUpfront: 0, ownerUpfront: 0, totalWire: 0, qualityPending: 0 }
+    );
+  }, [ownTransactions]);
+
+  const crewFinancials = useMemo(() => {
+    if (!userRole || userRole.role === "brand_ambassador") return null;
+    const totals = crewTransactions.reduce(
+      (acc, t) => ({
+        totalWire: acc.totalWire + Number(t.total_wire),
+        count: acc.count + 1,
+      }),
+      { totalWire: 0, count: 0 }
+    );
+    // Count unique sellers
+    const sellerIds = new Set(crewTransactions.map((t) => t.user_id));
+    const sellerCount = sellerIds.size;
+    return {
+      crewTotalWire: +totals.totalWire.toFixed(2),
+      crewAvgWire: sellerCount > 0 ? +(totals.totalWire / sellerCount).toFixed(2) : 0,
+      headcountSelling: sellerCount,
+    };
+  }, [crewTransactions, userRole]);
 
   // Profiles now provided by ProfilesContext - no duplicate fetch needed
 
@@ -788,6 +838,31 @@ export function WeeklySummary() {
               <div className="text-sm text-muted-foreground py-3 text-center">No sales data logged this week.</div>
             )}
 
+            {/* Your Commission Summary */}
+            {ownTransactions.length > 0 && (
+              <div className="border-t border-border/30 pt-3 space-y-2">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Commission</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                    <div className="text-[9px] uppercase text-muted-foreground">ISA Upfront</div>
+                    <div className="text-sm font-bold text-foreground">£{ownFinancials.isaUpfront.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                    <div className="text-[9px] uppercase text-muted-foreground">Owner Upfront</div>
+                    <div className="text-sm font-bold text-foreground">£{ownFinancials.ownerUpfront.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-[hsl(0_70%_50%/0.1)] rounded-md p-2 text-center">
+                    <div className="text-[9px] uppercase text-muted-foreground">Total Wire</div>
+                    <div className="text-sm font-bold" style={{ color: "hsl(0 70% 50%)" }}>£{ownFinancials.totalWire.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-muted/20 rounded-md p-2 text-center opacity-60">
+                    <div className="text-[9px] uppercase text-muted-foreground">Quality (30%)</div>
+                    <div className="text-sm font-bold text-muted-foreground">£{ownFinancials.qualityPending.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* CREW PERFORMANCE (Leader + Manager only) */}
             {crewMeans && crewDeviations && (
               <div className="border-t border-border/30 pt-3 space-y-3">
@@ -886,6 +961,27 @@ export function WeeklySummary() {
                     })()}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Crew Commission Summary */}
+            {crewFinancials && crewFinancials.crewTotalWire > 0 && (
+              <div className="border-t border-border/30 pt-3 space-y-2">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Crew Commission</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-[hsl(0_70%_50%/0.1)] rounded-md p-2 text-center">
+                    <div className="text-[9px] uppercase text-muted-foreground">Crew Total Wire</div>
+                    <div className="text-sm font-bold" style={{ color: "hsl(0 70% 50%)" }}>£{crewFinancials.crewTotalWire.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                    <div className="text-[9px] uppercase text-muted-foreground">Avg Wire / Seller</div>
+                    <div className="text-sm font-bold text-foreground">£{crewFinancials.crewAvgWire.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-muted/30 rounded-md p-2 text-center">
+                    <div className="text-[9px] uppercase text-muted-foreground">Headcount Selling</div>
+                    <div className="text-sm font-bold text-foreground">{crewFinancials.headcountSelling}</div>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

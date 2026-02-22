@@ -295,6 +295,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_transactions: {
+        Row: {
+          age_band: string
+          ask_amount: number
+          created_at: string
+          date: string
+          id: string
+          isa_upfront: number
+          owner_upfront: number
+          quality_pending: number
+          total_wire: number
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          age_band: string
+          ask_amount: number
+          created_at?: string
+          date: string
+          id?: string
+          isa_upfront?: number
+          owner_upfront?: number
+          quality_pending?: number
+          total_wire?: number
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          age_band?: string
+          ask_amount?: number
+          created_at?: string
+          date?: string
+          id?: string
+          isa_upfront?: number
+          owner_upfront?: number
+          quality_pending?: number
+          total_wire?: number
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy, ChevronLeft, ChevronRight, Lock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, Minus, Save, Check, Trophy, ChevronLeft, ChevronRight, Lock, AlertTriangle, PoundSterling } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSalesData, SalesEntry } from "@/hooks/useSalesData";
+import { useSalesTransactions } from "@/hooks/useSalesTransactions";
+import { SaleTransactionModal } from "@/components/sales/SaleTransactionModal";
+import { AgeBand } from "@/lib/commission";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 
 const FIELD_LABELS = ["Doors", "Spoken", "Presentations", "Closes", "Tablets", "Sales"] as const;
 type FieldKey = "doors" | "spoken" | "presentations" | "closes" | "tablets" | "sales";
@@ -25,6 +28,20 @@ export default function Sales() {
     getWeekTotals, calcLOA, calcCloseLOA, getWeeklyLOAData, getPrevWeekTotals,
     getPersonalBestSales, DAYS, isCurrentWeek, weekLabel,
   } = useSalesData(weekOffset);
+
+  // Compute week bounds for transactions
+  const weekBounds = useMemo(() => {
+    const now = new Date();
+    const base = weekOffset === 0 ? now : (weekOffset > 0 ? addWeeks(now, weekOffset) : subWeeks(now, Math.abs(weekOffset)));
+    const ws = startOfWeek(base, { weekStartsOn: 1 });
+    const we = endOfWeek(ws, { weekStartsOn: 1 });
+    return { wsStr: format(ws, "yyyy-MM-dd"), weStr: format(we, "yyyy-MM-dd") };
+  }, [weekOffset]);
+
+  const {
+    ownTransactions, getTransactionsForDate, getWeekFinancials,
+    insertTransaction, deleteTransactionsForDate,
+  } = useSalesTransactions(weekBounds.wsStr, weekBounds.weStr);
 
   const [selectedDay, setSelectedDay] = useState(() => {
     const d = new Date().getDay();
@@ -55,7 +72,6 @@ export default function Sales() {
     }
   }, [selectedDay, existingEntry?.id, weekOffset]);
 
-  // Validation: all fields must be non-empty (numbers including 0)
   const allFieldsFilled = FIELD_KEYS.every((k) => formData[k] !== "");
   const numericData = useMemo(() => {
     const out: Record<FieldKey, number> = {} as any;
@@ -67,16 +83,13 @@ export default function Sales() {
 
   // Week locking logic
   const isWeekLocked = useMemo(() => {
-    if (weekOffset >= 0) return false; // current or future week not locked
-    return true; // past weeks are locked
+    if (weekOffset >= 0) return false;
+    return true;
   }, [weekOffset]);
 
   const isManagerRole = userRole?.role === "manager" && userRole?.super_admin;
   const [managerUnlocked, setManagerUnlocked] = useState(false);
-
-  // Reset manager unlock when week changes
   useEffect(() => { setManagerUnlocked(false); }, [weekOffset]);
-
   const effectivelyLocked = isWeekLocked && !managerUnlocked;
 
   // Extreme data confirmation
@@ -91,9 +104,36 @@ export default function Sales() {
     return Object.entries(EXTREME_THRESHOLDS).some(([key, threshold]) => data[key as FieldKey] > threshold!);
   };
 
+  // Sale transaction modal state
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [salesToLog, setSalesToLog] = useState(0);  // total needed this batch
+  const [salesLoggedCount, setSalesLoggedCount] = useState(0);  // how many done so far in this batch
+  const [saleDate, setSaleDate] = useState("");
+
   const doSave = (date: string, data: Record<FieldKey, number>) => {
     saveDayMutation.mutate({ date, data }, {
-      onSuccess: () => toast.success("Day saved"),
+      onSuccess: () => {
+        toast.success("Day saved");
+
+        // Check if sales transactions need to be logged or adjusted
+        const existingTxCount = getTransactionsForDate(date).length;
+        const newSalesCount = data.sales;
+
+        if (newSalesCount > existingTxCount) {
+          // Need to log more sale transactions
+          const needed = newSalesCount - existingTxCount;
+          setSaleDate(date);
+          setSalesToLog(needed);
+          setSalesLoggedCount(0);
+          setSaleModalOpen(true);
+        } else if (newSalesCount < existingTxCount) {
+          // Need to remove excess transactions
+          const excess = existingTxCount - newSalesCount;
+          deleteTransactionsForDate.mutate({ date, count: excess }, {
+            onSuccess: () => toast.info(`Removed ${excess} excess transaction(s)`),
+          });
+        }
+      },
       onError: () => toast.error("Failed to save"),
     });
   };
@@ -114,11 +154,50 @@ export default function Sales() {
     setPendingSave(null);
   };
 
+  const handleSaleConfirm = (data: {
+    ageBand: AgeBand;
+    askAmount: number;
+    isaUpfront: number;
+    ownerUpfront: number;
+    totalWire: number;
+    qualityPending: number;
+  }) => {
+    insertTransaction.mutate({
+      date: saleDate,
+      ageBand: data.ageBand,
+      askAmount: data.askAmount,
+      isaUpfront: data.isaUpfront,
+      ownerUpfront: data.ownerUpfront,
+      totalWire: data.totalWire,
+      qualityPending: data.qualityPending,
+    }, {
+      onSuccess: () => {
+        setSalesLoggedCount((prev) => {
+          const next = prev + 1;
+          if (next >= salesToLog) {
+            setSaleModalOpen(false);
+            setSalesToLog(0);
+            toast.success("All sale transactions recorded");
+          }
+          return next;
+        });
+      },
+      onError: () => toast.error("Failed to save transaction"),
+    });
+  };
+
+  const handleSaleCancel = () => {
+    setSaleModalOpen(false);
+    setSalesToLog(0);
+    setSalesLoggedCount(0);
+  };
+
   const savedDays = new Set(currentWeekEntries.map((e) => e.entry_date));
   const weekTotals = getWeekTotals(currentWeekEntries);
   const prevTotals = getPrevWeekTotals();
   const loaData = getWeeklyLOAData();
   const personalBest = getPersonalBestSales();
+  const weekFinancials = getWeekFinancials();
 
   useEffect(() => {
     if (personalBest !== null && weekTotals.sales > 0 && weekTotals.sales >= personalBest) {
@@ -136,12 +215,11 @@ export default function Sales() {
     else if (currLOANum > prevLOANum) loaTrend = "worse";
   }
 
-
-  const role = userRole?.role;
-
-
-  // Prevent navigating into the future
   const canGoForward = weekOffset < 0;
+
+  // Track modal progress: which sale number we're on
+  const currentSaleNumber = salesLoggedCount + 1;
+  const totalSalesForModal = salesToLog;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -191,6 +269,15 @@ export default function Sales() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Sale Transaction Modal */}
+      <SaleTransactionModal
+        open={saleModalOpen}
+        onConfirm={handleSaleConfirm}
+        onCancel={handleSaleCancel}
+        saleNumber={currentSaleNumber}
+        totalSales={totalSalesForModal}
+      />
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-5 space-y-5">
         {/* 1. Week Navigation */}
@@ -284,7 +371,7 @@ export default function Sales() {
           </Button>
         </div>
 
-        {/* 3. Weekly Performance Summary — 3 stat boxes */}
+        {/* 3. Weekly Performance Summary — stats */}
         <div className="grid grid-cols-3 gap-3">
           {/* Primary LOA */}
           <Card className="border-[hsl(var(--module-sales)/0.3)] bg-card">
@@ -335,6 +422,39 @@ export default function Sales() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Financial Summary — This Week */}
+        <Card className="border-[hsl(var(--module-sales)/0.3)] bg-card">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+              <PoundSterling className="w-3.5 h-3.5 text-[hsl(var(--module-sales))]" />
+              Commission — This Week
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-muted/30 rounded-lg p-3 text-center">
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">ISA Upfront</div>
+                <div className="text-lg font-bold text-foreground">£{weekFinancials.isaUpfront.toFixed(2)}</div>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3 text-center">
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Owner Upfront</div>
+                <div className="text-lg font-bold text-foreground">£{weekFinancials.ownerUpfront.toFixed(2)}</div>
+              </div>
+              <div className="bg-[hsl(var(--module-sales)/0.1)] rounded-lg p-3 text-center">
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Total Wire</div>
+                <div className="text-lg font-bold text-[hsl(var(--module-sales))]">£{weekFinancials.totalWire.toFixed(2)}</div>
+              </div>
+              <div className="bg-muted/20 rounded-lg p-3 text-center opacity-60">
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Quality (30%)</div>
+                <div className="text-lg font-bold text-muted-foreground">£{weekFinancials.qualityPending.toFixed(2)}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-center">
+              <span className="text-[10px] text-muted-foreground">{weekFinancials.count} sale transaction(s) recorded</span>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 4. LOA Progression Graph */}
         <Card className="border-border/50 bg-card">
