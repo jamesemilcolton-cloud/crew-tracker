@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, target_user_id, role } = await req.json();
+    const body = await req.json();
+    const { action, target_user_id, role } = body;
 
     // Prevent self-modification
     if (target_user_id === caller.id) {
@@ -135,6 +136,15 @@ Deno.serve(async (req) => {
         .from("user_roles")
         .update({ role })
         .eq("user_id", target_user_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "delete_user") {
+      // Permanently delete user from auth
+      const { error } = await adminClient.auth.admin.deleteUser(target_user_id);
       if (error) throw error;
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
