@@ -121,6 +121,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: phone,
       }, { onConflict: "user_id" });
       if (profileError) return { error: profileError };
+
+      // Link matching candidate record by phone number
+      const { data: matchingCandidates } = await supabase
+        .from("candidates")
+        .select("id")
+        .eq("phone", phone.trim())
+        .is("archived_at", null);
+
+      if (matchingCandidates && matchingCandidates.length > 0) {
+        // Update candidate(s) with matching phone: set names to account values
+        const fullName = `${firstName} ${lastName}`.trim();
+        for (const candidate of matchingCandidates) {
+          await supabase.from("candidates").update({
+            name: fullName,
+            first_name: firstName,
+            last_name: lastName,
+          }).eq("id", candidate.id);
+        }
+      }
+
       await fetchProfile(data.user.id);
       await fetchRole(data.user.id);
     }
