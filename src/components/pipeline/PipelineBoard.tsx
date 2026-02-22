@@ -394,14 +394,16 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         </div>
       </div>
 
-      {/* DROP OFF SECTION */}
-      {droppedCandidates.length > 0 && (
-        <section className="mt-4">
-          <div className="flex items-center gap-2 pb-2 mb-3 border-b border-border/50">
-            <Trash2 className="w-4 h-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-tight">Drop Off</h3>
-            <span className="text-[10px] text-muted-foreground font-mono">{droppedCandidates.length}</span>
-          </div>
+      {/* DROP OFF SECTION — always visible */}
+      <section className="mt-4">
+        <div className="flex items-center gap-2 pb-2 mb-3 border-b border-border/50">
+          <Trash2 className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-tight">Drop Off</h3>
+          <span className="text-[10px] text-muted-foreground font-mono">{droppedCandidates.length}</span>
+        </div>
+        {droppedCandidates.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground text-center py-6 opacity-50">No dropped candidates yet.</p>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {droppedCandidates.map((c) => (
               <div key={c.id} className="glass-panel p-3 opacity-60 hover:opacity-80 transition-opacity">
@@ -433,8 +435,8 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 }
