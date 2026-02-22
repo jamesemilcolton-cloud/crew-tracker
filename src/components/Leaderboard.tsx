@@ -119,7 +119,17 @@ export function Leaderboard() {
 
       const START_FORWARD = ["start", "solo", "promoted"];
 
-      const result: LeaderboardEntry[] = profiles.map((p) => {
+      // Exclude managers/super_admins from recruitment leaderboard
+      const [rolesForRecruitment] = await Promise.all([
+        supabase.from("user_roles").select("user_id, role, super_admin"),
+      ]);
+      const recruitRoles = rolesForRecruitment.data ?? [];
+      const managerUserIds = new Set(
+        recruitRoles.filter((r) => r.role === "manager").map((r) => r.user_id)
+      );
+      const nonManagerProfiles = profiles.filter((p) => !managerUserIds.has(p.user_id));
+
+      const result: LeaderboardEntry[] = nonManagerProfiles.map((p) => {
         const userCandidates = candidates.filter((c) => c.user_id === p.user_id);
         const userActivities = activities.filter((a) => a.user_id === p.user_id);
         const userAds = ads.filter((a) => a.user_id === p.user_id);
@@ -177,8 +187,14 @@ export function Leaderboard() {
         userSalesCounts.set(t.user_id, (userSalesCounts.get(t.user_id) || 0) + 1);
       });
 
+      // Exclude managers from profit leaderboards
+      const managerIds = new Set(
+        roles.filter((r) => r.role === "manager").map((r) => r.user_id)
+      );
+      const nonManagerProfitProfiles = profiles.filter((p) => !managerIds.has(p.user_id));
+
       // === INDIVIDUAL PROFIT: Rank by Rep Profit (isa_upfront) ===
-      const sorted: ProfitRankedEntry[] = profiles
+      const sorted: ProfitRankedEntry[] = nonManagerProfitProfiles
         .map((p) => ({
           userId: p.user_id,
           name: p.full_name,
@@ -235,13 +251,14 @@ export function Leaderboard() {
       };
 
       const roleSet = new Map(roles.map((r) => [r.user_id, r.role]));
-      const leaderOrManager = profiles.filter((p) => {
+      // Only leaders for crew rankings — managers excluded
+      const leadersOnly = profiles.filter((p) => {
         const role = roleSet.get(p.user_id);
-        return role === "leader" || role === "manager";
+        return role === "leader";
       });
 
       // Current week crew profit (Total Wire) + avg (Rep Profit)
-      const crewEntries: CrewProfitEntry[] = leaderOrManager.map((p) => {
+      const crewEntries: CrewProfitEntry[] = leadersOnly.map((p) => {
         const hasTeam = (childrenMap.get(p.id) || []).length > 0;
         const crewWire = +(calcCrewTotal(p, userWireTotals)).toFixed(2);
         const crewRepProfit = +(calcCrewTotal(p, userRepProfit)).toFixed(2);
@@ -307,16 +324,16 @@ export function Leaderboard() {
             userWeekWire.set(t.user_id, (userWeekWire.get(t.user_id) || 0) + Number(t.total_wire));
           });
 
-          // Individual all-time: Rep Profit (isa_upfront)
+          // Individual all-time: Rep Profit (isa_upfront) — exclude managers
           userWeekRepProfit.forEach((rp, userId) => {
-            if (rp > 0) {
+            if (rp > 0 && !managerIds.has(userId)) {
               weeklyIndividualRecords.push({ userId, repProfit: +rp.toFixed(2), weekStart: ws });
             }
           });
 
-          // Crew all-time: Total Wire
+          // Crew all-time: Total Wire — leaders only
           const currentWs = ws;
-          leaderOrManager.forEach((p) => {
+          leadersOnly.forEach((p) => {
             const total = calcCrewTotal(p, userWeekWire);
             if (total > 0) {
               crewWeeklyRecords.push({ userId: p.user_id, name: p.full_name, crewName: p.crew_name || "", crewWire: +total.toFixed(2), weekStart: currentWs });
