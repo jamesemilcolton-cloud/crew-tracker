@@ -4,6 +4,7 @@ import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { GitBranch, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfiles } from "@/contexts/ProfilesContext";
 
 interface Profile {
   id: string;
@@ -503,15 +504,8 @@ function WrappingTreeNode({ node, crewName }: { node: CrewNode; crewName?: strin
 // ============= Compact snapshot for Summary page =============
 export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) {
   const { profile } = useAuth();
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
-
-  useEffect(() => {
-    async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id, crew_name");
-      if (data) setAllProfiles(data as Profile[]);
-    }
-    fetchProfiles();
-  }, []);
+  const { profiles: sharedProfiles } = useProfiles();
+  const allProfiles = sharedProfiles as Profile[];
 
   const tree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
@@ -542,15 +536,8 @@ const CONFIDENCE_STYLES: Record<ForecastConfidence, { color: string; bg: string 
 export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const [showPredicted, setShowPredicted] = useState(false);
   const { profile } = useAuth();
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
-
-  useEffect(() => {
-    async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("id, user_id, full_name, leader_id, crew_name");
-      if (data) setAllProfiles(data as Profile[]);
-    }
-    fetchProfiles();
-  }, []);
+  const { profiles: sharedProfiles } = useProfiles();
+  const allProfiles = sharedProfiles as Profile[];
 
   const startToPromotionPct = useMemo(() => {
     const reachedStart = candidates.filter((c) => reachedStage(c, "start")).length;

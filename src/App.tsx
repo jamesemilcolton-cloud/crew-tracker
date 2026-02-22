@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProfilesProvider } from "@/contexts/ProfilesContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ModuleSelection from "./pages/ModuleSelection";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
@@ -43,27 +45,31 @@ function ManagerRoute({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={<ProtectedRoute><ModuleSelection /></ProtectedRoute>} />
-            <Route path="/week-summary" element={<ProtectedRoute><WeekSummaryPage /></ProtectedRoute>} />
-            <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
-            <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-            <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
-            <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <ProfilesProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<ProtectedRoute><ModuleSelection /></ProtectedRoute>} />
+                <Route path="/week-summary" element={<ProtectedRoute><WeekSummaryPage /></ProtectedRoute>} />
+                <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
+                <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+                <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
+                <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ProfilesProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfiles } from "@/contexts/ProfilesContext";
 import { startOfWeek, endOfWeek, subWeeks, format, addDays, addWeeks } from "date-fns";
 
 export interface SalesEntry {
@@ -38,6 +39,7 @@ function getWeekEndForOffset(offset: number): Date {
 
 export function useSalesData(weekOffset: number = 0) {
   const { user } = useAuth();
+  const { profiles: sharedProfiles } = useProfiles();
   const queryClient = useQueryClient();
 
   const selectedWeekStart = getWeekStartForOffset(weekOffset);
@@ -91,16 +93,7 @@ export function useSalesData(weekOffset: number = 0) {
     enabled: !!user,
   });
 
-  // Profiles for team view
-  const profilesQuery = useQuery({
-    queryKey: ["profiles-for-sales"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, user_id, full_name, leader_id");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
+  // Profiles from shared context - no separate query needed
 
   const saveDayMutation = useMutation({
     mutationFn: async ({ date, data }: { date: string; data: DayData }) => {
@@ -230,7 +223,7 @@ export function useSalesData(weekOffset: number = 0) {
     currentWeekEntries: currentWeekQuery.data || [],
     historicalEntries: historicalQuery.data || [],
     teamEntries: teamQuery.data || [],
-    profiles: profilesQuery.data || [],
+    profiles: sharedProfiles,
     isLoading: currentWeekQuery.isLoading,
     saveDayMutation,
     getDateForDay,
