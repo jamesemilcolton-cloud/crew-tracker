@@ -27,7 +27,7 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_transactions")
-        .select("*")
+        .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, total_wire, quality_pending, created_at")
         .eq("user_id", user!.id)
         .gte("date", weekStart)
         .lte("date", weekEnd)
@@ -44,7 +44,7 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_transactions")
-        .select("*")
+        .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, total_wire, quality_pending, created_at")
         .gte("date", weekStart)
         .lte("date", weekEnd);
       if (error) throw error;
@@ -117,12 +117,11 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
     return transactions.reduce(
       (acc, t) => ({
         isaUpfront: acc.isaUpfront + Number(t.isa_upfront),
-        ownerUpfront: acc.ownerUpfront + Number(t.owner_upfront),
         totalWire: acc.totalWire + Number(t.total_wire),
         qualityPending: acc.qualityPending + Number(t.quality_pending),
         count: acc.count + 1,
       }),
-      { isaUpfront: 0, ownerUpfront: 0, totalWire: 0, qualityPending: 0, count: 0 }
+      { isaUpfront: 0, totalWire: 0, qualityPending: 0, count: 0 }
     );
   }
 

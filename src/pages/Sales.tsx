@@ -432,14 +432,10 @@ export default function Sales() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="bg-muted/30 rounded-lg p-3 text-center">
                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">ISA Upfront</div>
                 <div className="text-lg font-bold text-foreground">£{weekFinancials.isaUpfront.toFixed(2)}</div>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3 text-center">
-                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Owner Upfront</div>
-                <div className="text-lg font-bold text-foreground">£{weekFinancials.ownerUpfront.toFixed(2)}</div>
               </div>
               <div className="bg-[hsl(var(--module-sales)/0.1)] rounded-lg p-3 text-center">
                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Total Wire</div>
