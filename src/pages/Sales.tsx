@@ -93,7 +93,7 @@ export default function Sales() {
     else if (currLOANum > prevLOANum) loaTrend = "worse";
   }
 
-  const pct = (num: number, den: number) => (den > 0 ? ((num / den) * 100).toFixed(0) + "%" : "–");
+  
 
   const role = userRole?.role;
   const myProfileId = profile?.id;
@@ -262,7 +262,7 @@ export default function Sales() {
           {/* Close LOA */}
           <Card className="border-border/50 bg-card">
             <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-[10px] text-muted-foreground font-medium">Close LOA</CardTitle>
+              <CardTitle className="text-[10px] text-muted-foreground font-medium">LOA (Close → Sale)</CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3">
               <span className="text-xl font-bold font-mono text-orange-400">
@@ -314,37 +314,46 @@ export default function Sales() {
           </CardContent>
         </Card>
 
-        {/* 5. Funnel Snapshot */}
+        {/* 5. Daily Week Breakdown */}
         <Card className="border-border/50 bg-card">
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-xs text-muted-foreground font-medium">Weekly Funnel</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground font-medium">Daily Breakdown – {isCurrentWeek ? "This Week" : weekLabel}</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="space-y-1">
-              {FIELD_KEYS.map((key, i) => {
-                const val = weekTotals[key];
-                const prevKey = i > 0 ? FIELD_KEYS[i - 1] : null;
-                const prevVal = prevKey ? weekTotals[prevKey] : null;
-                const convPct = prevVal !== null ? pct(val, prevVal) : null;
-                return (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-24 truncate">{FIELD_LABELS[i]}</span>
-                    <div className="flex-1 h-6 bg-secondary/40 rounded overflow-hidden relative">
-                      <div
-                        className="h-full rounded bg-[hsl(var(--module-sales)/0.35)]"
-                        style={{ width: `${weekTotals.doors > 0 ? (val / weekTotals.doors) * 100 : 0}%` }}
-                      />
-                      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-mono font-medium text-foreground">
-                        {val}
-                      </span>
-                    </div>
-                    {convPct && (
-                      <span className="text-[10px] font-mono text-muted-foreground w-10 text-right">{convPct}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <CardContent className="px-4 pb-4 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border/30">
+                  <th className="text-left pb-2 font-medium">Day</th>
+                  {FIELD_LABELS.map((l) => (
+                    <th key={l} className="text-right pb-2 font-medium">{l}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {DAYS.map((day, i) => {
+                  const date = getDateForDay(i);
+                  const entry = getEntryForDate(date);
+                  return (
+                    <tr key={day} className="border-b border-border/10">
+                      <td className="py-1.5 text-muted-foreground font-medium">{day}</td>
+                      {FIELD_KEYS.map((key) => (
+                        <td key={key} className="py-1.5 text-right font-mono text-foreground">
+                          {entry ? entry[key] : "—"}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        {/* Week Total Sales */}
+        <Card className="border-[hsl(var(--module-sales)/0.3)] bg-card">
+          <CardContent className="px-4 py-4 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground font-medium">Total Sales This Week</span>
+            <span className="text-2xl font-bold font-mono text-[hsl(var(--module-sales))]">{weekTotals.sales}</span>
           </CardContent>
         </Card>
 
