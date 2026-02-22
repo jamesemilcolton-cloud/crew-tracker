@@ -399,20 +399,20 @@ export function Leaderboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* ===== SECTION 1 — PROFIT RANKINGS ===== */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <PoundSterling className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-          <h2 className="text-sm font-semibold text-foreground">💷 Profit — This Week</h2>
+    <div className="space-y-8">
+      {/* ===== SECTION 1 — PROFIT THIS WEEK ===== */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+          <PoundSterling className="w-5 h-5" style={{ color: "hsl(0 70% 50%)" }} />
+          <h2 className="text-base font-bold text-foreground tracking-tight uppercase">Profit — This Week</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {/* Individual profit ranking — Rep Profit (isa_upfront) */}
+          {/* Top Individual Profit */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><PoundSterling className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">Top Individual Profit (Rep Profit)</span>
+              <span className="text-xs font-medium text-muted-foreground">Top Individual Profit</span>
             </div>
             <div className="divide-y divide-border/30">
               {profitRanking.map((entry) => {
@@ -420,39 +420,99 @@ export function Leaderboard() {
                 const isFirst = entry.rank === 1 && entry.repProfit > 0;
                 const medalColor = entry.rank === 1 && entry.repProfit > 0 ? "#FFD700" : entry.rank === 2 && entry.repProfit > 0 ? "#C0C0C0" : entry.rank === 3 && entry.repProfit > 0 ? "#CD7F32" : null;
                 return (
-                  <div
-                    key={entry.userId}
-                    className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}
-                  >
+                  <div key={entry.userId} className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}>
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {medalColor ? (
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                      ) : (
-                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
-                          {entry.rank}
-                        </span>
-                      )}
-                      <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">
-                        {entry.rank}{getRankSuffix(entry.rank)}
-                      </span>
-                      <span className={`text-xs truncate ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                        {entry.name}{isMe ? " ●" : ""}
-                      </span>
+                      {medalColor ? <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} /> : <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{entry.rank}</span>}
+                      <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">{entry.rank}{getRankSuffix(entry.rank)}</span>
+                      <span className={`text-xs truncate ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>{entry.name}{isMe ? " ●" : ""}</span>
                     </div>
-                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
-                      £{entry.repProfit.toFixed(2)}
-                    </span>
+                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>£{entry.repProfit.toFixed(2)}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* All-Time Weekly Profit Record — Rep Profit */}
+          {/* Top Crew Profit */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Profit Record (Rep Profit)</span>
+              <span className="text-xs font-medium text-muted-foreground">Top Crew Profit</span>
+            </div>
+            {crewProfitRanking.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {crewProfitRanking.map((entry) => {
+                  const isMe = entry.userId === user?.id;
+                  const isFirst = entry.rank === 1 && entry.crewWire > 0;
+                  const medalColor = entry.rank === 1 && entry.crewWire > 0 ? "#FFD700" : entry.rank === 2 && entry.crewWire > 0 ? "#C0C0C0" : entry.rank === 3 && entry.crewWire > 0 ? "#CD7F32" : null;
+                  const crewDisplayName = formatCrewDisplayName(entry.name, entry.crewName);
+                  return (
+                    <div key={entry.userId} className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {medalColor ? <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} /> : <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{entry.rank}</span>}
+                        <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">{entry.rank}{getRankSuffix(entry.rank)}</span>
+                        <div className="min-w-0">
+                          <span className={`text-xs truncate block ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>{crewDisplayName}{isMe ? " ●" : ""}</span>
+                          {!entry.hasTeam && <span className="text-[10px] text-muted-foreground">No crew yet</span>}
+                        </div>
+                      </div>
+                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>£{entry.crewWire.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Average Profit Per Agent */}
+        <div className="glass-panel p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-muted-foreground"><Users className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+            <span className="text-xs font-medium text-muted-foreground">Average Profit Per Agent</span>
+          </div>
+          {crewAvgProfitRanking.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
+          ) : (
+            <div className="divide-y divide-border/30">
+              {crewAvgProfitRanking.map((entry) => {
+                const isMe = entry.userId === user?.id;
+                const isFirst = entry.rank === 1 && entry.avgRepProfitPerSeller > 0;
+                const medalColor = entry.rank === 1 && entry.avgRepProfitPerSeller > 0 ? "#FFD700" : entry.rank === 2 && entry.avgRepProfitPerSeller > 0 ? "#C0C0C0" : entry.rank === 3 && entry.avgRepProfitPerSeller > 0 ? "#CD7F32" : null;
+                const crewDisplayName = formatCrewDisplayName(entry.name, entry.crewName);
+                return (
+                  <div key={entry.userId} className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {medalColor ? <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} /> : <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{entry.rank}</span>}
+                      <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">{entry.rank}{getRankSuffix(entry.rank)}</span>
+                      <span className={`text-xs truncate ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>{crewDisplayName}{isMe ? " ●" : ""}</span>
+                    </div>
+                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
+                      {entry.avgRepProfitPerSeller > 0 ? `£${entry.avgRepProfitPerSeller.toFixed(2)}` : "–"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ===== SECTION 2 — PROFIT RECORDS ===== */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+          <Trophy className="w-5 h-5" style={{ color: "hsl(0 70% 50%)" }} />
+          <h2 className="text-base font-bold text-foreground tracking-tight uppercase">Profit Records</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* All Time Weekly Individual Profit Record */}
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">All Time Weekly Individual Profit Record</span>
             </div>
             {!topProfitRecord ? (
               <p className="text-xs text-muted-foreground text-center py-4">No data</p>
@@ -463,11 +523,7 @@ export function Leaderboard() {
                   return (
                     <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}>
                       <div className="flex items-center gap-2 min-w-0">
-                        {medalColor ? (
-                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{record.rank}</span>
-                        )}
+                        {medalColor ? <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} /> : <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{record.rank}</span>}
                         <div className="min-w-0">
                           <span className={`text-xs truncate block ${record.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{record.name}</span>
                           <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
@@ -480,62 +536,12 @@ export function Leaderboard() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Crew Profit Leaderboard — Total Wire */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+          {/* All Time Weekly Crew Profit Record */}
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🏆 Top Crew Profit — This Week (Total Wire)</span>
-            </div>
-            {crewProfitRanking.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
-            ) : (
-              <div className="divide-y divide-border/30">
-                {crewProfitRanking.map((entry) => {
-                  const isMe = entry.userId === user?.id;
-                  const isFirst = entry.rank === 1 && entry.crewWire > 0;
-                  const medalColor = entry.rank === 1 && entry.crewWire > 0 ? "#FFD700" : entry.rank === 2 && entry.crewWire > 0 ? "#C0C0C0" : entry.rank === 3 && entry.crewWire > 0 ? "#CD7F32" : null;
-                  const crewDisplayName = formatCrewDisplayName(entry.name, entry.crewName);
-                  return (
-                    <div
-                      key={entry.userId}
-                      className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {medalColor ? (
-                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
-                            {entry.rank}
-                          </span>
-                        )}
-                        <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">
-                          {entry.rank}{getRankSuffix(entry.rank)}
-                        </span>
-                        <div className="min-w-0">
-                          <span className={`text-xs truncate block ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                            {crewDisplayName}{isMe ? " ●" : ""}
-                          </span>
-                          {!entry.hasTeam && <span className="text-[10px] text-muted-foreground">No crew yet</span>}
-                        </div>
-                      </div>
-                      <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
-                        £{entry.crewWire.toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* All-Time Weekly Crew Profit Record — Total Wire */}
-          <div className="glass-panel p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">🏆 All-Time Weekly Crew Profit Record (Total Wire)</span>
+              <span className="text-xs font-medium text-muted-foreground">All Time Weekly Crew Profit Record</span>
             </div>
             {allTimeCrewProfitRecords.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">No data</p>
@@ -547,11 +553,7 @@ export function Leaderboard() {
                   return (
                     <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-md ${record.rank === 1 ? "bg-red-500/10" : ""}`}>
                       <div className="flex items-center gap-2 min-w-0">
-                        {medalColor ? (
-                          <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{record.rank}</span>
-                        )}
+                        {medalColor ? <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} /> : <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">{record.rank}</span>}
                         <div className="min-w-0">
                           <span className={`text-xs truncate block ${record.rank === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{crewDisplayName}</span>
                           <span className="text-[10px] text-muted-foreground">w/c {record.weekCommencing}</span>
@@ -565,55 +567,7 @@ export function Leaderboard() {
             )}
           </div>
         </div>
-
-        {/* Average Rep Profit Per Agent (Crew) */}
-        <div className="glass-panel p-4 mt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="text-muted-foreground"><Users className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-            <span className="text-xs font-medium text-muted-foreground">📊 Average Profit Per Agent (Rep Profit) — This Week</span>
-          </div>
-          {crewAvgProfitRanking.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
-          ) : (
-            <div className="divide-y divide-border/30">
-              {crewAvgProfitRanking.map((entry) => {
-                const isMe = entry.userId === user?.id;
-                const isFirst = entry.rank === 1 && entry.avgRepProfitPerSeller > 0;
-                const medalColor = entry.rank === 1 && entry.avgRepProfitPerSeller > 0 ? "#FFD700" : entry.rank === 2 && entry.avgRepProfitPerSeller > 0 ? "#C0C0C0" : entry.rank === 3 && entry.avgRepProfitPerSeller > 0 ? "#CD7F32" : null;
-                const crewDisplayName = formatCrewDisplayName(entry.name, entry.crewName);
-                return (
-                  <div
-                    key={entry.userId}
-                    className={`flex items-center justify-between py-2 px-2 rounded-md ${isFirst ? "bg-red-500/10 border border-red-500/15" : ""} ${isMe && !isFirst ? "bg-muted/30" : ""}`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {medalColor ? (
-                        <Medal className="w-3.5 h-3.5 flex-shrink-0" style={{ color: medalColor }} />
-                      ) : (
-                        <span className="text-[10px] font-mono font-bold w-3.5 text-center flex-shrink-0 text-muted-foreground">
-                          {entry.rank}
-                        </span>
-                      )}
-                      <span className="text-[11px] font-mono text-muted-foreground w-8 flex-shrink-0">
-                        {entry.rank}{getRankSuffix(entry.rank)}
-                      </span>
-                      <span className={`text-xs truncate ${isFirst ? "font-semibold text-foreground" : isMe ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-                        {crewDisplayName}{isMe ? " ●" : ""}
-                      </span>
-                    </div>
-                    <span className={`text-xs font-mono flex-shrink-0 ml-2 ${isFirst ? "font-bold" : "text-muted-foreground"}`} style={isFirst ? { color: "hsl(0 70% 50%)" } : {}}>
-                      {entry.avgRepProfitPerSeller > 0 ? `£${entry.avgRepProfitPerSeller.toFixed(2)}` : "–"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </section>
-
-      {/* Subtle divider */}
-      <div className="border-t border-border/30" />
 
       {/* ===== SECTION 2 — RECRUITMENT ===== */}
       <section className="space-y-3">
