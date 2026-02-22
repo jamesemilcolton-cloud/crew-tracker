@@ -788,7 +788,7 @@ export function WeeklySummary() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                 {[
                   { label: "Head Count", value: crewSummary.headCount },
-                  { label: "HCS", value: crewSummary.hcs },
+                  { label: "Head Count Selling", value: crewSummary.hcs },
                   { label: "Potential New Starts", value: crewSummary.potentialNewStarts },
                 ].map((item) => (
                   <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center">
