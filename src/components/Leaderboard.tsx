@@ -139,7 +139,7 @@ export function Leaderboard() {
   useEffect(() => {
     async function fetchProfitData() {
       const [txRes, rolesRes] = await Promise.all([
-        supabase.from("sales_transactions").select("*"),
+        supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, total_wire, quality_pending, created_at"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
 

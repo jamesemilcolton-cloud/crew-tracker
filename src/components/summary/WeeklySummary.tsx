@@ -168,7 +168,7 @@ export function WeeklySummary() {
           .lte("entry_date", currentWeekBounds.end),
         supabase
           .from("sales_transactions")
-          .select("*")
+          .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, total_wire, quality_pending, created_at")
           .eq("user_id", user!.id)
           .gte("date", currentWeekBounds.start)
           .lte("date", currentWeekBounds.end),
@@ -197,7 +197,7 @@ export function WeeklySummary() {
           supabase.from("sales_entries").select("*")
             .gte("entry_date", currentWeekBounds.start)
             .lte("entry_date", currentWeekBounds.end),
-          supabase.from("sales_transactions").select("*")
+          supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, total_wire, quality_pending, created_at")
             .gte("date", currentWeekBounds.start)
             .lte("date", currentWeekBounds.end),
         ]);
@@ -225,7 +225,7 @@ export function WeeklySummary() {
             .in("user_id", uniqueIds)
             .gte("entry_date", currentWeekBounds.start)
             .lte("entry_date", currentWeekBounds.end),
-          supabase.from("sales_transactions").select("*")
+          supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, total_wire, quality_pending, created_at")
             .in("user_id", uniqueIds)
             .gte("date", currentWeekBounds.start)
             .lte("date", currentWeekBounds.end),
@@ -362,11 +362,10 @@ export function WeeklySummary() {
     return ownTransactions.reduce(
       (acc, t) => ({
         isaUpfront: acc.isaUpfront + Number(t.isa_upfront),
-        ownerUpfront: acc.ownerUpfront + Number(t.owner_upfront),
         totalWire: acc.totalWire + Number(t.total_wire),
         qualityPending: acc.qualityPending + Number(t.quality_pending),
       }),
-      { isaUpfront: 0, ownerUpfront: 0, totalWire: 0, qualityPending: 0 }
+      { isaUpfront: 0, totalWire: 0, qualityPending: 0 }
     );
   }, [ownTransactions]);
 
@@ -842,14 +841,10 @@ export function WeeklySummary() {
             {ownTransactions.length > 0 && (
               <div className="border-t border-border/30 pt-3 space-y-2">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Commission</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <div className="bg-muted/30 rounded-md p-2 text-center">
                     <div className="text-[9px] uppercase text-muted-foreground">ISA Upfront</div>
                     <div className="text-sm font-bold text-foreground">£{ownFinancials.isaUpfront.toFixed(2)}</div>
-                  </div>
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">Owner Upfront</div>
-                    <div className="text-sm font-bold text-foreground">£{ownFinancials.ownerUpfront.toFixed(2)}</div>
                   </div>
                   <div className="bg-[hsl(0_70%_50%/0.1)] rounded-md p-2 text-center">
                     <div className="text-[9px] uppercase text-muted-foreground">Total Wire</div>
