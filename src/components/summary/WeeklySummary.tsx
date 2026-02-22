@@ -55,7 +55,7 @@ export function WeeklySummary() {
 
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
 
-  const isLeader = !!profile?.leader_id === false && allProfiles.some((p) => p.leader_id === profile?.id);
+  const isLeader = (userRole?.role === "leader") || (userRole?.role === "manager" && !!userRole?.super_admin);
 
   // Sales snapshot data
   const [salesLoading, setSalesLoading] = useState(true);
@@ -281,11 +281,15 @@ export function WeeklySummary() {
         .order("created_at", { ascending: true });
       if (!rows) return;
       const ids = rows.map((r) => r.id);
-      const { data: historyRows } = await supabase
-        .from("candidate_stage_history")
-        .select("*")
-        .in("candidate_id", ids.length > 0 ? ids : ["__none__"])
-        .order("changed_at", { ascending: true });
+      let historyRows: any[] = [];
+      if (ids.length > 0) {
+        const { data } = await supabase
+          .from("candidate_stage_history")
+          .select("*")
+          .in("candidate_id", ids)
+          .order("changed_at", { ascending: true });
+        historyRows = data ?? [];
+      }
       const historyMap: Record<string, any[]> = {};
       (historyRows ?? []).forEach((h) => {
         if (!historyMap[h.candidate_id]) historyMap[h.candidate_id] = [];
