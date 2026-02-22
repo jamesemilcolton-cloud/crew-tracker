@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfiles } from "@/contexts/ProfilesContext";
 import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame } from "lucide-react";
 import { startOfWeek, endOfWeek, format, subWeeks, addDays } from "date-fns";
 
@@ -68,6 +69,7 @@ interface AllTimeCrewRecord {
 
 export function Leaderboard() {
   const { user } = useAuth();
+  const { profiles: sharedProfiles, loading: profilesLoading } = useProfiles();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [salesRanking, setSalesRanking] = useState<SalesRankedEntry[]>([]);
   const [allTimeRecords, setAllTimeRecords] = useState<AllTimeRecord[]>([]);
@@ -84,15 +86,14 @@ export function Leaderboard() {
 
   useEffect(() => {
     async function fetchData() {
-      const [profilesRes, candidatesRes, activityRes, adsRes, cvsRes] = await Promise.all([
-        supabase.from("profiles").select("*"),
+      const [candidatesRes, activityRes, adsRes, cvsRes] = await Promise.all([
         supabase.from("candidates").select("*"),
         supabase.from("linkedin_activity").select("*"),
         supabase.from("ad_uploads").select("*"),
         supabase.from("cv_downloads").select("*"),
       ]);
 
-      const profiles: Profile[] = (profilesRes.data ?? []).map((p: any) => ({
+      const profiles: Profile[] = sharedProfiles.map((p) => ({
         id: p.id, user_id: p.user_id, full_name: p.full_name, crew_name: p.crew_name || "",
       }));
       const candidates = candidatesRes.data ?? [];
@@ -128,20 +129,21 @@ export function Leaderboard() {
 
       setEntries(result);
     }
-    fetchData();
-  }, []);
+    if (sharedProfiles.length > 0) fetchData();
+  }, [sharedProfiles]);
 
   // Fetch sales leaderboard data
   useEffect(() => {
     async function fetchSalesData() {
-      const [salesRes, profilesRes, rolesRes] = await Promise.all([
+      const [salesRes, rolesRes] = await Promise.all([
         supabase.from("sales_entries").select("*"),
-        supabase.from("profiles").select("id, user_id, full_name, crew_name, leader_id"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
 
       const allSales = salesRes.data ?? [];
-      const profiles = profilesRes.data ?? [];
+      const profiles = sharedProfiles.map((p) => ({
+        id: p.id, user_id: p.user_id, full_name: p.full_name, crew_name: p.crew_name || "", leader_id: p.leader_id,
+      }));
       const roles = rolesRes.data ?? [];
       const profileMap = new Map(profiles.map((p) => [p.user_id, p.full_name]));
       const profileIdToUserId = new Map(profiles.map((p) => [p.id, p.user_id]));
@@ -312,8 +314,8 @@ export function Leaderboard() {
         setAllTimeCrewRecords(crewRanked);
       }
     }
-    fetchSalesData();
-  }, [wsStr, weStr]);
+    if (sharedProfiles.length > 0) fetchSalesData();
+  }, [wsStr, weStr, sharedProfiles]);
 
   const metricRankings = useMemo(() => {
     const map: Record<Metric, LeaderboardEntry[]> = {} as any;
@@ -337,6 +339,19 @@ export function Leaderboard() {
   };
 
   const topRecord = allTimeRecords.length > 0 ? allTimeRecords[0] : null;
+
+  if (profilesLoading || (entries.length === 0 && salesRanking.length === 0)) {
+    return (
+      <div className="space-y-4">
+        <div className="h-8 w-48 bg-muted/30 rounded animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-32 bg-muted/20 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useCallback, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfiles } from "@/contexts/ProfilesContext";
 import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
@@ -53,7 +54,8 @@ export function WeeklySummary() {
   const summaryRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const { profiles: sharedProfiles, loading: profilesLoading } = useProfiles();
+  const allProfiles = sharedProfiles as Profile[];
 
   const isLeader = (userRole?.role === "leader") || (userRole?.role === "manager" && !!userRole?.super_admin);
 
@@ -259,13 +261,7 @@ export function WeeklySummary() {
     return calcSimulationWithPriority(crewMeans, crewDeviations, crewConversions);
   }, [crewMeans, crewDeviations, crewConversions]);
 
-  useEffect(() => {
-    async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("*");
-      setAllProfiles((data ?? []) as Profile[]);
-    }
-    fetchProfiles();
-  }, []);
+  // Profiles now provided by ProfilesContext - no duplicate fetch needed
 
   const thisWeek = useMemo(() => getWeekBounds(0), []);
 
@@ -441,7 +437,7 @@ export function WeeklySummary() {
     }
   }, [thisWeek]);
 
-  const loading = candidatesLoading || linkedInLoading || allCandidatesLoading;
+  const loading = candidatesLoading || linkedInLoading || allCandidatesLoading || profilesLoading;
 
   const crewName = profile ? (allProfiles.find(p => p.user_id === profile.user_id)?.crew_name || "") : "";
   const mondayLabel = format(thisWeek.start, "do MMMM yyyy");
@@ -453,10 +449,20 @@ export function WeeklySummary() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-sm text-muted-foreground">Loading summary…</div>
+      <div className="space-y-4">
+        <div className="h-8 w-64 bg-muted/30 rounded animate-pulse" />
+        <div className="grid grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-20 bg-muted/20 rounded-lg animate-pulse" />
+          ))}
+        </div>
+        <div className="h-40 bg-muted/20 rounded-lg animate-pulse" />
       </div>
     );
+  }
+
+  if (!salesLoading && ownSalesEntries.length === 0 && ownCandidates.length === 0) {
+    // Show empty state only if all data has loaded
   }
 
   return (
