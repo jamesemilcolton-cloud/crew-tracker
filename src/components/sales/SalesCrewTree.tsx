@@ -14,6 +14,7 @@ interface Profile {
   user_id: string;
   full_name: string;
   leader_id: string | null;
+  crew_name: string;
 }
 
 interface CandidateRow {

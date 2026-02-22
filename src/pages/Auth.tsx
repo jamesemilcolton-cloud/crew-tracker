@@ -26,6 +26,7 @@ export default function Auth() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [confirmPhone, setConfirmPhone] = useState("");
+  const [crewName, setCrewName] = useState("");
   const [leaderId, setLeaderId] = useState<string>("");
   const [leaders, setLeaders] = useState<LeaderOption[]>([]);
   const [error, setError] = useState("");
@@ -67,6 +68,11 @@ export default function Auth() {
     if (isSignUp) {
       if (!firstName.trim() || !lastName.trim()) {
         setError("First name and last name are required.");
+        setSubmitting(false);
+        return;
+      }
+      if (!crewName.trim()) {
+        setError("Crew Name is required.");
         setSubmitting(false);
         return;
       }
@@ -117,7 +123,7 @@ export default function Auth() {
       }
 
       const actualLeaderId = leaderId === THE_OFFICE_VALUE ? null : leaderId;
-      const { error } = await signUp(email, password, firstName.trim(), lastName.trim(), actualLeaderId, phone.trim());
+      const { error } = await signUp(email, password, firstName.trim(), lastName.trim(), actualLeaderId, crewName.trim(), phone.trim());
       if (error) setError(error.message);
     } else {
       const { error } = await signIn(email, password);
@@ -180,6 +186,10 @@ export default function Auth() {
               <div className="space-y-2">
                 <Label>Confirm Phone Number</Label>
                 <Input value={confirmPhone} onChange={(e) => setConfirmPhone(e.target.value)} placeholder="+44 7700 900000" required />
+              </div>
+              <div className="space-y-2">
+                <Label>Crew Name</Label>
+                <Input value={crewName} onChange={(e) => setCrewName(e.target.value)} required />
               </div>
             </>
           )}
