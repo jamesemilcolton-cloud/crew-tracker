@@ -1,40 +1,29 @@
-import { Candidate, STAGES_ORDER } from "@/lib/types";
-import { Calendar, HelpCircle, Trash2 } from "lucide-react";
+import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
+import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface CandidateCardProps {
   candidate: Candidate;
   onClick: (candidate: Candidate) => void;
   onDropOff?: (candidate: Candidate) => void;
+  onMoveStage?: (candidate: Candidate, direction: "forward" | "backward") => void;
 }
 
-const OFFERED_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("contact_before_start"));
+const REHASH_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("rehash"));
 const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 
-export function CandidateCard({ candidate, onClick, onDropOff }: CandidateCardProps) {
-  const showAccessIndicators = OFFERED_FORWARD_STAGES.includes(candidate.stage);
+export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: CandidateCardProps) {
+  const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
-  let isDragging = false;
+
+  const stageIdx = STAGES_ORDER.indexOf(candidate.stage);
+  const isFirst = stageIdx === 0;
+  const isLast = stageIdx === STAGES_ORDER.length - 1;
 
   return (
     <div
-      className="candidate-card animate-fade-in cursor-grab active:cursor-grabbing relative group"
-      draggable
-      onDragStart={(e) => {
-        isDragging = true;
-        e.dataTransfer.setData("candidateId", candidate.id);
-        e.dataTransfer.effectAllowed = "move";
-      }}
-      onDragEnd={() => {
-        setTimeout(() => { isDragging = false; }, 0);
-      }}
-      onClick={(e) => {
-        if (isDragging) {
-          e.preventDefault();
-          return;
-        }
-        onClick(candidate);
-      }}
+      className="candidate-card animate-fade-in relative group cursor-pointer"
+      onClick={() => onClick(candidate)}
     >
       <div className="flex items-start justify-between mb-2">
         <h4 className="font-medium text-sm text-foreground truncate flex-1">{candidate.name}</h4>
@@ -83,6 +72,42 @@ export function CandidateCard({ candidate, onClick, onDropOff }: CandidateCardPr
               EVO App{candidate.hasEvoAppAccess ? " ✓" : " ?"}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Stage navigation arrows */}
+      {onMoveStage && (
+        <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-border/30">
+          {!isFirst ? (
+            <button
+              className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/50"
+              title={`Move to ${STAGES_ORDER[stageIdx - 1]}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveStage(candidate, "backward");
+              }}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+          ) : (
+            <div />
+          )}
+          {!isLast ? (
+            <button
+              className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/50"
+              title={`Move to ${STAGES_ORDER[stageIdx + 1]}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveStage(candidate, "forward");
+              }}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <div />
+          )}
         </div>
       )}
     </div>

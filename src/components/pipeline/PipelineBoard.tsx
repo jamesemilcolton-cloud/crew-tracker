@@ -31,14 +31,14 @@ interface PipelineBoardProps {
   onArchiveCandidate: (id: string) => Promise<void>;
   onDropCandidate: (id: string, reason: string) => Promise<void>;
   onRestoreCandidate: (id: string) => Promise<void>;
+  onMoveStage: (candidate: Candidate, direction: "forward" | "backward") => Promise<void>;
   loading?: boolean;
   onDataDeleted?: () => void;
   signupDate?: Date;
 }
 
-export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, onDropCandidate, onRestoreCandidate, loading, onDataDeleted, signupDate }: PipelineBoardProps) {
+export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, onDropCandidate, onRestoreCandidate, onMoveStage, loading, onDataDeleted, signupDate }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -47,7 +47,6 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   const [dropping, setDropping] = useState(false);
   const { user } = useAuth();
 
-  // Split candidates into active (pipeline) and dropped
   const activeCandidates = useMemo(() => candidates.filter(c => c.status !== "Dropped" && c.status !== "dropped"), [candidates]);
   const droppedCandidates = useMemo(() => candidates.filter(c => c.status === "Dropped" || c.status === "dropped"), [candidates]);
 
@@ -89,31 +88,13 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     setSelectedCandidate(null);
   };
 
-  const handleDrop = useCallback(async (targetStage: PipelineStage, e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverStage(null);
-    const candidateId = e.dataTransfer.getData("candidateId");
-    if (!candidateId) return;
-    const c = candidates.find((c) => c.id === candidateId);
-    if (!c || c.stage === targetStage) return;
-    const currentIdx = STAGES_ORDER.indexOf(c.stage);
-    const targetIdx = STAGES_ORDER.indexOf(targetStage);
-    if (targetIdx <= currentIdx) return;
-    const stageChange: StageChange = { from: c.stage, to: targetStage, date: new Date().toISOString().split("T")[0] };
-    const updatedStartDate = (targetStage === "start" && !c.potentialStartDate) ? new Date().toISOString().split("T")[0] : c.potentialStartDate;
-    await onUpdateCandidate(candidateId, {
-      stage: targetStage,
-      potentialStartDate: targetStage === "start" ? (c.potentialStartDate || new Date().toISOString().split("T")[0]) : updatedStartDate,
-    }, stageChange);
-  }, [candidates, onUpdateCandidate]);
-
-  const handleDragOver = useCallback((stage: PipelineStage, e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverStage(stage);
-  }, []);
-
-  const handleDragLeave = useCallback(() => { setDragOverStage(null); }, []);
+  const handleMoveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward") => {
+    try {
+      await onMoveStage(candidate, direction);
+    } catch {
+      toast.error("Failed to move candidate");
+    }
+  }, [onMoveStage]);
 
   const handleConfirmDropOff = async () => {
     if (!dropOffCandidate || !dropOffReason.trim()) return;
@@ -249,9 +230,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         </DialogContent>
       </Dialog>
 
-      {/* MOBILE: stacked single-column layout / DESKTOP: original layout */}
-
-      {/* 1. Upcoming Starts — full width on mobile, bottom-right on desktop */}
+      {/* MOBILE: stacked layout */}
       <div className="md:hidden">
         <div className="glass-panel p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -285,23 +264,15 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         </div>
       </div>
 
-      {/* 2. Funnel Analytics — full width on mobile */}
       <div className="md:hidden">
         <PipelineAnalytics candidates={candidates} trendRange={trendRange} signupDate={signupDate} />
       </div>
 
-      {/* 3. Pipeline stages — vertical stack on mobile, horizontal board on desktop */}
+      {/* DESKTOP pipeline board — no drag & drop */}
       <div className="hidden md:flex gap-4 overflow-hidden">
-        {/* Desktop pipeline board */}
         <div className="flex gap-3 overflow-x-auto flex-1 pb-2 custom-scrollbar">
           {columns.map(({ stage, config, candidates: stageCandidates }) => (
-            <div
-              key={stage}
-              className={`pipeline-column flex-shrink-0 transition-all duration-200 ${dragOverStage === stage ? "ring-2 ring-primary/50 bg-primary/5" : ""}`}
-              onDrop={(e) => handleDrop(stage, e)}
-              onDragOver={(e) => handleDragOver(stage, e)}
-              onDragLeave={handleDragLeave}
-            >
+            <div key={stage} className="pipeline-column flex-shrink-0">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(var(${config.colorVar}))` }} />
                 <h3 className="text-xs font-medium text-foreground">{config.label}</h3>
@@ -309,7 +280,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
               </div>
               <div className="space-y-0 max-h-[55vh] overflow-y-auto custom-scrollbar">
                 {stageCandidates.map((candidate) => (
-                  <CandidateCard key={candidate.id} candidate={candidate} onClick={setSelectedCandidate} onDropOff={setDropOffCandidate} />
+                  <CandidateCard key={candidate.id} candidate={candidate} onClick={setSelectedCandidate} onDropOff={setDropOffCandidate} onMoveStage={handleMoveStage} />
                 ))}
                 {stageCandidates.length === 0 && (
                   <div className="text-[11px] text-muted-foreground text-center py-6 opacity-50">No candidates</div>
@@ -325,16 +296,10 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         )}
       </div>
 
-      {/* Mobile pipeline stages — vertical stack */}
+      {/* Mobile pipeline stages */}
       <div className="md:hidden space-y-3 overflow-x-hidden">
         {columns.map(({ stage, config, candidates: stageCandidates }) => (
-          <div
-            key={stage}
-            className={`glass-panel p-3 transition-all duration-200 ${dragOverStage === stage ? "ring-2 ring-primary/50 bg-primary/5" : ""}`}
-            onDrop={(e) => handleDrop(stage, e)}
-            onDragOver={(e) => handleDragOver(stage, e)}
-            onDragLeave={handleDragLeave}
-          >
+          <div key={stage} className="glass-panel p-3">
             <div className="flex items-center gap-2 mb-2 px-1">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `hsl(var(${config.colorVar}))` }} />
               <h3 className="text-xs font-medium text-foreground">{config.label}</h3>
@@ -342,7 +307,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
             </div>
             <div className="space-y-1">
               {stageCandidates.map((candidate) => (
-                <CandidateCard key={candidate.id} candidate={candidate} onClick={setSelectedCandidate} onDropOff={setDropOffCandidate} />
+                <CandidateCard key={candidate.id} candidate={candidate} onClick={setSelectedCandidate} onDropOff={setDropOffCandidate} onMoveStage={handleMoveStage} />
               ))}
               {stageCandidates.length === 0 && (
                 <div className="text-[11px] text-muted-foreground text-center py-4 opacity-50">No candidates</div>
@@ -355,7 +320,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         )}
       </div>
 
-      {/* DESKTOP BOTTOM: Funnel + Upcoming Starts side by side */}
+      {/* DESKTOP BOTTOM: Funnel + Upcoming Starts */}
       <div className="hidden md:flex gap-4">
         <div className="flex-1 min-w-0">
           <PipelineAnalytics candidates={candidates} trendRange={trendRange} signupDate={signupDate} />

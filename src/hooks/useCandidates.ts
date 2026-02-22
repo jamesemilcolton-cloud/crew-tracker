@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Candidate, PipelineStage, StageChange } from "@/lib/types";
+import { Candidate, PipelineStage, StageChange, STAGES_ORDER } from "@/lib/types";
 
 function rowToCandidate(row: any, history: any[]): Candidate {
   return {
@@ -42,7 +42,6 @@ export function useCandidates(scope: "own" | "all" = "own") {
     if (scope === "own") {
       query = query.eq("user_id", user.id);
     }
-    // Exclude archived candidates from active views
     query = query.is("archived_at", null);
     const { data: rows } = await query.order("created_at", { ascending: true });
 
@@ -124,6 +123,43 @@ export function useCandidates(scope: "own" | "all" = "own") {
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
+  /** Move candidate one stage forward or backward with data corrections */
+  const moveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward") => {
+    if (!user) return;
+    const currentIdx = STAGES_ORDER.indexOf(candidate.stage);
+    const targetIdx = direction === "forward" ? currentIdx + 1 : currentIdx - 1;
+    if (targetIdx < 0 || targetIdx >= STAGES_ORDER.length) return;
+
+    const targetStage = STAGES_ORDER[targetIdx];
+    const dbUpdates: any = { stage: targetStage };
+
+    // Data corrections for backward moves
+    if (direction === "backward") {
+      // If moving back from "start" or later to before "start", clear start date
+      const startIdx = STAGES_ORDER.indexOf("start");
+      if (currentIdx >= startIdx && targetIdx < startIdx) {
+        dbUpdates.potential_start_date = null;
+      }
+    }
+
+    // If moving forward to "start" and no start date, set it
+    if (direction === "forward" && targetStage === "start" && !candidate.potentialStartDate) {
+      dbUpdates.potential_start_date = new Date().toISOString().split("T")[0];
+    }
+
+    await supabase.from("candidates").update(dbUpdates).eq("id", candidate.id).eq("user_id", user.id);
+
+    // Record stage history
+    await supabase.from("candidate_stage_history").insert({
+      candidate_id: candidate.id,
+      from_stage: candidate.stage,
+      to_stage: targetStage,
+      note: direction === "backward" ? "Moved backward" : null,
+    });
+
+    await fetchCandidates();
+  }, [user, fetchCandidates]);
+
   const archiveCandidate = useCallback(async (id: string) => {
     if (!user) return;
     await supabase.from("candidates").update({ archived_at: new Date().toISOString() }).eq("id", id);
@@ -157,5 +193,5 @@ export function useCandidates(scope: "own" | "all" = "own") {
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
-  return { candidates, loading, addCandidate, updateCandidate, archiveCandidate, dropCandidate, restoreCandidate, refetch: fetchCandidates };
+  return { candidates, loading, addCandidate, updateCandidate, moveStage, archiveCandidate, dropCandidate, restoreCandidate, refetch: fetchCandidates };
 }
