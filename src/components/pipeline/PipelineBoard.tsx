@@ -6,12 +6,9 @@ import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm } from "./NewCandidateForm";
 import { Calendar, Clock, Trash2, RotateCcw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -33,19 +29,14 @@ interface PipelineBoardProps {
   onRestoreCandidate: (id: string) => Promise<void>;
   onMoveStage: (candidate: Candidate, direction: "forward" | "backward") => Promise<void>;
   loading?: boolean;
-  onDataDeleted?: () => void;
   signupDate?: Date;
 }
 
-export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, onDropCandidate, onRestoreCandidate, onMoveStage, loading, onDataDeleted, signupDate }: PipelineBoardProps) {
+export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdateCandidate, onArchiveCandidate, onDropCandidate, onRestoreCandidate, onMoveStage, loading, signupDate }: PipelineBoardProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleting, setDeleting] = useState(false);
   const [dropOffCandidate, setDropOffCandidate] = useState<Candidate | null>(null);
   const [dropOffReason, setDropOffReason] = useState("");
   const [dropping, setDropping] = useState(false);
-  const { user } = useAuth();
 
   const activeCandidates = useMemo(() => candidates.filter(c => c.status !== "Dropped" && c.status !== "dropped"), [candidates]);
   const droppedCandidates = useMemo(() => candidates.filter(c => c.status === "Dropped" || c.status === "dropped"), [candidates]);
@@ -120,78 +111,13 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     }
   };
 
-  const handleDeleteAllData = async () => {
-    if (!user || deleteConfirm !== "DELETE") return;
-    setDeleting(true);
-    try {
-      const { data: myAds } = await supabase.from("ad_uploads").select("id").eq("user_id", user.id);
-      const adIds = (myAds ?? []).map(a => a.id);
-      if (adIds.length > 0) {
-        await supabase.from("cv_downloads").delete().in("ad_upload_id", adIds);
-      }
-      await supabase.from("cv_downloads").delete().eq("user_id", user.id);
-      const { data: myCandidates } = await supabase.from("candidates").select("id").eq("user_id", user.id);
-      const candidateIds = (myCandidates ?? []).map(c => c.id);
-      if (candidateIds.length > 0) {
-        await supabase.from("candidate_stage_history").delete().in("candidate_id", candidateIds);
-      }
-      await supabase.from("candidates").delete().eq("user_id", user.id);
-      await supabase.from("linkedin_activity").delete().eq("user_id", user.id);
-      await supabase.from("ad_uploads").delete().eq("user_id", user.id);
-      toast.success("All your data has been deleted.");
-      setDeleteOpen(false);
-      setDeleteConfirm("");
-      onDataDeleted?.();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete data.");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading pipeline...</div>;
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between px-1">
-        <Dialog open={deleteOpen} onOpenChange={(open) => { setDeleteOpen(open); if (!open) setDeleteConfirm(""); }}>
-          <DialogTrigger asChild>
-            <Button variant="destructive" size="sm" className="gap-2">
-              <Trash2 className="w-4 h-4" />
-              Delete All My Data
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete All My Data</DialogTitle>
-              <DialogDescription>
-                This will permanently delete all your candidates, LinkedIn logs, crew members, and activity history. This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <p className="text-sm text-muted-foreground">Type <span className="font-mono font-bold text-foreground">DELETE</span> to confirm:</p>
-              <Input
-                value={deleteConfirm}
-                onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder="Type DELETE"
-                className="font-mono"
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-              <Button
-                variant="destructive"
-                disabled={deleteConfirm !== "DELETE" || deleting}
-                onClick={handleDeleteAllData}
-              >
-                {deleting ? "Deleting…" : "Permanently Delete"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <div className="flex items-center justify-end px-1">
         <NewCandidateForm onAdd={handleAdd} />
       </div>
 
