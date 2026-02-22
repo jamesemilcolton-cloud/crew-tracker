@@ -22,7 +22,6 @@ interface Profile {
   user_id: string;
   full_name: string;
   leader_id: string | null;
-  crew_name: string;
 }
 
 /** Map pipeline stage to a display role label */
@@ -587,11 +586,8 @@ export function WeeklySummary() {
 
   const loading = candidatesLoading || linkedInLoading || allCandidatesLoading || profilesLoading;
 
-  const crewName = profile ? (allProfiles.find(p => p.user_id === profile.user_id)?.crew_name || "") : "";
   const mondayLabel = format(thisWeek.start, "do MMMM yyyy");
-  const summaryTitle = crewName
-    ? `${crewName} – Week Commencing ${mondayLabel} Summary`
-    : `Week Commencing ${mondayLabel} Summary`;
+  const summaryTitle = `Week Commencing ${mondayLabel} Summary`;
 
   const dateLabel = `${format(thisWeek.start, "do MMM")} – ${format(thisWeek.end, "do MMM yyyy")}`;
 

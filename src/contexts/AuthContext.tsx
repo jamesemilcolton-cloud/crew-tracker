@@ -6,8 +6,9 @@ interface Profile {
   id: string;
   user_id: string;
   full_name: string;
+  first_name: string;
+  last_name: string;
   leader_id: string | null;
-  crew_name: string;
   created_at: string;
   phone: string;
 }
@@ -25,7 +26,7 @@ interface AuthContextType {
   profile: Profile | null;
   userRole: UserRole | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, leaderId: string | null, crewName: string, phone: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string, leaderId: string | null, phone: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refetchRole: () => Promise<void>;
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, leaderId: string | null, crewName: string, phone: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string, leaderId: string | null, phone: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -102,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: data.user.id,
-        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
+        full_name: `${firstName} ${lastName}`.trim(),
         leader_id: leaderId || null,
-        crew_name: crewName,
         phone: phone,
       });
       if (profileError) return { error: profileError };

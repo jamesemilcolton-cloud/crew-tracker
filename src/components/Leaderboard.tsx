@@ -9,7 +9,6 @@ interface Profile {
   id: string;
   user_id: string;
   full_name: string;
-  crew_name: string;
 }
 
 interface LeaderboardEntry {
@@ -94,7 +93,7 @@ export function Leaderboard() {
       ]);
 
       const profiles: Profile[] = sharedProfiles.map((p) => ({
-        id: p.id, user_id: p.user_id, full_name: p.full_name, crew_name: p.crew_name || "",
+        id: p.id, user_id: p.user_id, full_name: p.full_name,
       }));
       const candidates = candidatesRes.data ?? [];
       const activities = activityRes.data ?? [];
@@ -116,7 +115,7 @@ export function Leaderboard() {
         return {
           profileId: p.id,
           name: p.full_name,
-          crewName: p.crew_name,
+          crewName: "",
           adsUploaded: userAds.length,
           cvsDownloaded: userCvs.reduce((s, c) => s + c.count, 0),
           secondRoundsLinkedIn: userActivities.reduce((s, a) => s + a.candidates_attending_2nd_round, 0),
@@ -142,7 +141,7 @@ export function Leaderboard() {
 
       const allSales = salesRes.data ?? [];
       const profiles = sharedProfiles.map((p) => ({
-        id: p.id, user_id: p.user_id, full_name: p.full_name, crew_name: p.crew_name || "", leader_id: p.leader_id,
+        id: p.id, user_id: p.user_id, full_name: p.full_name, leader_id: p.leader_id,
       }));
       const roles = rolesRes.data ?? [];
       const profileMap = new Map(profiles.map((p) => [p.user_id, p.full_name]));
@@ -223,7 +222,7 @@ export function Leaderboard() {
         return {
           userId: p.user_id,
           name: p.full_name,
-          crewName: p.crew_name || "",
+          crewName: "",
           crewSales: calcCrewSales(p, userTotals),
           rank: 0,
           hasTeam,

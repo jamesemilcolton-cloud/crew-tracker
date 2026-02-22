@@ -13,15 +13,19 @@ interface LeaderOption {
   full_name: string;
 }
 
+const THE_OFFICE_VALUE = "__the_office__";
+
 export default function Auth() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [crewName, setCrewName] = useState("");
+  const [confirmPhone, setConfirmPhone] = useState("");
   const [leaderId, setLeaderId] = useState<string>("");
   const [leaders, setLeaders] = useState<LeaderOption[]>([]);
   const [error, setError] = useState("");
@@ -61,8 +65,8 @@ export default function Auth() {
     setSubmitting(true);
 
     if (isSignUp) {
-      if (!crewName.trim()) {
-        setError("Crew Name is required.");
+      if (!firstName.trim() || !lastName.trim()) {
+        setError("First name and last name are required.");
         setSubmitting(false);
         return;
       }
@@ -71,8 +75,18 @@ export default function Auth() {
         setSubmitting(false);
         return;
       }
-      if (!leaderId || leaderId === "none") {
-        setError("You must select a leader.");
+      if (phone.trim() !== confirmPhone.trim()) {
+        setError("Phone numbers do not match.");
+        setSubmitting(false);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        setSubmitting(false);
+        return;
+      }
+      if (!leaderId) {
+        setError("You must select a leader or 'The Office'.");
         setSubmitting(false);
         return;
       }
@@ -102,7 +116,8 @@ export default function Auth() {
         return;
       }
 
-      const { error } = await signUp(email, password, fullName, leaderId, crewName.trim(), phone.trim());
+      const actualLeaderId = leaderId === THE_OFFICE_VALUE ? null : leaderId;
+      const { error } = await signUp(email, password, firstName.trim(), lastName.trim(), actualLeaderId, phone.trim());
       if (error) setError(error.message);
     } else {
       const { error } = await signIn(email, password);
@@ -147,9 +162,15 @@ export default function Auth() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <>
-              <div className="space-y-2">
-                <Label>Full Name</Label>
-                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>First Name</Label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Name</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Phone Number</Label>
@@ -157,9 +178,8 @@ export default function Auth() {
                 <p className="text-[11px] text-muted-foreground">Must match your phone number in an existing recruitment pipeline.</p>
               </div>
               <div className="space-y-2">
-                <Label>Crew Name</Label>
-                <Input value={crewName} onChange={(e) => setCrewName(e.target.value)} placeholder="e.g. Alpha Crew" required />
-                <p className="text-[11px] text-muted-foreground">This will be displayed across the app alongside your name.</p>
+                <Label>Confirm Phone Number</Label>
+                <Input value={confirmPhone} onChange={(e) => setConfirmPhone(e.target.value)} placeholder="+44 7700 900000" required />
               </div>
             </>
           )}
@@ -175,20 +195,27 @@ export default function Auth() {
           </div>
 
           {isSignUp && (
-            <div className="space-y-2">
-              <Label>Select Your Leader</Label>
-              <Select value={leaderId} onValueChange={setLeaderId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose your leader" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leaders.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">Choose the leader you report to in the organisation hierarchy.</p>
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label>Confirm Password</Label>
+                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+              </div>
+              <div className="space-y-2">
+                <Label>Select Your Leader</Label>
+                <Select value={leaderId} onValueChange={setLeaderId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose your leader" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={THE_OFFICE_VALUE}>The Office</SelectItem>
+                    {leaders.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">Select your leader, or choose "The Office" if unassigned.</p>
+              </div>
+            </>
           )}
 
           {error && (
