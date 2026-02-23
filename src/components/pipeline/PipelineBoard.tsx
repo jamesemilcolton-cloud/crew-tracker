@@ -82,8 +82,10 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   const handleMoveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward") => {
     try {
       await onMoveStage(candidate, direction);
-    } catch {
-      toast.error("Failed to move candidate");
+      toast.success(`Moved ${candidate.name} ${direction}`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to move candidate");
+      throw err; // re-throw so CandidateCard knows it failed
     }
   }, [onMoveStage]);
 

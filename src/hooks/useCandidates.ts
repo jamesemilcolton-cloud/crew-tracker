@@ -129,7 +129,7 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
   /** Move candidate one stage forward or backward with data corrections */
   const moveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward") => {
-    if (!user) return;
+    if (!user) throw new Error("Not authenticated");
     const currentIdx = STAGES_ORDER.indexOf(candidate.stage);
     const targetIdx = direction === "forward" ? currentIdx + 1 : currentIdx - 1;
     if (targetIdx < 0 || targetIdx >= STAGES_ORDER.length) return;
@@ -139,7 +139,6 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
     // Data corrections for backward moves
     if (direction === "backward") {
-      // If moving back from "start" or later to before "start", clear start date
       const startIdx = STAGES_ORDER.indexOf("start");
       if (currentIdx >= startIdx && targetIdx < startIdx) {
         dbUpdates.potential_start_date = null;
@@ -151,10 +150,15 @@ export function useCandidates(scope: "own" | "all" = "own") {
       dbUpdates.potential_start_date = new Date().toISOString().split("T")[0];
     }
 
-    const { error: updateError } = await supabase.from("candidates").update(dbUpdates).eq("id", candidate.id).eq("user_id", user.id);
+    const { error: updateError } = await supabase
+      .from("candidates")
+      .update(dbUpdates)
+      .eq("id", candidate.id)
+      .eq("user_id", user.id);
+
     if (updateError) {
       console.error("moveStage update error:", updateError);
-      throw updateError;
+      throw new Error(updateError.message);
     }
 
     // Record stage history
