@@ -120,15 +120,16 @@ export function Leaderboard() {
 
       const START_FORWARD = ["start", "solo", "promoted"];
 
-      // Exclude managers/super_admins from recruitment leaderboard
+      // Exclude managers/super_admins AND brand ambassadors from recruitment leaderboard
+      // Only leaders (including promoted leaders) should appear in recruitment records
       const [rolesForRecruitment] = await Promise.all([
         supabase.from("user_roles").select("user_id, role, super_admin"),
       ]);
       const recruitRoles = rolesForRecruitment.data ?? [];
-      const managerUserIds = new Set(
-        recruitRoles.filter((r) => r.role === "manager").map((r) => r.user_id)
+      const leaderUserIds = new Set(
+        recruitRoles.filter((r) => r.role === "leader").map((r) => r.user_id)
       );
-      const nonManagerProfiles = profiles.filter((p) => !managerUserIds.has(p.user_id));
+      const nonManagerProfiles = profiles.filter((p) => leaderUserIds.has(p.user_id));
 
       const result: LeaderboardEntry[] = nonManagerProfiles.map((p) => {
         const userCandidates = candidates.filter((c) => c.user_id === p.user_id);
@@ -440,7 +441,7 @@ export function Leaderboard() {
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><PoundSterling className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">Top Individual Profit</span>
+              <span className="text-xs font-medium text-muted-foreground">Top Individual Profit (Rep Profit)</span>
             </div>
             <div className="divide-y divide-border/30">
               {profitRanking.map((entry) => {
@@ -465,7 +466,7 @@ export function Leaderboard() {
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">Top Crew Profit</span>
+              <span className="text-xs font-medium text-muted-foreground">Top Crew Profit (Total Wire)</span>
             </div>
             {crewProfitRanking.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
@@ -499,7 +500,7 @@ export function Leaderboard() {
         <div className="glass-panel p-4">
           <div className="flex items-center gap-2 mb-3">
             <div className="text-muted-foreground"><Users className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-            <span className="text-xs font-medium text-muted-foreground">Average Profit Per Agent</span>
+            <span className="text-xs font-medium text-muted-foreground">Average Profit Per Agent (Rep Profit)</span>
           </div>
           {crewAvgProfitRanking.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">No leaders/managers yet</p>
@@ -540,7 +541,7 @@ export function Leaderboard() {
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">All Time Weekly Individual Profit Record</span>
+              <span className="text-xs font-medium text-muted-foreground">All Time Weekly Individual Profit Record (Rep Profit)</span>
             </div>
             {!topProfitRecord ? (
               <p className="text-xs text-muted-foreground text-center py-4">No data</p>
@@ -569,7 +570,7 @@ export function Leaderboard() {
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="text-muted-foreground"><Trophy className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} /></div>
-              <span className="text-xs font-medium text-muted-foreground">All Time Weekly Crew Profit Record</span>
+              <span className="text-xs font-medium text-muted-foreground">All Time Weekly Crew Profit Record (Total Wire)</span>
             </div>
             {allTimeCrewProfitRecords.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">No data</p>

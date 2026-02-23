@@ -405,7 +405,7 @@ export function WeeklySummary() {
     }).reduce((sum, c) => sum + c.count, 0);
     const linkedInObs = allOwnCandidates.filter((c) => {
       const created = new Date(c.createdAt);
-      return c.source === "LinkedIn" && created >= thisWeek.start && created <= thisWeek.end;
+      return c.source?.toLowerCase() === "linkedin" && created >= thisWeek.start && created <= thisWeek.end;
     }).length;
     return { freeAds, paidAds, cvs, linkedInObs };
   }, [adUploads, cvDownloads, thisWeek, thisWeekCounts]);
