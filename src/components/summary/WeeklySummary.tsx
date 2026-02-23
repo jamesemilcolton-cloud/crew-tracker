@@ -25,6 +25,7 @@ interface Profile {
   full_name: string;
   leader_id: string | null;
   crew_name: string;
+  phone: string;
 }
 
 /** Map pipeline stage to a display role label */
@@ -414,38 +415,70 @@ export function WeeklySummary() {
   const crewSummary = useMemo(() => {
     if ((!isLeader && !isManager) || !profile) return null;
 
-    // Recursive descendant resolution (excluding leader themselves)
-    const descendantIds = getDescendantProfileIds(profile.id, allProfiles);
-    descendantIds.delete(profile.id); // exclude the leader
-    const headCount = descendantIds.size;
+    // Helper: check if a candidate is NOT dropped
+    const isNotDropped = (c: Candidate) =>
+      c.status?.toLowerCase() !== "dropped" && !c.archivedAt && !c.dropOffDate;
 
-    // Subtree candidates (all generations)
-    const subtreeCandidates = allCandidates.filter((c) => c.recruitedBy && descendantIds.has(c.recruitedBy));
-    // Also include direct recruits of the leader
+    // Recursive descendant profile IDs (inclusive of self)
+    const descendantIds = getDescendantProfileIds(profile.id, allProfiles);
+
+    // All subtree candidates: recruited by anyone in the subtree (including leader's own recruits)
     const allSubtreeCandidates = allCandidates.filter(
-      (c) => c.recruitedBy === profile.id || (c.recruitedBy && descendantIds.has(c.recruitedBy))
+      (c) => c.recruitedBy && descendantIds.has(c.recruitedBy)
     );
 
-    const activeTeam = allSubtreeCandidates.filter((c) => ["start", "solo", "promoted"].includes(c.stage));
+    // 1. HEADCOUNT: candidates at start/solo/promoted, not dropped
+    const activeTeam = allSubtreeCandidates.filter(
+      (c) => ["start", "solo", "promoted"].includes(c.stage) && isNotDropped(c)
+    );
+    const headCount = activeTeam.length;
+
+    // 4. BRAND AMBASSADORS: active team at start or solo
     const brandAmbassadors = activeTeam.filter((c) => c.stage === "start" || c.stage === "solo").length;
+
+    // 5. LEADERS: active team at promoted (includes current leader if they have a matching candidate)
     const leaders = activeTeam.filter((c) => c.stage === "promoted").length;
 
-    const startsThisWeek = countInRange(allSubtreeCandidates, "start", thisWeek.start, thisWeek.end);
-    const promotionsThisWeek = countInRange(allSubtreeCandidates, "promoted", thisWeek.start, thisWeek.end);
+    // 6. TEAM STARTS THIS WEEK: unique candidates with a history entry "to: start" this week
+    const startsThisWeek = allSubtreeCandidates.filter((c) => {
+      if (!isNotDropped(c)) return false;
+      return c.history.some((h) => {
+        const d = parseISO(h.date);
+        return h.to === "start" && d >= thisWeek.start && d <= thisWeek.end;
+      });
+    }).length;
 
-    // HCS: unique crew members with ≥1 sale this week (from crewSalesEntries)
+    // 7. TEAM PROMOTIONS THIS WEEK: unique candidates with history entry "to: promoted" this week
+    const promotionsThisWeek = allSubtreeCandidates.filter((c) => {
+      if (!isNotDropped(c)) return false;
+      return c.history.some((h) => {
+        const d = parseISO(h.date);
+        return h.to === "promoted" && d >= thisWeek.start && d <= thisWeek.end;
+      });
+    }).length;
+
+    // 2. HCS: crew members at solo+ with ≥1 sale this week
+    // Build phone→candidate stage map for active candidates at solo+
+    const soloOrAbovePhones = new Set(
+      activeTeam.filter((c) => ["solo", "promoted"].includes(c.stage)).map((c) => c.phone).filter(Boolean)
+    );
+    // Get user_ids of crew members at solo+ by matching profile phone to candidate phone
+    const soloUserIds = new Set(
+      allProfiles
+        .filter((p) => descendantIds.has(p.id) && p.phone && soloOrAbovePhones.has(p.phone))
+        .map((p) => p.user_id)
+    );
+    // Count those with ≥1 sale this week
     const sellingUserIds = new Set<string>();
     crewSalesEntries.forEach((entry: any) => {
       if ((entry.sales || 0) >= 1) sellingUserIds.add(entry.user_id);
     });
-    // Only count crew members (not the leader themselves)
-    const descendantUserIds = new Set(
-      allProfiles.filter((p) => descendantIds.has(p.id)).map((p) => p.user_id)
-    );
-    const hcs = [...sellingUserIds].filter((uid) => descendantUserIds.has(uid)).length;
+    const hcs = [...sellingUserIds].filter((uid) => soloUserIds.has(uid)).length;
 
-    // Potential New Starts: candidates in "offered" stage within recursive subtree
-    const potentialNewStarts = allSubtreeCandidates.filter((c) => c.stage === "contact_before_start" && !c.archivedAt).length;
+    // 3. POTENTIAL NEW STARTS: candidates in rehash or contact_before_start, not dropped
+    const potentialNewStarts = allSubtreeCandidates.filter(
+      (c) => (c.stage === "contact_before_start" || c.stage === "rehash") && isNotDropped(c)
+    ).length;
 
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
   }, [isLeader, isManager, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
