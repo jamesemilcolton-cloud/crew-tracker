@@ -1,18 +1,23 @@
-import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
-import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
+import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface CandidateCardProps {
   candidate: Candidate;
   onClick: (candidate: Candidate) => void;
   onDropOff?: (candidate: Candidate) => void;
-  onMoveStage?: (candidate: Candidate, direction: "forward" | "backward") => void;
+  onMoveStage?: (candidate: Candidate, direction: "forward" | "backward") => Promise<void>;
 }
 
 const REHASH_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("rehash"));
 const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 
 export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: CandidateCardProps) {
+  const [moving, setMoving] = useState<"forward" | "backward" | null>(null);
+  const [pulse, setPulse] = useState(false);
+
   const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
 
@@ -20,9 +25,25 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
   const isFirst = stageIdx === 0;
   const isLast = stageIdx === STAGES_ORDER.length - 1;
 
+  const handleMove = async (e: React.MouseEvent, direction: "forward" | "backward") => {
+    e.stopPropagation();
+    if (moving || !onMoveStage) return;
+    setMoving(direction);
+    try {
+      await onMoveStage(candidate, direction);
+      setPulse(true);
+      setTimeout(() => setPulse(false), 500);
+    } finally {
+      setMoving(null);
+    }
+  };
+
   return (
     <div
-      className="candidate-card animate-fade-in relative group cursor-pointer"
+      className={cn(
+        "candidate-card animate-fade-in relative group cursor-pointer transition-all",
+        pulse && "ring-2 ring-primary/50 scale-[1.02]"
+      )}
       onClick={() => onClick(candidate)}
     >
       <div className="flex items-start justify-between mb-2">
@@ -80,14 +101,19 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
         <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-border/30">
           {!isFirst ? (
             <button
-              className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/50"
-              title={`Move to ${STAGES_ORDER[stageIdx - 1]}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoveStage(candidate, "backward");
-              }}
+              className={cn(
+                "flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/50",
+                moving && "pointer-events-none opacity-50"
+              )}
+              title={`Move to ${STAGE_CONFIG[STAGES_ORDER[stageIdx - 1]].label}`}
+              disabled={!!moving}
+              onClick={(e) => handleMove(e, "backward")}
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              {moving === "backward" ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ChevronLeft className="w-3.5 h-3.5" />
+              )}
               <span className="hidden sm:inline">Back</span>
             </button>
           ) : (
@@ -95,15 +121,20 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
           )}
           {!isLast ? (
             <button
-              className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/50"
-              title={`Move to ${STAGES_ORDER[stageIdx + 1]}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoveStage(candidate, "forward");
-              }}
+              className={cn(
+                "flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted/50",
+                moving && "pointer-events-none opacity-50"
+              )}
+              title={`Move to ${STAGE_CONFIG[STAGES_ORDER[stageIdx + 1]].label}`}
+              disabled={!!moving}
+              onClick={(e) => handleMove(e, "forward")}
             >
               <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              {moving === "forward" ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
             </button>
           ) : (
             <div />
