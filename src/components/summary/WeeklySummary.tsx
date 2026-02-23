@@ -431,13 +431,15 @@ export function WeeklySummary() {
     const activeTeam = allSubtreeCandidates.filter(
       (c) => ["start", "solo", "promoted"].includes(c.stage) && isNotDropped(c)
     );
-    const headCount = activeTeam.length;
+    // Include the current user themselves (they are a leader, so they've reached start+)
+    // +1 for self
+    const headCount = activeTeam.length + 1;
 
-    // 4. BRAND AMBASSADORS: active team at start or solo
+    // 4. BRAND AMBASSADORS: active team at start or solo (self is leader, not BA)
     const brandAmbassadors = activeTeam.filter((c) => c.stage === "start" || c.stage === "solo").length;
 
-    // 5. LEADERS: active team at promoted (includes current leader if they have a matching candidate)
-    const leaders = activeTeam.filter((c) => c.stage === "promoted").length;
+    // 5. LEADERS: active team at promoted + self (current user is a leader)
+    const leaders = activeTeam.filter((c) => c.stage === "promoted").length + 1;
 
     // 6. TEAM STARTS THIS WEEK: unique candidates with a history entry "to: start" this week
     const startsThisWeek = allSubtreeCandidates.filter((c) => {
@@ -468,6 +470,8 @@ export function WeeklySummary() {
         .filter((p) => descendantIds.has(p.id) && p.phone && soloOrAbovePhones.has(p.phone))
         .map((p) => p.user_id)
     );
+    // Also include the current user (leader) — they are solo+ by definition
+    if (user) soloUserIds.add(user.id);
     // Count those with ≥1 sale this week
     const sellingUserIds = new Set<string>();
     crewSalesEntries.forEach((entry: any) => {
