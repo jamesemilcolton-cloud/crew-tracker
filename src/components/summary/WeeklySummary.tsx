@@ -8,7 +8,7 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target } from "lucide-react";
+import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target, Lock } from "lucide-react";
 import {
   CrewBubbleSnapshot,
   getDescendantProfileIds,
@@ -950,8 +950,8 @@ export function WeeklySummary() {
           </CardContent>
         </Card>
 
-        {/* SECTION 3: Crew Summary (Leaders + Managers) */}
-        {(isLeader || isManager) && crewSummary && (
+        {/* SECTION 3: Crew Summary */}
+        {(isLeader || isManager) && crewSummary ? (
           <Card className="border-border/50 bg-card/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -960,7 +960,6 @@ export function WeeklySummary() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Top row: Head Count, HCS, Potential New Starts */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                 {[
                   { label: "Head Count", value: crewSummary.headCount },
@@ -973,7 +972,6 @@ export function WeeklySummary() {
                   </div>
                 ))}
               </div>
-              {/* Bottom row: existing breakdown */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   { label: "Brand Ambassadors", value: crewSummary.brandAmbassadors },
@@ -989,43 +987,90 @@ export function WeeklySummary() {
               </div>
             </CardContent>
           </Card>
+        ) : !isManager && (
+          <Card className="border-border/50 bg-card/80 relative overflow-hidden">
+            <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2">
+              <Lock className="w-5 h-5 text-muted-foreground/60" />
+              <p className="text-xs text-muted-foreground font-medium">Unlocked when promoted to Leader</p>
+            </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 opacity-40">
+                <Users className="w-4 h-4" />
+                Crew Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="opacity-30">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                {["Head Count", "Head Count Selling", "Potential New Starts"].map((label) => (
+                  <div key={label} className="bg-muted/30 rounded-lg p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+                    <div className="text-2xl font-bold text-muted-foreground">—</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {["Brand Ambassadors", "Leaders", "Team Starts", "Team Promotions"].map((label) => (
+                  <div key={label} className="bg-muted/30 rounded-lg p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+                    <div className="text-2xl font-bold text-muted-foreground">—</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* SECTION: Crew Bubble with Role Labels & Weekly Sales (hidden for managers) */}
-        {!isManager && (
-        <Card className="border-border/50 bg-card/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <GitBranch className="w-4 h-4 text-primary" />
-              Crew Bubble
+        {/* SECTION: Crew Bubble with Role Labels & Weekly Sales */}
+        {!isManager && (isLeader ? (
+          <Card className="border-border/50 bg-card/80">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-primary" />
+                Crew Bubble
+                {crewTreeNodeCount > 1 && (
+                  <span className="text-xs font-normal text-muted-foreground">{crewTreeNodeCount} members</span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CrewTree
+                tree={crewTree}
+                showSales
+                salesMap={crewSalesMap}
+                profileUserMap={profileUserMap}
+                candidateStageMap={candidateStageMap}
+              />
               {crewTreeNodeCount > 1 && (
-                <span className="text-xs font-normal text-muted-foreground">{crewTreeNodeCount} members</span>
+                <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
+                    <span>Leader</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-4 rounded border border-border/50 bg-muted/15" />
+                    <span>Brand Ambassador</span>
+                  </div>
+                </div>
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CrewTree
-              tree={crewTree}
-              showSales
-              salesMap={crewSalesMap}
-              profileUserMap={profileUserMap}
-              candidateStageMap={candidateStageMap}
-            />
-            {crewTreeNodeCount > 1 && (
-              <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
-                  <span>Leader</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-4 rounded border border-border/50 bg-muted/15" />
-                  <span>Brand Ambassador</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-border/50 bg-card/80 relative overflow-hidden">
+            <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2">
+              <Lock className="w-5 h-5 text-muted-foreground/60" />
+              <p className="text-xs text-muted-foreground font-medium">Unlocked when promoted to Leader</p>
+            </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 opacity-40">
+                <GitBranch className="w-4 h-4" />
+                Crew Bubble
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="opacity-30">
+              <div className="h-24" />
+            </CardContent>
+          </Card>
+        ))}
 
         {/* SECTION 4: Personal Best (only if records achieved) */}
         {personalBest.length > 0 && (
