@@ -120,7 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         crew_name: crewName,
         phone: phone,
       }, { onConflict: "user_id" });
-      if (profileError) return { error: profileError };
+      if (profileError) {
+        console.error("Profile creation failed:", profileError);
+        return { error: profileError };
+      }
 
       // Link matching candidate record by phone number
       const { data: matchingCandidates } = await supabase
