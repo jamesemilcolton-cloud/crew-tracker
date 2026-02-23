@@ -403,7 +403,10 @@ export function WeeklySummary() {
       const d = new Date(c.downloadDate);
       return d >= thisWeek.start && d <= thisWeek.end;
     }).reduce((sum, c) => sum + c.count, 0);
-    const linkedInObs = thisWeekCounts["obs"] || 0;
+    const linkedInObs = allOwnCandidates.filter((c) => {
+      const created = new Date(c.createdAt);
+      return c.source === "LinkedIn" && created >= thisWeek.start && created <= thisWeek.end;
+    }).length;
     return { freeAds, paidAds, cvs, linkedInObs };
   }, [adUploads, cvDownloads, thisWeek, thisWeekCounts]);
 
