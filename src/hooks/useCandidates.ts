@@ -151,15 +151,22 @@ export function useCandidates(scope: "own" | "all" = "own") {
       dbUpdates.potential_start_date = new Date().toISOString().split("T")[0];
     }
 
-    await supabase.from("candidates").update(dbUpdates).eq("id", candidate.id).eq("user_id", user.id);
+    const { error: updateError } = await supabase.from("candidates").update(dbUpdates).eq("id", candidate.id).eq("user_id", user.id);
+    if (updateError) {
+      console.error("moveStage update error:", updateError);
+      throw updateError;
+    }
 
     // Record stage history
-    await supabase.from("candidate_stage_history").insert({
+    const { error: historyError } = await supabase.from("candidate_stage_history").insert({
       candidate_id: candidate.id,
       from_stage: candidate.stage,
       to_stage: targetStage,
       note: direction === "backward" ? "Moved backward" : null,
     });
+    if (historyError) {
+      console.error("moveStage history error:", historyError);
+    }
 
     await fetchCandidates();
   }, [user, fetchCandidates]);
