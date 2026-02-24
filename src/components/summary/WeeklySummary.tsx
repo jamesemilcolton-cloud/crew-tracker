@@ -16,6 +16,7 @@ import {
   CrewNode,
 } from "@/components/crew/CrewBubbleForecast";
 import { CrewTree } from "@/components/crew/CrewTree";
+import { BellStreakCard } from "@/components/summary/BellStreakCard";
 import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
 
 
@@ -629,6 +630,9 @@ export function WeeklySummary() {
           {exporting ? "Generating…" : "Download Weekly Summary (PDF)"}
         </Button>
       </div>
+
+      {/* Bell Streak — above all KPIs */}
+      <BellStreakCard />
 
       {/* PDF-capturable content */}
       <div ref={summaryRef} className="space-y-4 pdf-content">
