@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfWeek } from "date-fns";
+import { getAdjustedRepProfit } from "@/lib/commission";
 
 export interface SalesTransaction {
   id: string;
@@ -27,7 +28,7 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_transactions")
-        .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, total_wire, quality_pending, created_at")
+        .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
         .eq("user_id", user!.id)
         .gte("date", weekStart)
         .lte("date", weekEnd)
@@ -44,7 +45,7 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_transactions")
-        .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, total_wire, quality_pending, created_at")
+        .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
         .gte("date", weekStart)
         .lte("date", weekEnd);
       if (error) throw error;
@@ -116,12 +117,13 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
   function getWeekFinancials(transactions: SalesTransaction[] = ownQuery.data || []) {
     return transactions.reduce(
       (acc, t) => ({
+        repProfit: acc.repProfit + getAdjustedRepProfit(t),
         isaUpfront: acc.isaUpfront + Number(t.isa_upfront),
         totalWire: acc.totalWire + Number(t.total_wire),
         qualityPending: acc.qualityPending + Number(t.quality_pending),
         count: acc.count + 1,
       }),
-      { isaUpfront: 0, totalWire: 0, qualityPending: 0, count: 0 }
+      { repProfit: 0, isaUpfront: 0, totalWire: 0, qualityPending: 0, count: 0 }
     );
   }
 

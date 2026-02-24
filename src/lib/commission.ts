@@ -36,3 +36,21 @@ export function calculateCommission(ageBand: AgeBand, askAmount: number) {
     qualityPending,
   };
 }
+
+/**
+ * Returns the adjusted Rep Profit for a transaction.
+ * Sunday sales: isa_upfront + owner_upfront (Sunday Bonus)
+ * Monday–Saturday: isa_upfront only
+ */
+export function getAdjustedRepProfit(tx: { date: string; isa_upfront: number; owner_upfront: number }): number {
+  const day = new Date(tx.date + "T12:00:00").getDay(); // 0 = Sunday
+  if (day === 0) {
+    return Number(tx.isa_upfront) + Number(tx.owner_upfront);
+  }
+  return Number(tx.isa_upfront);
+}
+
+/** Check if a date string falls on a Sunday */
+export function isSunday(dateStr: string): boolean {
+  return new Date(dateStr + "T12:00:00").getDay() === 0;
+}

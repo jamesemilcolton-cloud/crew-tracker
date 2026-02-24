@@ -1,4 +1,5 @@
 import { useMemo, useRef, useCallback, useState, useEffect } from "react";
+import { getAdjustedRepProfit } from "@/lib/commission";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
@@ -138,7 +139,7 @@ export function WeeklySummary() {
           .lte("entry_date", currentWeekBounds.end),
         supabase
           .from("sales_transactions")
-          .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, total_wire, quality_pending, created_at")
+          .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
           .eq("user_id", user!.id)
           .gte("date", currentWeekBounds.start)
           .lte("date", currentWeekBounds.end),
@@ -167,7 +168,7 @@ export function WeeklySummary() {
           supabase.from("sales_entries").select("*")
             .gte("entry_date", currentWeekBounds.start)
             .lte("entry_date", currentWeekBounds.end),
-          supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, total_wire, quality_pending, created_at")
+          supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
             .gte("date", currentWeekBounds.start)
             .lte("date", currentWeekBounds.end),
         ]);
@@ -195,7 +196,7 @@ export function WeeklySummary() {
             .in("user_id", uniqueIds)
             .gte("entry_date", currentWeekBounds.start)
             .lte("entry_date", currentWeekBounds.end),
-          supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, total_wire, quality_pending, created_at")
+          supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
             .in("user_id", uniqueIds)
             .gte("date", currentWeekBounds.start)
             .lte("date", currentWeekBounds.end),
@@ -331,11 +332,12 @@ export function WeeklySummary() {
   const ownFinancials = useMemo(() => {
     return ownTransactions.reduce(
       (acc, t) => ({
+        repProfit: acc.repProfit + getAdjustedRepProfit(t),
         isaUpfront: acc.isaUpfront + Number(t.isa_upfront),
         totalWire: acc.totalWire + Number(t.total_wire),
         qualityPending: acc.qualityPending + Number(t.quality_pending),
       }),
-      { isaUpfront: 0, totalWire: 0, qualityPending: 0 }
+      { repProfit: 0, isaUpfront: 0, totalWire: 0, qualityPending: 0 }
     );
   }, [ownTransactions]);
 
@@ -817,8 +819,8 @@ export function WeeklySummary() {
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Commission</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-muted/30 rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">ISA Upfront</div>
-                    <div className="text-sm font-bold text-foreground">£{ownFinancials.isaUpfront.toFixed(2)}</div>
+                    <div className="text-[9px] uppercase text-muted-foreground">Rep Profit</div>
+                    <div className="text-sm font-bold text-foreground">£{ownFinancials.repProfit.toFixed(2)}</div>
                   </div>
                   <div className="bg-muted/20 rounded-md p-2 text-center opacity-60">
                     <div className="text-[9px] uppercase text-muted-foreground">Quality (30%)</div>
