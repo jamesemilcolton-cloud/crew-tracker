@@ -215,6 +215,47 @@ export type Database = {
         }
         Relationships: []
       }
+      personal_best_log: {
+        Row: {
+          created_at: string
+          displayed: boolean
+          id: string
+          profile_id: string
+          rep_profit: number
+          user_id: string
+          week_start: string
+          weekly_sales: number
+        }
+        Insert: {
+          created_at?: string
+          displayed?: boolean
+          id?: string
+          profile_id: string
+          rep_profit?: number
+          user_id: string
+          week_start: string
+          weekly_sales: number
+        }
+        Update: {
+          created_at?: string
+          displayed?: boolean
+          id?: string
+          profile_id?: string
+          rep_profit?: number
+          user_id?: string
+          week_start?: string
+          weekly_sales?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_best_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -259,6 +300,64 @@ export type Database = {
           {
             foreignKeyName: "profiles_leader_id_fkey"
             columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_queue: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          leader_profile_id: string | null
+          profile_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          leader_profile_id?: string | null
+          profile_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          leader_profile_id?: string | null
+          profile_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_queue_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_queue_leader_profile_id_fkey"
+            columns: ["leader_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_queue_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
