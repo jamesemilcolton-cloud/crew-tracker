@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Plus } from "lucide-react";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
 import { Candidate, CandidateSource } from "@/lib/types";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
@@ -20,22 +21,35 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
 } from "@/components/ui/form";
 
 const candidateSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(50, "First name too long"),
   lastName: z.string().trim().min(1, "Last name is required").max(50, "Last name too long"),
-  phone: z.string().trim().min(1, "Phone number is required").max(20, "Phone number too long"),
+  phone: z.string().trim().max(20, "Phone number too long").default(""),
   source: z.enum(["LinkedIn", "Office"] as const, { required_error: "Source is required" }),
   notes: z.string().trim().max(2000, "Notes too long").default(""),
   potentialStartDate: z.date().optional(),
+  droppedDuringOB: z.boolean().default(false),
+}).superRefine((data, ctx) => {
+  if (!data.droppedDuringOB && (!data.phone || data.phone.trim().length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Phone number is required",
+      path: ["phone"],
+    });
+  }
 });
 
 type CandidateFormValues = z.infer<typeof candidateSchema>;
 
+export interface AddCandidatePayload extends Omit<Candidate, "id" | "history" | "createdAt"> {
+  droppedDuringOB?: boolean;
+}
+
 interface NewCandidateFormProps {
-  onAdd: (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => Promise<any>;
+  onAdd: (candidate: AddCandidatePayload) => Promise<any>;
 }
 
 export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
@@ -43,8 +57,10 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
 
   const form = useForm<CandidateFormValues>({
     resolver: zodResolver(candidateSchema),
-    defaultValues: { firstName: "", lastName: "", phone: "", notes: "" },
+    defaultValues: { firstName: "", lastName: "", phone: "", notes: "", droppedDuringOB: false },
   });
+
+  const droppedDuringOB = useWatch({ control: form.control, name: "droppedDuringOB" });
 
   async function onSubmit(data: CandidateFormValues) {
     await onAdd({
@@ -58,6 +74,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
       potentialStartDate: data.potentialStartDate ? data.potentialStartDate.toISOString().split("T")[0] : undefined,
       hasSalesPitchAccess: false,
       hasEvoAppAccess: false,
+      droppedDuringOB: data.droppedDuringOB,
     });
     form.reset();
     setOpen(false);
@@ -84,7 +101,11 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
               <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Last name" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="phone" render={({ field }) => (
-              <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Phone Number {droppedDuringOB && <span className="text-muted-foreground font-normal">(optional)</span>}</FormLabel>
+                <FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
             )} />
             <FormField control={form.control} name="source" render={({ field }) => (
               <FormItem><FormLabel>Source</FormLabel>
@@ -97,27 +118,45 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
                 </Select><FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="potentialStartDate" render={({ field }) => (
-              <FormItem className="flex flex-col"><FormLabel>Potential Start Date</FormLabel>
-                <Popover><PopoverTrigger asChild>
-                  <FormControl>
-                    <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                      {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
-                </PopoverContent></Popover><FormMessage />
+
+            {/* Dropped During OB toggle */}
+            <FormField control={form.control} name="droppedDuringOB" render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-3">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel className="cursor-pointer">Dropped During OB</FormLabel>
+                  <FormDescription className="text-xs text-muted-foreground">
+                    If checked, this candidate will be logged as an OB and immediately moved to Drop Off.
+                  </FormDescription>
+                </div>
               </FormItem>
             )} />
+
+            {!droppedDuringOB && (
+              <FormField control={form.control} name="potentialStartDate" render={({ field }) => (
+                <FormItem className="flex flex-col"><FormLabel>Potential Start Date</FormLabel>
+                  <Popover><PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent></Popover><FormMessage />
+                </FormItem>
+              )} />
+            )}
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea placeholder="Interview notes, observations..." rows={3} {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit">Add to Pipeline</Button>
+              <Button type="submit">{droppedDuringOB ? "Log OB & Drop" : "Add to Pipeline"}</Button>
             </div>
           </form>
         </Form>
