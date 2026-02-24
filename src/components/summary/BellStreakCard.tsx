@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { format, subDays, parseISO } from "date-fns";
+import { getAdjustedRepProfit } from "@/lib/commission";
 
 interface DailyTotal {
   date: string;
@@ -177,7 +178,7 @@ export function BellStreakCard() {
 
     supabase
       .from("sales_transactions")
-      .select("date, isa_upfront")
+      .select("date, isa_upfront, owner_upfront")
       .eq("user_id", user.id)
       .order("date", { ascending: true })
       .then(({ data, error }) => {
@@ -186,7 +187,7 @@ export function BellStreakCard() {
         (data || []).forEach((tx) => {
           const existing = map.get(tx.date) || { date: tx.date, salesCount: 0, repProfit: 0 };
           existing.salesCount += 1;
-          existing.repProfit += Number(tx.isa_upfront);
+          existing.repProfit += getAdjustedRepProfit(tx);
           map.set(tx.date, existing);
         });
         setDailyTotals(map);

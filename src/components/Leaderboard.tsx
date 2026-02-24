@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
 import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame, PoundSterling } from "lucide-react";
 import { startOfWeek, endOfWeek, format, subWeeks, addDays } from "date-fns";
+import { getAdjustedRepProfit } from "@/lib/commission";
 
 interface Profile {
   id: string;
@@ -165,7 +166,7 @@ export function Leaderboard() {
   useEffect(() => {
     async function fetchProfitData() {
       const [txRes, rolesRes] = await Promise.all([
-        supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, total_wire, quality_pending, created_at"),
+        supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, owner_upfront, total_wire, quality_pending, created_at"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
 
@@ -185,7 +186,7 @@ export function Leaderboard() {
       const userWireTotals = new Map<string, number>();
       const userSalesCounts = new Map<string, number>();
       weekTx.forEach((t) => {
-        userRepProfit.set(t.user_id, (userRepProfit.get(t.user_id) || 0) + Number(t.isa_upfront));
+        userRepProfit.set(t.user_id, (userRepProfit.get(t.user_id) || 0) + getAdjustedRepProfit(t));
         userWireTotals.set(t.user_id, (userWireTotals.get(t.user_id) || 0) + Number(t.total_wire));
         userSalesCounts.set(t.user_id, (userSalesCounts.get(t.user_id) || 0) + 1);
       });
@@ -323,7 +324,7 @@ export function Leaderboard() {
           const userWeekRepProfit = new Map<string, number>();
           const userWeekWire = new Map<string, number>();
           weekEntries.forEach((t) => {
-            userWeekRepProfit.set(t.user_id, (userWeekRepProfit.get(t.user_id) || 0) + Number(t.isa_upfront));
+            userWeekRepProfit.set(t.user_id, (userWeekRepProfit.get(t.user_id) || 0) + getAdjustedRepProfit(t));
             userWeekWire.set(t.user_id, (userWeekWire.get(t.user_id) || 0) + Number(t.total_wire));
           });
 

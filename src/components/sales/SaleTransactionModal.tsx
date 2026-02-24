@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AGE_BANDS, AgeBand, getAskAmounts, calculateCommission } from "@/lib/commission";
-import { Check } from "lucide-react";
+import { AGE_BANDS, AgeBand, getAskAmounts, calculateCommission, isSunday } from "@/lib/commission";
+import { Check, Sun } from "lucide-react";
 
 interface SaleTransactionModalProps {
   open: boolean;
@@ -18,9 +18,10 @@ interface SaleTransactionModalProps {
   onCancel: () => void;
   saleNumber: number;
   totalSales: number;
+  saleDate?: string;
 }
 
-export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, totalSales }: SaleTransactionModalProps) {
+export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, totalSales, saleDate }: SaleTransactionModalProps) {
   const [ageBand, setAgeBand] = useState<AgeBand | "">("");
   const [askAmount, setAskAmount] = useState<number | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -137,12 +138,26 @@ export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, to
             </div>
           )}
 
+          {/* Sunday Bonus Note */}
+          {saleDate && isSunday(saleDate) && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+              <Sun className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(45 93% 47%)" }} />
+              <span className="text-xs font-medium" style={{ color: "hsl(45 93% 47%)" }}>
+                Sunday Bonus Applied – Owner Upfront Included
+              </span>
+            </div>
+          )}
+
           {/* Calculated values */}
           {commission && (
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/30">
               <div className="bg-muted/30 rounded-md p-2 text-center">
-                <div className="text-[9px] uppercase text-muted-foreground">ISA Upfront</div>
-                <div className="text-sm font-bold text-foreground">£{commission.isa.toFixed(2)}</div>
+                <div className="text-[9px] uppercase text-muted-foreground">Rep Profit</div>
+                <div className="text-sm font-bold text-foreground">
+                  £{saleDate && isSunday(saleDate)
+                    ? (commission.isa + commission.owner).toFixed(2)
+                    : commission.isa.toFixed(2)}
+                </div>
               </div>
               <div className="bg-muted/20 rounded-md p-2 text-center opacity-60">
                 <div className="text-[9px] uppercase text-muted-foreground">Quality (30%)</div>

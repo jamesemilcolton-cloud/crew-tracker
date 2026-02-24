@@ -277,6 +277,7 @@ export default function Sales() {
         onCancel={handleSaleCancel}
         saleNumber={currentSaleNumber}
         totalSales={totalSalesForModal}
+        saleDate={currentDate}
       />
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-5 space-y-5">
@@ -434,8 +435,8 @@ export default function Sales() {
           <CardContent className="px-4 pb-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/30 rounded-lg p-3 text-center">
-                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">ISA Upfront</div>
-                <div className="text-lg font-bold text-foreground">£{weekFinancials.isaUpfront.toFixed(2)}</div>
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Rep Profit</div>
+                <div className="text-lg font-bold text-foreground">£{weekFinancials.repProfit.toFixed(2)}</div>
               </div>
               <div className="bg-muted/20 rounded-lg p-3 text-center opacity-60">
                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-1">Quality (30%)</div>
