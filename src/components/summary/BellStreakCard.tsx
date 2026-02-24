@@ -165,9 +165,12 @@ export function BellStreakCard() {
   const streak = useMemo(() => calcStreak(dailyTotals), [dailyTotals]);
   const tier = getTier(streak);
 
-  if (loading || tier === "none") return null;
+  if (loading) return null;
 
-  const config = TIER_CONFIG[tier];
+  const activeTier = tier === "none" ? "low" : tier;
+  const config = tier === "none"
+    ? { ...TIER_CONFIG.low, color: "hsl(0 0% 45%)", glowColor: "transparent", label: () => "Bell Streak: 0 Days", animClass: "" }
+    : TIER_CONFIG[tier];
 
   return (
     <Card
@@ -175,16 +178,16 @@ export function BellStreakCard() {
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(8px)",
-        boxShadow: `0 0 30px -5px ${config.glowColor}`,
+        boxShadow: tier === "none" ? "none" : `0 0 30px -5px ${config.glowColor}`,
       }}
     >
       <CardContent className="py-4 px-5">
         <div className="flex items-center gap-4">
           <div
             className={`relative flex-shrink-0 ${config.animClass}`}
-            style={{ transition: "all 0.5s ease" }}
+            style={{ transition: "all 0.5s ease", opacity: tier === "none" ? 0.4 : 1 }}
           >
-            <FlameIcon tier={tier} />
+            <FlameIcon tier={activeTier} />
             {/* Glow backdrop */}
             <div
               className="absolute inset-0 rounded-full blur-xl -z-10"
