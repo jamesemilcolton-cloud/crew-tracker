@@ -631,8 +631,6 @@ export function WeeklySummary() {
         </Button>
       </div>
 
-      {/* Bell Streak — above all KPIs */}
-      <BellStreakCard />
 
       {/* PDF-capturable content */}
       <div ref={summaryRef} className="space-y-4 pdf-content">
@@ -954,7 +952,9 @@ export function WeeklySummary() {
           </CardContent>
         </Card>
 
-        {/* SECTION 3: Crew Summary */}
+        {/* Bell Streak — under Sales section */}
+        <BellStreakCard />
+
         {(isLeader || isManager) && crewSummary ? (
           <Card className="border-border/50 bg-card/80">
             <CardHeader className="pb-3">
