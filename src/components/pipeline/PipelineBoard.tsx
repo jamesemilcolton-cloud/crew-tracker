@@ -3,7 +3,8 @@ import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage, StageChange } fro
 import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
-import { NewCandidateForm } from "./NewCandidateForm";
+import { NewCandidateForm, AddCandidatePayload } from "./NewCandidateForm";
+import { supabase } from "@/integrations/supabase/client";
 import { Calendar, Clock, Trash2, RotateCcw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +38,8 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   const [dropOffCandidate, setDropOffCandidate] = useState<Candidate | null>(null);
   const [dropOffReason, setDropOffReason] = useState("");
   const [dropping, setDropping] = useState(false);
+  const [obDropCandidateId, setObDropCandidateId] = useState<string | null>(null);
+  const [obDropName, setObDropName] = useState("");
 
   const activeCandidates = useMemo(() => candidates.filter(c => c.status !== "Dropped" && c.status !== "dropped"), [candidates]);
   const droppedCandidates = useMemo(() => candidates.filter(c => c.status === "Dropped" || c.status === "dropped"), [candidates]);
@@ -70,8 +73,24 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     setSelectedCandidate(updated);
   };
 
-  const handleAdd = async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
-    await onAddCandidate(candidate);
+  const handleAdd = async (candidate: AddCandidatePayload) => {
+    const { droppedDuringOB, ...candidateData } = candidate;
+    const result = await onAddCandidate(candidateData);
+
+    if (droppedDuringOB && result?.data?.id) {
+      const newId = result.data.id;
+      // Step B: Insert stage history (obs entry)
+      await supabase.from("candidate_stage_history").insert({
+        candidate_id: newId,
+        from_stage: "new",
+        to_stage: "obs",
+        note: "Dropped during OB",
+      });
+      // Step C & D: Store ID and open drop-off reason modal
+      setObDropCandidateId(newId);
+      setObDropName(candidateData.name);
+      setDropOffReason("");
+    }
   };
 
   const handleArchive = async (id: string) => {
@@ -113,6 +132,22 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     }
   };
 
+  const handleConfirmObDrop = async () => {
+    if (!obDropCandidateId || !dropOffReason.trim()) return;
+    setDropping(true);
+    try {
+      await onDropCandidate(obDropCandidateId, dropOffReason.trim());
+      toast.success("OB logged and marked as dropped.");
+      setObDropCandidateId(null);
+      setObDropName("");
+      setDropOffReason("");
+    } catch {
+      toast.error("Failed to mark candidate as dropped");
+    } finally {
+      setDropping(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading pipeline...</div>;
   }
@@ -151,6 +186,41 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
               variant="destructive"
               disabled={!dropOffReason.trim() || dropping}
               onClick={handleConfirmDropOff}
+            >
+              {dropping ? "Dropping…" : "Confirm Drop Off"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* OB Drop Reason Modal */}
+      <Dialog open={!!obDropCandidateId} onOpenChange={(open) => { if (!open) { setObDropCandidateId(null); setObDropName(""); setDropOffReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Drop Off Reason — OB
+            </DialogTitle>
+            <DialogDescription>
+              <span className="font-semibold text-foreground">{obDropName}</span> will be logged as an OB and moved to Drop Off. Please provide a reason.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="ob-drop-reason">Reason for Drop Off <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="ob-drop-reason"
+              value={dropOffReason}
+              onChange={(e) => setDropOffReason(e.target.value)}
+              placeholder="Enter reason for dropping this candidate..."
+              className="min-h-[80px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setObDropCandidateId(null); setObDropName(""); setDropOffReason(""); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!dropOffReason.trim() || dropping}
+              onClick={handleConfirmObDrop}
             >
               {dropping ? "Dropping…" : "Confirm Drop Off"}
             </Button>
