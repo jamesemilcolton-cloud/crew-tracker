@@ -56,12 +56,101 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, target_user_id, role } = body;
+    const { action, target_user_id, role, queue_id } = body;
 
-    // Prevent self-modification
-    if (target_user_id === caller.id) {
+    // Prevent self-modification (except queue actions)
+    if (target_user_id === caller.id && !["approve_promotion", "reject_promotion"].includes(action)) {
       return new Response(JSON.stringify({ error: "Cannot modify own account" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "approve_promotion") {
+      // Get queue entry
+      const { data: queueEntry, error: qErr } = await adminClient
+        .from("promotion_queue")
+        .select("*")
+        .eq("id", queue_id)
+        .eq("status", "pending")
+        .single();
+
+      if (qErr || !queueEntry) {
+        return new Response(JSON.stringify({ error: "Queue entry not found or already resolved" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Upgrade role to leader
+      const { error: roleErr } = await adminClient
+        .from("user_roles")
+        .update({ role: "leader" })
+        .eq("user_id", queueEntry.user_id)
+        .eq("role", "brand_ambassador");
+
+      if (roleErr) throw roleErr;
+
+      // Mark queue entry as approved
+      const { error: updateErr } = await adminClient
+        .from("promotion_queue")
+        .update({ status: "approved", resolved_at: new Date().toISOString(), resolved_by: caller.id })
+        .eq("id", queue_id);
+
+      if (updateErr) throw updateErr;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "reject_promotion") {
+      // Get queue entry
+      const { data: queueEntry, error: qErr } = await adminClient
+        .from("promotion_queue")
+        .select("*")
+        .eq("id", queue_id)
+        .eq("status", "pending")
+        .single();
+
+      if (qErr || !queueEntry) {
+        return new Response(JSON.stringify({ error: "Queue entry not found or already resolved" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Revert candidate stage back to solo
+      const { error: candErr } = await adminClient
+        .from("candidates")
+        .update({ stage: "solo" })
+        .eq("id", queueEntry.candidate_id);
+
+      if (candErr) throw candErr;
+
+      // Mark queue entry as rejected
+      const { error: updateErr } = await adminClient
+        .from("promotion_queue")
+        .update({ status: "rejected", resolved_at: new Date().toISOString(), resolved_by: caller.id })
+        .eq("id", queue_id);
+
+      if (updateErr) throw updateErr;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "mark_pb_displayed") {
+      const { pb_ids } = body;
+      if (pb_ids && pb_ids.length > 0) {
+        const { error } = await adminClient
+          .from("personal_best_log")
+          .update({ displayed: true })
+          .in("id", pb_ids);
+        if (error) throw error;
+      }
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -70,9 +159,8 @@ Deno.serve(async (req) => {
       // First reassign recruits upward before banning
       await adminClient.rpc("reassign_recruits_upward", { _deleted_user_id: target_user_id });
       
-      // Ban user (disable login but keep data)
       const { error } = await adminClient.auth.admin.updateUserById(target_user_id, {
-        ban_duration: "876000h", // ~100 years
+        ban_duration: "876000h",
       });
       if (error) throw error;
       return new Response(JSON.stringify({ success: true }), {
@@ -91,7 +179,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === "check_crew") {
-      // Check if a leader has any direct or recursive downstream crew
       const { data: profile } = await adminClient
         .from("profiles")
         .select("id")
@@ -104,7 +191,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check direct reports
       const { data: directReports, error: drError } = await adminClient
         .from("profiles")
         .select("id")
@@ -113,7 +199,6 @@ Deno.serve(async (req) => {
 
       if (drError) throw drError;
 
-      // Also check candidates recruited by this profile
       const { data: recruits, error: rcError } = await adminClient
         .from("candidates")
         .select("id")
@@ -131,7 +216,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === "update_role") {
-      // Update role in user_roles table
       const { error } = await adminClient
         .from("user_roles")
         .update({ role })
@@ -143,7 +227,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete_user") {
-      // Permanently delete user from auth
       const { error } = await adminClient.auth.admin.deleteUser(target_user_id);
       if (error) throw error;
       return new Response(JSON.stringify({ success: true }), {
