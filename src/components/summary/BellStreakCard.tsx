@@ -15,42 +15,77 @@ function qualifies(d: DailyTotal): boolean {
 }
 
 function calcStreak(dailyTotals: Map<string, DailyTotal>): number {
-  // Walk backwards from yesterday (today may not be complete)
   const today = new Date();
   let streak = 0;
 
-  // Check today first
   const todayStr = format(today, "yyyy-MM-dd");
   const todayData = dailyTotals.get(todayStr);
   if (todayData && qualifies(todayData)) {
     streak = 1;
   }
 
-  // Walk backwards from yesterday
   for (let i = 1; i <= 90; i++) {
     const d = subDays(today, i);
-    const dayOfWeek = d.getDay(); // 0 = Sunday
+    const dayOfWeek = d.getDay();
     const dateStr = format(d, "yyyy-MM-dd");
     const data = dailyTotals.get(dateStr);
 
     if (dayOfWeek === 0) {
-      // Sunday: if no data, skip (don't break or continue streak)
       if (!data) continue;
-      // If data exists but doesn't qualify, streak breaks
       if (!qualifies(data)) {
-        if (streak === 0) continue; // haven't started yet
+        if (streak === 0) continue;
         break;
       }
       streak++;
     } else {
-      if (!data || !qualifies(data)) {
-        break;
-      }
+      if (!data || !qualifies(data)) break;
       streak++;
     }
   }
 
   return streak;
+}
+
+function calcPersonalBestStreak(dailyTotals: Map<string, DailyTotal>): number {
+  if (dailyTotals.size === 0) return 0;
+
+  const dates = Array.from(dailyTotals.keys()).sort();
+  let maxStreak = 0;
+  let currentStreak = 0;
+
+  for (let i = 0; i < dates.length; i++) {
+    const data = dailyTotals.get(dates[i])!;
+    const d = parseISO(dates[i]);
+
+    if (!qualifies(data)) {
+      currentStreak = 0;
+      continue;
+    }
+
+    if (i === 0) {
+      currentStreak = 1;
+    } else {
+      const prevDate = parseISO(dates[i - 1]);
+      const diffDays = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        currentStreak++;
+      } else if (diffDays === 2) {
+        const gapDay = subDays(d, 1);
+        if (gapDay.getDay() === 0 && !dailyTotals.has(format(gapDay, "yyyy-MM-dd"))) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+      } else {
+        currentStreak = 1;
+      }
+    }
+
+    if (currentStreak > maxStreak) maxStreak = currentStreak;
+  }
+
+  return maxStreak;
 }
 
 type Tier = "none" | "low" | "mid" | "high" | "elite";
@@ -139,13 +174,12 @@ export function BellStreakCard() {
 
   useEffect(() => {
     if (!user) return;
-    const ninetyDaysAgo = format(subDays(new Date(), 90), "yyyy-MM-dd");
 
     supabase
       .from("sales_transactions")
       .select("date, isa_upfront")
       .eq("user_id", user.id)
-      .gte("date", ninetyDaysAgo)
+      .order("date", { ascending: true })
       .then(({ data, error }) => {
         if (error) { console.error(error); setLoading(false); return; }
         const map = new Map<string, DailyTotal>();
@@ -157,13 +191,14 @@ export function BellStreakCard() {
         });
         setDailyTotals(map);
         setLoading(false);
-        // Fade in after data loads
         setTimeout(() => setVisible(true), 50);
       });
   }, [user]);
 
   const streak = useMemo(() => calcStreak(dailyTotals), [dailyTotals]);
+  const pbStreak = useMemo(() => calcPersonalBestStreak(dailyTotals), [dailyTotals]);
   const tier = getTier(streak);
+  const pbTier = getTier(pbStreak);
 
   if (loading) return null;
 
@@ -171,6 +206,11 @@ export function BellStreakCard() {
   const config = tier === "none"
     ? { ...TIER_CONFIG.low, color: "hsl(0 0% 45%)", glowColor: "transparent", label: () => "Bell Streak: 0 Days", animClass: "" }
     : TIER_CONFIG[tier];
+
+  const pbActiveTier = pbTier === "none" ? "low" : pbTier;
+  const pbConfig = pbTier === "none"
+    ? { ...TIER_CONFIG.low, color: "hsl(0 0% 45%)", glowColor: "transparent" }
+    : TIER_CONFIG[pbTier];
 
   return (
     <Card
@@ -183,12 +223,12 @@ export function BellStreakCard() {
     >
       <CardContent className="py-4 px-5">
         <div className="flex items-center gap-4">
+          {/* Current Streak Flame */}
           <div
             className={`relative flex-shrink-0 ${config.animClass}`}
             style={{ transition: "all 0.5s ease", opacity: tier === "none" ? 0.4 : 1 }}
           >
             <FlameIcon tier={activeTier} />
-            {/* Glow backdrop */}
             <div
               className="absolute inset-0 rounded-full blur-xl -z-10"
               style={{ background: config.glowColor }}
@@ -205,12 +245,43 @@ export function BellStreakCard() {
               3+ sales &amp; £150+ rep profit per day
             </span>
           </div>
-          <div className="ml-auto">
-            <div
-              className="text-3xl font-black tabular-nums"
-              style={{ color: config.color }}
-            >
-              {streak}
+
+          <div className="ml-auto flex items-center gap-5">
+            {/* Current count */}
+            <div className="text-center">
+              <div
+                className="text-3xl font-black tabular-nums"
+                style={{ color: config.color }}
+              >
+                {streak}
+              </div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Current</div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-10 bg-border/50" />
+
+            {/* Personal Best */}
+            <div className="flex items-center gap-2">
+              <div
+                className="relative flex-shrink-0"
+                style={{ opacity: pbTier === "none" ? 0.4 : 1 }}
+              >
+                <FlameIcon tier={pbActiveTier} className="!w-6 !h-6" />
+                <div
+                  className="absolute inset-0 rounded-full blur-lg -z-10"
+                  style={{ background: pbConfig.glowColor }}
+                />
+              </div>
+              <div className="text-center">
+                <div
+                  className="text-3xl font-black tabular-nums"
+                  style={{ color: pbConfig.color }}
+                >
+                  {pbStreak}
+                </div>
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Best</div>
+              </div>
             </div>
           </div>
         </div>
