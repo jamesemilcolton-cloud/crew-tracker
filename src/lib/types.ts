@@ -1,4 +1,5 @@
 export type PipelineStage =
+  | "prospect"
   | "obs"
   | "questionnaire"
   | "bottom_line"
@@ -70,6 +71,7 @@ export interface LinkedInActivity {
 }
 
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: string }> = {
+  prospect: { label: "Prospect", colorVar: "--stage-obs" },
   obs: { label: "Obs", colorVar: "--stage-obs" },
   questionnaire: { label: "Questionnaire", colorVar: "--stage-questionnaire" },
   bottom_line: { label: "Bottom Line", colorVar: "--stage-bottom-line" },

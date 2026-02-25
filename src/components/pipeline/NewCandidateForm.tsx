@@ -63,6 +63,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
   const droppedDuringOB = useWatch({ control: form.control, name: "droppedDuringOB" });
 
   async function onSubmit(data: CandidateFormValues) {
+    const initialStage = data.source === "Personal" ? "prospect" : "obs";
     await onAdd({
       name: `${data.firstName} ${data.lastName}`.trim(),
       firstName: data.firstName,
@@ -70,7 +71,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
       phone: data.phone,
       notes: data.notes,
       source: data.source,
-      stage: "obs",
+      stage: initialStage as any,
       potentialStartDate: data.potentialStartDate ? data.potentialStartDate.toISOString().split("T")[0] : undefined,
       hasSalesPitchAccess: false,
       hasEvoAppAccess: false,

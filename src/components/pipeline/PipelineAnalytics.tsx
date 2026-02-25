@@ -65,9 +65,13 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
 
     candidates.forEach((c) => {
-      // For OBS: count if created within range
+      // Skip prospects — they haven't entered the pipeline yet
+      if (c.stage === "prospect" && !c.history.some((h) => h.to === "obs")) return;
+
+      // For OBS: count if created within range AND actually reached OBS stage
       const created = new Date(c.createdAt);
-      if (created >= dateRange.start && created <= dateRange.end) {
+      const reachedObs = c.stage !== "prospect" || c.history.some((h) => h.to === "obs");
+      if (created >= dateRange.start && created <= dateRange.end && reachedObs) {
         counts["obs"]++;
       }
 
