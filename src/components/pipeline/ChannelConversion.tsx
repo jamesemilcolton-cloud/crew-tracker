@@ -18,11 +18,13 @@ interface ChannelMetrics {
 function calcMetrics(candidates: Candidate[]): ChannelMetrics {
   const added = candidates.length;
 
-  // Reached OB = created at obs stage (all candidates start at obs) — so all added count
-  // But exclude those who were never actually at obs (shouldn't happen since stage defaults to obs)
+  // Reached OB = candidates whose current stage is obs or beyond (not prospect)
+  const obsIdx = STAGES_ORDER.indexOf("obs");
   const reachedOB = candidates.filter((c) => {
-    // All candidates are created at obs stage, so they all reached OB
-    return true;
+    const currentIdx = STAGES_ORDER.indexOf(c.stage as PipelineStage);
+    if (currentIdx >= obsIdx) return true;
+    // Check history for ever reaching obs or beyond
+    return c.history.some((h) => STAGES_ORDER.indexOf(h.to as PipelineStage) >= obsIdx);
   }).length;
 
   const startIdx = STAGES_ORDER.indexOf("start");

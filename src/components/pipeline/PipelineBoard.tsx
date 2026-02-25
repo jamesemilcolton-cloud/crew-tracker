@@ -6,7 +6,7 @@ import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm, AddCandidatePayload } from "./NewCandidateForm";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, Trash2, RotateCcw, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, Trash2, RotateCcw, AlertTriangle, UserPlus, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -42,8 +42,10 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   const [obDropCandidateId, setObDropCandidateId] = useState<string | null>(null);
   const [obDropName, setObDropName] = useState("");
 
-  const activeCandidates = useMemo(() => candidates.filter(c => c.status !== "Dropped" && c.status !== "dropped"), [candidates]);
+  const activeCandidates = useMemo(() => candidates.filter(c => c.status !== "Dropped" && c.status !== "dropped" && c.stage !== "prospect"), [candidates]);
   const droppedCandidates = useMemo(() => candidates.filter(c => c.status === "Dropped" || c.status === "dropped"), [candidates]);
+  const personalProspects = useMemo(() => candidates.filter(c => c.stage === "prospect" && c.status !== "Dropped" && c.status !== "dropped"), [candidates]);
+  const [obTakingId, setObTakingId] = useState<string | null>(null);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -149,6 +151,23 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
     }
   };
 
+  const handleObTaken = async (candidate: Candidate) => {
+    setObTakingId(candidate.id);
+    try {
+      await onUpdateCandidate(candidate.id, { ...candidate, stage: "obs" as PipelineStage }, {
+        from: "prospect" as PipelineStage,
+        to: "obs" as PipelineStage,
+        date: new Date().toISOString().split("T")[0],
+        note: "Marked as OB Taken",
+      });
+      toast.success(`${candidate.name} moved to OBS`);
+    } catch {
+      toast.error("Failed to move candidate");
+    } finally {
+      setObTakingId(null);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading pipeline...</div>;
   }
@@ -228,6 +247,38 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* MOBILE: Personal Recruits */}
+      {personalProspects.length > 0 && (
+        <div className="md:hidden">
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <UserPlus className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-medium text-foreground">Personal Recruits</h3>
+              <span className="text-[10px] text-muted-foreground font-mono">{personalProspects.length}</span>
+            </div>
+            <div className="space-y-2">
+              {personalProspects.map((c) => (
+                <div key={c.id} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                    <p className="text-[10px] text-muted-foreground">Added {new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Button size="sm" variant="default" className="h-7 text-[10px] gap-1" disabled={obTakingId === c.id} onClick={() => handleObTaken(c)}>
+                      {obTakingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                      OB Taken
+                    </Button>
+                    <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Drop off" onClick={() => setDropOffCandidate(c)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MOBILE: stacked layout */}
       <div className="md:hidden">
@@ -318,6 +369,38 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
           <CandidateDetail candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={handleUpdate} onArchive={handleArchive} />
         )}
       </div>
+
+      {/* DESKTOP: Personal Recruits */}
+      {personalProspects.length > 0 && (
+        <div className="hidden md:block">
+          <div className="glass-panel p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <UserPlus className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-medium text-foreground">Personal Recruits</h3>
+              <span className="text-[10px] text-muted-foreground font-mono">{personalProspects.length}</span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {personalProspects.map((c) => (
+                <div key={c.id} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                    <p className="text-[10px] text-muted-foreground">Added {new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                    <Button size="sm" variant="default" className="h-7 text-[10px] gap-1" disabled={obTakingId === c.id} onClick={() => handleObTaken(c)}>
+                      {obTakingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                      OB Taken
+                    </Button>
+                    <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Drop off" onClick={() => setDropOffCandidate(c)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DESKTOP BOTTOM: Funnel + Upcoming Starts */}
       <div className="hidden md:flex gap-4">
