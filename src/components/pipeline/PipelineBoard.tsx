@@ -254,7 +254,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
           <div className="glass-panel p-4">
             <div className="flex items-center gap-2 mb-3">
               <UserPlus className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-medium text-foreground">Personal Recruits</h3>
+              <h3 className="text-sm font-medium text-foreground">Potential Personal Recruits</h3>
               <span className="text-[10px] text-muted-foreground font-mono">{personalProspects.length}</span>
             </div>
             <div className="space-y-2">
@@ -370,44 +370,12 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         )}
       </div>
 
-      {/* DESKTOP: Personal Recruits */}
-      {personalProspects.length > 0 && (
-        <div className="hidden md:block">
-          <div className="glass-panel p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <UserPlus className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-medium text-foreground">Personal Recruits</h3>
-              <span className="text-[10px] text-muted-foreground font-mono">{personalProspects.length}</span>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {personalProspects.map((c) => (
-                <div key={c.id} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
-                    <p className="text-[10px] text-muted-foreground">Added {new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                    <Button size="sm" variant="default" className="h-7 text-[10px] gap-1" disabled={obTakingId === c.id} onClick={() => handleObTaken(c)}>
-                      {obTakingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
-                      OB Taken
-                    </Button>
-                    <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Drop off" onClick={() => setDropOffCandidate(c)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DESKTOP BOTTOM: Funnel + Upcoming Starts */}
+      {/* DESKTOP BOTTOM: Funnel + Upcoming Starts + Potential Personal Recruits */}
       <div className="hidden md:flex gap-4">
         <div className="flex-1 min-w-0">
           <PipelineAnalytics candidates={candidates} trendRange={trendRange} signupDate={signupDate} />
         </div>
-        <div className="flex-shrink-0 w-72">
+        <div className="flex-shrink-0 w-72 space-y-4">
           <div className="glass-panel p-4 overflow-y-auto custom-scrollbar max-h-[50vh]">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="w-4 h-4 text-primary" />
@@ -438,6 +406,36 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
               ))}
             </div>
           </div>
+
+          {/* Potential Personal Recruits */}
+          {personalProspects.length > 0 && (
+            <div className="glass-panel p-4 overflow-y-auto custom-scrollbar max-h-[50vh]">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-medium text-foreground">Potential Personal Recruits</h3>
+                <span className="text-[10px] text-muted-foreground font-mono">{personalProspects.length}</span>
+              </div>
+              <div className="space-y-2">
+                {personalProspects.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                      <p className="text-[10px] text-muted-foreground">Added {new Date(c.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                      <Button size="sm" variant="default" className="h-7 text-[10px] gap-1" disabled={obTakingId === c.id} onClick={() => handleObTaken(c)}>
+                        {obTakingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                        OB Taken
+                      </Button>
+                      <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Drop off" onClick={() => setDropOffCandidate(c)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
