@@ -65,44 +65,21 @@ export function ChannelConversion({ candidates }: ChannelConversionProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {channels.map(({ label, metrics }) => (
-          <div key={label} className="bg-muted/20 rounded-lg p-4 space-y-3">
-            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">{label}</h4>
+          <div key={label} className="bg-muted/20 rounded-lg p-4 space-y-2">
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">{label}</h4>
             
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-muted-foreground">Added</span>
-                <span className="font-mono font-medium text-foreground">{metrics.added}</span>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-muted-foreground">Reached OB</span>
-                <span className="font-mono font-medium text-foreground">{metrics.reachedOB}</span>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-muted-foreground">Reached Start</span>
-                <span className="font-mono font-medium text-foreground">{metrics.reachedStart}</span>
-              </div>
-            </div>
-
-            <div className="border-t border-border/30 pt-2 space-y-1.5">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-muted-foreground">Added → OB</span>
+            {[
+              { label: "Added → OB", value: metrics.addedToOB },
+              { label: "OB → Start", value: metrics.obToStart },
+              { label: "Added → Start", value: metrics.addedToStart },
+            ].map(({ label: metricLabel, value }) => (
+              <div key={metricLabel} className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">{metricLabel}</span>
                 <span className="font-mono font-medium text-primary">
-                  {metrics.addedToOB !== null ? `${metrics.addedToOB}%` : "—"}
+                  {value !== null ? `${value}%` : "—"}
                 </span>
               </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-muted-foreground">OB → Start</span>
-                <span className="font-mono font-medium text-primary">
-                  {metrics.obToStart !== null ? `${metrics.obToStart}%` : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between text-[11px]">
-                <span className="text-muted-foreground">Added → Start</span>
-                <span className="font-mono font-medium text-primary">
-                  {metrics.addedToStart !== null ? `${metrics.addedToStart}%` : "—"}
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
         ))}
       </div>
