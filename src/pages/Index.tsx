@@ -21,7 +21,7 @@ type Tab = "pipeline" | "linkedin" | "crew";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
-  { id: "linkedin", label: "LinkedIn", icon: <Linkedin className="w-4 h-4" /> },
+  { id: "linkedin", label: "LinkedIn & Personal", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
 ];
 

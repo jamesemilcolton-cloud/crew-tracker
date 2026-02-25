@@ -256,6 +256,39 @@ export type Database = {
           },
         ]
       }
+      personal_recruitment_activity: {
+        Row: {
+          activity_date: string
+          attended_ob: number
+          contact_type: string
+          created_at: string
+          id: string
+          invited_to_ob: number
+          people_spoken_to: number
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string
+          attended_ob?: number
+          contact_type: string
+          created_at?: string
+          id?: string
+          invited_to_ob?: number
+          people_spoken_to?: number
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          attended_ob?: number
+          contact_type?: string
+          created_at?: string
+          id?: string
+          invited_to_ob?: number
+          people_spoken_to?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
