@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { PersonalActivityLogger } from "./PersonalActivityLogger";
+
 import { useLinkedIn } from "@/hooks/useLinkedIn";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import {
@@ -453,8 +453,6 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
         </div>
       </div>
 
-      {/* Personal Recruitment Activity */}
-      <PersonalActivityLogger />
     </div>
   );
 }
