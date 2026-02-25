@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
 import { CrewTree } from "./CrewTree";
-import { Target, AlertTriangle } from "lucide-react";
+import { Target, AlertTriangle, PoundSterling } from "lucide-react";
 import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
 import { GitBranch, Shield, BarChart3, TrendingDown, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
+import { SalesTransaction } from "@/hooks/useSalesTransactions";
 
 /** Hook to fetch manager/super_admin user_ids so they can be excluded from crew trees */
 function useManagerUserIds() {
@@ -21,6 +22,28 @@ function useManagerUserIds() {
       });
   }, []);
   return managerUserIds;
+}
+
+/** Hook to fetch ALL sales transactions for crew wire calculations */
+function useCrewSalesTransactions(crewUserIds: string[]) {
+  const [transactions, setTransactions] = useState<SalesTransaction[]>([]);
+  useEffect(() => {
+    if (crewUserIds.length === 0) { setTransactions([]); return; }
+    // Fetch last 4 weeks of transactions for all crew members
+    const fourWeeksAgo = new Date();
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+    const dateStr = fourWeeksAgo.toISOString().split("T")[0];
+    supabase
+      .from("sales_transactions")
+      .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
+      .in("user_id", crewUserIds)
+      .gte("date", dateStr)
+      .order("date", { ascending: true })
+      .then(({ data }) => {
+        setTransactions((data ?? []) as SalesTransaction[]);
+      });
+  }, [crewUserIds.join(",")]);
+  return transactions;
 }
 
 interface Profile {
@@ -419,6 +442,110 @@ interface ManagementResult {
   currentSecondGen: number;
   firstGenNeeded: number;
   secondGenNeeded: number;
+  structuralAchieved: boolean;
+}
+
+// --- Financial Qualification ---
+interface FinancialMetrics {
+  weeklyCrewWire: { weekStart: string; total: number }[];
+  avgWeeklyCrewWire: number;
+  avgWirePerActiveSeller: number;
+  activeSellersCount: number;
+  requiredActiveSellers: number;
+  additionalSellersRequired: number;
+  consecutiveWeeksAbove7500: number;
+  revenueStatus: "achieved" | "needs_one_more" | "not_proven";
+  projectedWeeklyWire: number;
+  revenueShortfall: number;
+  revenueLikelyAchievable: boolean;
+}
+
+function computeFinancialMetrics(
+  crewTransactions: SalesTransaction[],
+  forecast: WeightedForecast
+): FinancialMetrics {
+  // Group transactions by week_start
+  const weekMap = new Map<string, number>();
+  crewTransactions.forEach((t) => {
+    const ws = t.week_start;
+    weekMap.set(ws, (weekMap.get(ws) ?? 0) + Number(t.total_wire));
+  });
+
+  // Get last 4 week mondays
+  const now = new Date();
+  const currentMonday = getWeekMonday(now);
+  const last4Weeks: string[] = [];
+  for (let i = 1; i <= 4; i++) {
+    const d = new Date(currentMonday);
+    d.setDate(d.getDate() - i * 7);
+    last4Weeks.push(d.toISOString().split("T")[0]);
+  }
+
+  const weeklyCrewWire = last4Weeks.map((ws) => ({
+    weekStart: ws,
+    total: Math.round((weekMap.get(ws) ?? 0) * 100) / 100,
+  }));
+
+  const weeksWithData = weeklyCrewWire.filter((w) => w.total > 0).length;
+  const avgWeeklyCrewWire = weeksWithData > 0
+    ? Math.round(weeklyCrewWire.reduce((s, w) => s + w.total, 0) / Math.max(1, weeksWithData) * 100) / 100
+    : 0;
+
+  // Active sellers per week: users with ≥1 sale in each week
+  const weekSellerMap = new Map<string, Set<string>>();
+  crewTransactions.forEach((t) => {
+    if (!weekSellerMap.has(t.week_start)) weekSellerMap.set(t.week_start, new Set());
+    weekSellerMap.get(t.week_start)!.add(t.user_id);
+  });
+  const activeSellersPerWeek = last4Weeks.map((ws) => weekSellerMap.get(ws)?.size ?? 0);
+  const weeksWithSellers = activeSellersPerWeek.filter((c) => c > 0).length;
+  const avgActiveSellers = weeksWithSellers > 0
+    ? activeSellersPerWeek.reduce((a, b) => a + b, 0) / weeksWithSellers
+    : 0;
+
+  const avgWirePerActiveSeller = avgActiveSellers > 0
+    ? Math.round((avgWeeklyCrewWire / avgActiveSellers) * 100) / 100
+    : 0;
+
+  const activeSellersCount = Math.round(avgActiveSellers * 10) / 10;
+
+  const requiredActiveSellers = avgWirePerActiveSeller > 0
+    ? Math.ceil(7500 / avgWirePerActiveSeller)
+    : 0;
+
+  const additionalSellersRequired = Math.max(0, requiredActiveSellers - Math.round(avgActiveSellers));
+
+  // 2-week consecutive check (most recent first)
+  const sortedWeeks = [...weeklyCrewWire].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+  let consecutiveWeeksAbove7500 = 0;
+  for (const w of sortedWeeks) {
+    if (w.total >= 7500) consecutiveWeeksAbove7500++;
+    else break;
+  }
+
+  let revenueStatus: "achieved" | "needs_one_more" | "not_proven" = "not_proven";
+  if (consecutiveWeeksAbove7500 >= 2) revenueStatus = "achieved";
+  else if (weeklyCrewWire.filter((w) => w.total >= 7500).length >= 1) revenueStatus = "needs_one_more";
+
+  // Projected weekly wire using retention-adjusted sellers
+  const projectedSellers = Math.round(avgActiveSellers) + Math.round(forecast.adjustedStarts);
+  const projectedWeeklyWire = Math.round(avgWirePerActiveSeller * projectedSellers * 100) / 100;
+  const revenueShortfall = Math.max(0, Math.round((7500 - projectedWeeklyWire) * 100) / 100);
+  const revenueLikelyAchievable = projectedWeeklyWire >= 7500;
+
+  return {
+    weeklyCrewWire,
+    avgWeeklyCrewWire,
+    avgWirePerActiveSeller,
+    activeSellersCount,
+    requiredActiveSellers,
+    additionalSellersRequired,
+    consecutiveWeeksAbove7500,
+    revenueStatus,
+    projectedWeeklyWire,
+    revenueShortfall,
+    revenueLikelyAchievable,
+  };
 }
 
 interface SimBA { weekStarted: number; recruitedByLeaderId: string; }
@@ -434,7 +561,7 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
   };
 
   if (mc.achieved) {
-    return { status: "achieved", weeksToManagement: null, confidence: forecast.confidence, ...base };
+    return { status: "achieved", weeksToManagement: null, confidence: forecast.confidence, structuralAchieved: true, ...base };
   }
 
   const startedCandidates = candidates.filter((c) => (c.stage === "start" || c.stage === "solo") && !c.status);
@@ -502,12 +629,14 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
         status: "predicted", weeksToManagement: week, confidence: forecast.confidence,
         currentFirstGen: mc.firstGenLeaders, currentSecondGen: mc.secondGenLeaders,
         firstGenNeeded: Math.max(0, 4 - mc.firstGenLeaders), secondGenNeeded: Math.max(0, 1 - mc.secondGenLeaders),
+        structuralAchieved: simFirstGen >= 4 && simSecondGen >= 1,
       };
     }
   }
 
   return {
     status: "beyond", weeksToManagement: null, confidence: forecast.confidence,
+    structuralAchieved: false,
     ...base,
   };
 }
@@ -663,6 +792,17 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
 
+  // Get crew user IDs for sales transaction fetching
+  const crewUserIds = useMemo(() => {
+    if (!profile || allProfiles.length === 0) return [] as string[];
+    const subtreeProfileIds = getDescendantProfileIds(profile.id, allProfiles);
+    return allProfiles
+      .filter((p) => subtreeProfileIds.has(p.id))
+      .map((p) => p.user_id);
+  }, [profile, allProfiles]);
+
+  const crewTransactions = useCrewSalesTransactions(crewUserIds);
+
   const subtreeCandidates = useMemo(() => {
     if (!profile || allProfiles.length === 0) return candidates;
     return getSubtreeCandidates(profile.id, allProfiles, candidates);
@@ -677,6 +817,11 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   const forecast = useMemo(() => computeWeightedForecast(subtreeCandidates), [subtreeCandidates]);
   const breakdown = useMemo(() => computeLifetimeBreakdown(subtreeCandidates), [subtreeCandidates]);
+
+  const financialMetrics = useMemo(
+    () => computeFinancialMetrics(crewTransactions, forecast),
+    [crewTransactions, forecast]
+  );
 
   const currentTree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
@@ -709,6 +854,19 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const showVolumeWarning = breakdown.avgWeeklyOBVolume < 5;
   const showStarterRetentionWarning = forecast.retention.starterRetentionPct < 60 && forecast.retention.starterTotal4w > 0;
   const showLeaderRetentionWarning = forecast.retention.leaderRetentionPct < 75 && forecast.retention.leaderTotal4w > 0;
+
+  // Overall eligibility (only for top leader)
+  const overallEligibility = useMemo(() => {
+    if (!managementResult) return null;
+    const structuralMet = managementResult.structuralAchieved;
+    const revenueMet = financialMetrics.revenueStatus === "achieved";
+    let label: string;
+    if (structuralMet && revenueMet) label = "Management Achieved";
+    else if (!structuralMet && !revenueMet) label = "Blocked by Structure & Revenue";
+    else if (!structuralMet) label = "Blocked by Structure";
+    else label = "Blocked by Revenue";
+    return { structuralMet, revenueMet, label };
+  }, [managementResult, financialMetrics]);
 
   if (isManager) return null;
 
@@ -823,7 +981,103 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
             )}
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground/60">
-            Requires ≥4 first-generation leaders + ≥1 second-generation leader
+            Requires ≥4 first-gen leaders + ≥1 second-gen leader + £7,500 crew wire for 2 consecutive weeks
+          </div>
+
+          {/* Overall Eligibility Status */}
+          {overallEligibility && (
+            <div className="mt-3 pt-3 border-t border-border/30 space-y-1.5">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Structural Criteria</span>
+                <span className={`font-mono font-semibold ${overallEligibility.structuralMet ? "text-green-400" : "text-destructive"}`}>
+                  {overallEligibility.structuralMet ? "✓ Met" : "✗ Not Met"}
+                </span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Revenue Criteria</span>
+                <span className={`font-mono font-semibold ${overallEligibility.revenueMet ? "text-green-400" : "text-destructive"}`}>
+                  {overallEligibility.revenueMet ? "✓ Met" : "✗ Not Met"}
+                </span>
+              </div>
+              <div className="flex justify-between text-[11px] pt-1">
+                <span className="text-muted-foreground font-semibold">Overall Status</span>
+                <span className={`font-mono font-bold text-xs ${overallEligibility.structuralMet && overallEligibility.revenueMet ? "text-green-400" : "text-destructive"}`}>
+                  {overallEligibility.label}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Financial Qualification — only for top leader */}
+      {managementResult && (
+        <div className="glass-panel p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <PoundSterling className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-medium text-foreground">Financial Qualification</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Current Revenue (4w)</h4>
+              <StatRow label="Avg Wire Per Active Seller" value={`£${financialMetrics.avgWirePerActiveSeller.toFixed(2)}`} />
+              <StatRow label="Current Weekly Crew Wire" value={`£${financialMetrics.avgWeeklyCrewWire.toFixed(2)}`} />
+              <StatRow label="Active Sellers (avg)" value={financialMetrics.activeSellersCount} />
+              <StatRow label="Sellers Needed for £7,500" value={financialMetrics.requiredActiveSellers || "—"} />
+              <StatRow
+                label="Additional Sellers Required"
+                value={financialMetrics.additionalSellersRequired}
+                highlight={financialMetrics.additionalSellersRequired > 0}
+              />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Revenue Projection</h4>
+              <StatRow label="Projected Weekly Crew Wire" value={`£${financialMetrics.projectedWeeklyWire.toFixed(2)}`} />
+              {!financialMetrics.revenueLikelyAchievable && (
+                <StatRow label="Revenue Shortfall" value={`£${financialMetrics.revenueShortfall.toFixed(2)}`} highlight />
+              )}
+              <StatRow
+                label="Revenue Target (£7,500)"
+                value={financialMetrics.revenueLikelyAchievable ? "Likely Achievable" : "Gap Exists"}
+                highlight={!financialMetrics.revenueLikelyAchievable}
+              />
+
+              <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pt-2">2-Week Consistency</h4>
+              <StatRow
+                label="Consecutive Weeks ≥ £7,500"
+                value={`${financialMetrics.consecutiveWeeksAbove7500} / 2`}
+                highlight={financialMetrics.consecutiveWeeksAbove7500 < 2}
+              />
+              <div className={`mt-1 text-[11px] font-semibold px-2 py-1 rounded-md inline-block ${
+                financialMetrics.revenueStatus === "achieved"
+                  ? "text-green-400 bg-green-400/10"
+                  : financialMetrics.revenueStatus === "needs_one_more"
+                    ? "text-yellow-400 bg-yellow-400/10"
+                    : "text-destructive bg-destructive/10"
+              }`}>
+                {financialMetrics.revenueStatus === "achieved"
+                  ? "✓ Revenue Criteria Achieved"
+                  : financialMetrics.revenueStatus === "needs_one_more"
+                    ? "Needs 1 More Consecutive Week"
+                    : "Revenue Stability Not Proven"}
+              </div>
+            </div>
+          </div>
+
+          {/* Weekly breakdown */}
+          <div className="mt-3 pt-3 border-t border-border/30">
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Weekly Wire (Last 4 Weeks)</h4>
+            <div className="grid grid-cols-4 gap-2">
+              {financialMetrics.weeklyCrewWire.map((w) => (
+                <div key={w.weekStart} className="bg-muted/20 rounded-lg p-2 text-center">
+                  <div className="text-[10px] text-muted-foreground">{w.weekStart.slice(5)}</div>
+                  <div className={`text-xs font-mono font-semibold mt-0.5 ${w.total >= 7500 ? "text-green-400" : "text-foreground"}`}>
+                    £{w.total.toFixed(0)}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
