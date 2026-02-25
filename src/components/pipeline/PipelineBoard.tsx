@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage, StageChange } from "@/lib/types";
+import { ChannelConversion } from "./ChannelConversion";
 import { CandidateCard } from "./CandidateCard";
 import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
@@ -400,6 +401,9 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
           </div>
         )}
       </section>
+
+      {/* Lifetime Channel Conversion */}
+      <ChannelConversion candidates={candidates} />
     </div>
   );
 }
