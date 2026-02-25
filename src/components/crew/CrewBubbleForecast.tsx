@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { CrewTree } from "./CrewTree";
-import { Target } from "lucide-react";
+import { Target, AlertTriangle } from "lucide-react";
 import { Candidate, STAGES_ORDER, PipelineStage } from "@/lib/types";
-import { GitBranch, Shield } from "lucide-react";
+import { GitBranch, Shield, BarChart3, TrendingDown, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
@@ -31,11 +31,6 @@ interface Profile {
   crew_name: string;
 }
 
-/**
- * Shared descendant resolution: returns all profile IDs recursively
- * downstream from a given root profile (inclusive).
- * Used by both Crew Bubble and Crew Forecast to ensure identical scoping.
- */
 export function getDescendantProfileIds(
   rootProfileId: string,
   allProfiles: Profile[],
@@ -48,10 +43,6 @@ export function getDescendantProfileIds(
   return visited;
 }
 
-/**
- * Filters candidates to only those recruited by profiles within the subtree.
- * This prevents data leakage from parallel branches.
- */
 function getSubtreeCandidates(
   rootProfileId: string,
   allProfiles: Profile[],
@@ -107,7 +98,6 @@ function stageEntryDate(c: Candidate, stage: PipelineStage): string | null {
   return entry?.date ?? null;
 }
 
-// Get Monday of the week for a given date
 function getWeekMonday(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
@@ -156,12 +146,13 @@ function computeWeightedForecast(candidates: Candidate[]): WeightedForecast {
   const wAvgStarts = weights.reduce((sum, w, i) => sum + w * weeklyStarts[i], 0) / totalWeight;
   const wAvgPromotions = weights.reduce((sum, w, i) => sum + w * weeklyPromotions[i], 0) / totalWeight;
 
-  const totalInterviews4w = weeklyInterviews.reduce((a, b) => a + b, 0);
-  const totalStarts4w = weeklyStarts.reduce((a, b) => a + b, 0);
-  const totalPromotions4w = weeklyPromotions.reduce((a, b) => a + b, 0);
+  // Use LIFETIME blended conversion rates (all sources)
+  const totalLifetimeOBS = candidates.filter((c) => reachedStage(c, "obs")).length;
+  const totalLifetimeStarts = candidates.filter((c) => reachedStage(c, "start")).length;
+  const totalLifetimePromotions = candidates.filter((c) => reachedStage(c, "promoted")).length;
 
-  const interviewToStartPct = totalInterviews4w > 0 ? totalStarts4w / totalInterviews4w : 0;
-  const startToPromotionPct = totalStarts4w > 0 ? totalPromotions4w / totalStarts4w : 0;
+  const interviewToStartPct = totalLifetimeOBS > 0 ? totalLifetimeStarts / totalLifetimeOBS : 0;
+  const startToPromotionPct = totalLifetimeStarts > 0 ? totalLifetimePromotions / totalLifetimeStarts : 0;
 
   const promotedCandidates = candidates.filter((c) => c.stage === "promoted");
   let avgPromotionDays = 60;
@@ -187,7 +178,7 @@ function computeWeightedForecast(candidates: Candidate[]): WeightedForecast {
   const interviewVariance = computeVariance(weeklyInterviews);
   const startVariance = computeVariance(weeklyStarts);
 
-  if (totalInterviews4w < 10 || totalStarts4w < 5 || totalPromotions4w < 3) {
+  if (totalLifetimeOBS < 10 || totalLifetimeStarts < 5 || totalLifetimePromotions < 3) {
     confidence = "Low";
     expected2ndRounds *= 0.7;
     expectedStarts *= 0.7;
@@ -349,60 +340,58 @@ function countNodes(node: CrewNode): number {
   return 1 + node.children.reduce((sum, c) => sum + countNodes(c), 0);
 }
 
-// --- Management Criteria ---
+// --- Management Criteria (FIXED) ---
+// First-gen leaders = direct children of root that are leaders
+// Second-gen leaders = children of first-gen leaders that are leaders
+interface ManagementCounts {
+  firstGenLeaders: number;
+  secondGenLeaders: number;
+  achieved: boolean;
+}
+
+function countManagementCriteria(tree: CrewNode): ManagementCounts {
+  const firstGenLeaders = tree.children.filter((c) => c.isLeader && !c.isPredicted);
+  const firstGenCount = firstGenLeaders.length;
+  let secondGenCount = 0;
+  for (const fg of firstGenLeaders) {
+    secondGenCount += fg.children.filter((c) => c.isLeader && !c.isPredicted).length;
+  }
+  return {
+    firstGenLeaders: firstGenCount,
+    secondGenLeaders: secondGenCount,
+    achieved: firstGenCount >= 4 && secondGenCount >= 1,
+  };
+}
+
 interface ManagementResult {
   status: "achieved" | "predicted" | "beyond";
   weeksToManagement: number | null;
   confidence: ForecastConfidence;
-}
-
-function countLeadersInTree(node: CrewNode): number {
-  let count = node.isLeader ? 1 : 0;
-  for (const c of node.children) count += countLeadersInTree(c);
-  return count;
-}
-
-function hasLeaderWithSubLeader(node: CrewNode): boolean {
-  if (!node.isLeader) return false;
-  for (const child of node.children) {
-    if (child.isLeader) {
-      for (const grandchild of child.children) {
-        if (grandchild.isLeader) return true;
-      }
-    }
-  }
-  for (const child of node.children) {
-    if (hasLeaderWithSubLeader(child)) return true;
-  }
-  return false;
-}
-
-function checkManagementCriteria(tree: CrewNode): boolean {
-  const totalLeaders = countLeadersInTree(tree) - 1;
-  return totalLeaders >= 4 && hasLeaderWithSubLeader(tree);
+  currentFirstGen: number;
+  currentSecondGen: number;
+  firstGenNeeded: number;
+  secondGenNeeded: number;
 }
 
 interface SimBA { weekStarted: number; recruitedByLeaderId: string; }
-interface SimLeader { id: string; parentId: string | null; hasSubLeader: boolean; }
+interface SimLeader { id: string; parentId: string | null; isFirstGen: boolean; }
 
 function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedForecast, candidates: Candidate[]): ManagementResult {
-  if (checkManagementCriteria(currentTree)) {
-    return { status: "achieved", weeksToManagement: null, confidence: forecast.confidence };
+  const mc = countManagementCriteria(currentTree);
+  const base = {
+    currentFirstGen: mc.firstGenLeaders,
+    currentSecondGen: mc.secondGenLeaders,
+    firstGenNeeded: Math.max(0, 4 - mc.firstGenLeaders),
+    secondGenNeeded: Math.max(0, 1 - mc.secondGenLeaders),
+  };
+
+  if (mc.achieved) {
+    return { status: "achieved", weeksToManagement: null, confidence: forecast.confidence, ...base };
   }
 
-  const currentLeaders: SimLeader[] = [];
   const startedCandidates = candidates.filter((c) => (c.stage === "start" || c.stage === "solo") && !c.status);
-
-  function walkTree(node: CrewNode, parentId: string | null) {
-    if (node.isLeader && !node.isPredicted) {
-      const hasSubLeader = node.children.some((c) => c.isLeader && !c.isPredicted);
-      currentLeaders.push({ id: node.id, parentId, hasSubLeader });
-    }
-    for (const c of node.children) walkTree(c, node.id);
-  }
-  walkTree(currentTree, null);
-
   const now = new Date();
+
   const baWeekMap: Map<string, number> = new Map();
   startedCandidates.forEach((c) => {
     const startDate = stageEntryDate(c, "start");
@@ -412,11 +401,14 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
     }
   });
 
-  let leaders = [...currentLeaders];
+  // Track first-gen and second-gen leaders separately
+  let simFirstGen = mc.firstGenLeaders;
+  let simSecondGen = mc.secondGenLeaders;
+  
   const bas: SimBA[] = [];
   startedCandidates.forEach((c) => {
     const weekStarted = baWeekMap.get(c.id) ?? -99;
-    bas.push({ weekStarted, recruitedByLeaderId: c.recruitedBy ?? leaders[0]?.id ?? "root" });
+    bas.push({ weekStarted, recruitedByLeaderId: c.recruitedBy ?? currentTree.id });
   });
 
   const avgPromotionWeeks = Math.max(1, Math.round(forecast.avgPromotionDays / 7));
@@ -424,10 +416,14 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
   const weeklyNewStarts = forecast.weeklyStarts;
   const promoRate = forecast.startToPromotionPct;
 
+  // Track which leaders are first-gen (recruited by root)
+  const firstGenLeaderIds = new Set<string>();
+  currentTree.children.filter((c) => c.isLeader && !c.isPredicted).forEach((c) => firstGenLeaderIds.add(c.id));
+
   for (let week = 1; week <= 12; week++) {
     const newStartCount = Math.round(weeklyNewStarts);
     for (let i = 0; i < newStartCount; i++) {
-      bas.push({ weekStarted: week, recruitedByLeaderId: leaders[0]?.id ?? "root" });
+      bas.push({ weekStarted: week, recruitedByLeaderId: currentTree.id });
     }
 
     const toPromote: number[] = [];
@@ -438,31 +434,132 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
 
     const promoteCount = Math.min(toPromote.length, Math.max(0, Math.round(toPromote.length * promoRate)));
     const promoted = toPromote.slice(0, promoteCount);
-    const promotedSet = new Set(promoted);
 
     promoted.forEach((idx) => {
       const ba = bas[idx];
-      const newLeaderId = `sim-leader-${week}-${idx}`;
-      const parentLeader = leaders.find((l) => l.id === ba.recruitedByLeaderId);
-      if (parentLeader) parentLeader.hasSubLeader = true;
-      leaders.push({ id: newLeaderId, parentId: ba.recruitedByLeaderId, hasSubLeader: false });
+      if (ba.recruitedByLeaderId === currentTree.id) {
+        simFirstGen++;
+        firstGenLeaderIds.add(`sim-fg-${week}-${idx}`);
+      } else if (firstGenLeaderIds.has(ba.recruitedByLeaderId)) {
+        simSecondGen++;
+      }
     });
 
-    const sortedPromoted = [...promotedSet].sort((a, b) => b - a);
+    const sortedPromoted = [...new Set(promoted)].sort((a, b) => b - a);
     sortedPromoted.forEach((idx) => bas.splice(idx, 1));
 
-    const totalLeaders = leaders.length - 1;
-    const rootHasDepth2 = leaders.some((l) => {
-      if (l.parentId !== leaders[0]?.id) return false;
-      return l.hasSubLeader;
-    });
-
-    if (totalLeaders >= 4 && rootHasDepth2) {
-      return { status: "predicted", weeksToManagement: week, confidence: forecast.confidence };
+    if (simFirstGen >= 4 && simSecondGen >= 1) {
+      return {
+        status: "predicted", weeksToManagement: week, confidence: forecast.confidence,
+        currentFirstGen: mc.firstGenLeaders, currentSecondGen: mc.secondGenLeaders,
+        firstGenNeeded: Math.max(0, 4 - mc.firstGenLeaders), secondGenNeeded: Math.max(0, 1 - mc.secondGenLeaders),
+      };
     }
   }
 
-  return { status: "beyond", weeksToManagement: null, confidence: forecast.confidence };
+  return {
+    status: "beyond", weeksToManagement: null, confidence: forecast.confidence,
+    ...base,
+  };
+}
+
+// --- Lifetime stats for breakdown ---
+interface LifetimeBreakdown {
+  totalOBS: number;
+  totalStarts: number;
+  totalPromotions: number;
+  obsToStartPct: number;
+  startToPromoPct: number;
+  avgWeeksStartToPromo: number | null;
+  avgWeeklyOBVolume: number;
+  weeksOfData: number;
+  // Per-source
+  sources: { label: string; addedToOB: number; obToStart: number; startToPromo: number; added: number; reachedOB: number; reachedStart: number; reachedPromo: number }[];
+  // Insufficiency
+  insufficiency: string[];
+  // Weakest source
+  weakestSource: { name: string; improvementGain: number } | null;
+}
+
+function computeLifetimeBreakdown(candidates: Candidate[]): LifetimeBreakdown {
+  const totalOBS = candidates.filter((c) => reachedStage(c, "obs")).length;
+  const totalStarts = candidates.filter((c) => reachedStage(c, "start")).length;
+  const totalPromotions = candidates.filter((c) => reachedStage(c, "promoted")).length;
+
+  const obsToStartPct = totalOBS > 0 ? (totalStarts / totalOBS) * 100 : 0;
+  const startToPromoPct = totalStarts > 0 ? (totalPromotions / totalStarts) * 100 : 0;
+
+  // Avg weeks start → promotion
+  const promotedCandidates = candidates.filter((c) => c.stage === "promoted");
+  let avgWeeksStartToPromo: number | null = null;
+  if (promotedCandidates.length > 0) {
+    const durations = promotedCandidates.map((c) => {
+      const startDate = stageEntryDate(c, "start");
+      const promoDate = stageEntryDate(c, "promoted");
+      if (startDate && promoDate) {
+        return (new Date(promoDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 7);
+      }
+      return null;
+    }).filter((d): d is number => d !== null);
+    if (durations.length > 0) {
+      avgWeeksStartToPromo = Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10;
+    }
+  }
+
+  // Avg weekly OB volume (lifetime)
+  let weeksOfData = 1;
+  if (candidates.length > 0) {
+    const earliest = candidates.reduce((min, c) => {
+      const d = new Date(c.createdAt).getTime();
+      return d < min ? d : min;
+    }, Date.now());
+    weeksOfData = Math.max(1, Math.round((Date.now() - earliest) / (1000 * 60 * 60 * 24 * 7)));
+  }
+  const avgWeeklyOBVolume = Math.round((totalOBS / weeksOfData) * 10) / 10;
+
+  // Per-source breakdown
+  const sourceLabels = ["Office", "LinkedIn", "Personal"] as const;
+  const sources = sourceLabels.map((label) => {
+    const src = candidates.filter((c) => c.source === label);
+    const added = src.length;
+    const reachedOB = src.filter((c) => reachedStage(c, "obs")).length;
+    const reachedStart = src.filter((c) => reachedStage(c, "start")).length;
+    const reachedPromo = src.filter((c) => reachedStage(c, "promoted")).length;
+    return {
+      label,
+      added,
+      reachedOB,
+      reachedStart,
+      reachedPromo,
+      addedToOB: added > 0 ? Math.round((reachedOB / added) * 100) : 0,
+      obToStart: reachedOB > 0 ? Math.round((reachedStart / reachedOB) * 100) : 0,
+      startToPromo: reachedStart > 0 ? Math.round((reachedPromo / reachedStart) * 100) : 0,
+    };
+  });
+
+  // Insufficiency warnings
+  const insufficiency: string[] = [];
+  if (totalPromotions < 5) insufficiency.push("Need at least 5 promotions to stabilise Start → Promotion %");
+  if (totalOBS < 5) insufficiency.push("Need at least 5 OBs to stabilise OBS → Start %");
+
+  // Weakest source (by OB → Start)
+  const sourcesWithOB = sources.filter((s) => s.reachedOB > 0);
+  let weakestSource: { name: string; improvementGain: number } | null = null;
+  if (sourcesWithOB.length > 0) {
+    const weakest = sourcesWithOB.reduce((prev, curr) => (curr.obToStart < prev.obToStart ? curr : prev));
+    // Calculate: if we improve this source's OB→Start by 10%, how many additional promotions in 8 weeks?
+    const currentStarts = weakest.reachedOB * (weakest.obToStart / 100);
+    const improvedStarts = weakest.reachedOB * ((weakest.obToStart + 10) / 100);
+    const additionalStarts = improvedStarts - currentStarts;
+    const avgWeeklyAdditionalStarts = additionalStarts / Math.max(1, weeksOfData);
+    const additionalPromos = avgWeeklyAdditionalStarts * 8 * (startToPromoPct / 100);
+    weakestSource = { name: weakest.label, improvementGain: Math.round(additionalPromos * 10) / 10 };
+  }
+
+  return {
+    totalOBS, totalStarts, totalPromotions, obsToStartPct, startToPromoPct,
+    avgWeeksStartToPromo, avgWeeklyOBVolume, weeksOfData, sources, insufficiency, weakestSource,
+  };
 }
 
 export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) {
@@ -471,13 +568,11 @@ export function CrewBubbleSnapshot({ candidates }: { candidates: Candidate[] }) 
   const allProfilesRaw = sharedProfiles as Profile[];
   const managerUserIds = useManagerUserIds();
 
-  // Filter out manager/super_admin profiles from the tree
   const allProfiles = useMemo(
     () => allProfilesRaw.filter((p) => !managerUserIds.has(p.user_id)),
     [allProfilesRaw, managerUserIds]
   );
 
-  // Managers should not appear in crew bubble at all
   const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
   
   const subtreeCandidates = useMemo(() => {
@@ -512,16 +607,13 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   const allProfilesRaw = sharedProfiles as Profile[];
   const managerUserIds = useManagerUserIds();
 
-  // Filter out manager/super_admin profiles from the tree
   const allProfiles = useMemo(
     () => allProfilesRaw.filter((p) => !managerUserIds.has(p.user_id)),
     [allProfilesRaw, managerUserIds]
   );
 
-  // Managers should not see crew bubble forecast
   const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
 
-  // Filter candidates to only this leader's recursive subtree
   const subtreeCandidates = useMemo(() => {
     if (!profile || allProfiles.length === 0) return candidates;
     return getSubtreeCandidates(profile.id, allProfiles, candidates);
@@ -535,6 +627,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   }, [subtreeCandidates]);
 
   const forecast = useMemo(() => computeWeightedForecast(subtreeCandidates), [subtreeCandidates]);
+  const breakdown = useMemo(() => computeLifetimeBreakdown(subtreeCandidates), [subtreeCandidates]);
 
   const currentTree = useMemo(() => {
     if (!profile || allProfiles.length === 0) {
@@ -559,9 +652,12 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
 
   const tree = showPredicted ? predictedTree : currentTree;
   const totalNodes = countNodes(tree);
-  const topCrewName = profile ? (allProfiles.find(p => p.id === profile.id)?.crew_name || "") : "";
 
   const confStyle = CONFIDENCE_STYLES[forecast.confidence];
+
+  // Behavioural diagnostics
+  const showRetrainingWarning = breakdown.startToPromoPct < 25 && breakdown.totalStarts > 0;
+  const showVolumeWarning = breakdown.avgWeeklyOBVolume < 5;
 
   if (isManager) return null;
 
@@ -596,14 +692,12 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
               <span className="text-muted-foreground">Start → Promotion:</span>
               <span className="text-foreground font-mono font-semibold">{startToPromotionPct}%</span>
             </div>
-            {showPredicted && (
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${confStyle.bg}`}>
-                <Shield className="w-3 h-3" />
-                <span className={`font-medium ${confStyle.color}`}>
-                  Confidence: {forecast.confidence}
-                </span>
-              </div>
-            )}
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${confStyle.bg}`}>
+              <Shield className="w-3 h-3" />
+              <span className={`font-medium ${confStyle.color}`}>
+                Confidence: {forecast.confidence}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -634,7 +728,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
       {/* Management Criteria — only for top leader */}
       {managementResult && (
         <div className="glass-panel p-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-primary" />
               <span className="text-xs font-medium text-foreground">Management Criteria</span>
@@ -650,21 +744,142 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
                 <span className="text-sm font-mono font-bold text-foreground">
                   {managementResult.weeksToManagement} week{managementResult.weeksToManagement !== 1 ? "s" : ""}
                 </span>
-                {managementResult.confidence === "Low" && (
-                  <span className="text-[10px] text-red-400/80 bg-red-400/10 px-2 py-0.5 rounded">Low confidence due to limited recent data</span>
-                )}
               </div>
             ) : (
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground/70 bg-muted/20 px-2.5 py-1 rounded-md">Beyond 12-week forecast window</span>
-                {managementResult.confidence === "Low" && (
-                  <span className="text-[10px] text-red-400/80 bg-red-400/10 px-2 py-0.5 rounded">Low confidence due to limited recent data</span>
-                )}
+              <span className="text-xs text-muted-foreground/70 bg-muted/20 px-2.5 py-1 rounded-md">Beyond 12-week forecast window</span>
+            )}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-3 text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current First Gen Leaders</span>
+              <span className="font-mono text-foreground">{managementResult.currentFirstGen}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current Second Gen Leaders</span>
+              <span className="font-mono text-foreground">{managementResult.currentSecondGen}</span>
+            </div>
+            {managementResult.firstGenNeeded > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">First Gen Still Needed</span>
+                <span className="font-mono text-destructive">{managementResult.firstGenNeeded}</span>
+              </div>
+            )}
+            {managementResult.secondGenNeeded > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Second Gen Still Needed</span>
+                <span className="font-mono text-destructive">{managementResult.secondGenNeeded}</span>
               </div>
             )}
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground/60">
-            Requires ≥4 leaders in your team + at least 1 leader with a promoted sub-leader
+            Requires ≥4 first-generation leaders + ≥1 second-generation leader
+          </div>
+        </div>
+      )}
+
+      {/* Forecast Breakdown */}
+      <div className="glass-panel p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-medium text-foreground">Forecast Breakdown</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Current Stats */}
+          <div className="space-y-2">
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Current Stats</h4>
+            {managementResult && (
+              <>
+                <StatRow label="Current First Gen Leaders" value={managementResult.currentFirstGen} />
+                <StatRow label="Current Second Gen Leaders" value={managementResult.currentSecondGen} />
+              </>
+            )}
+            <StatRow label="OBS → Start %" value={`${Math.round(breakdown.obsToStartPct)}%`} />
+            <StatRow label="Start → Promotion %" value={`${Math.round(breakdown.startToPromoPct)}%`} />
+            <StatRow label="Avg Weeks Start → Promotion" value={breakdown.avgWeeksStartToPromo !== null ? `${breakdown.avgWeeksStartToPromo}` : "—"} />
+            <StatRow label="Avg Weekly OB Volume" value={breakdown.avgWeeklyOBVolume} />
+          </div>
+
+          {/* Projection Model */}
+          <div className="space-y-2">
+            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Projection Model (8 Weeks)</h4>
+            <StatRow label="Projected New Starts" value={forecast.expectedStarts} />
+            <StatRow label="Projected Promotions" value={forecast.expectedPromotions} />
+            {managementResult && (
+              <>
+                <StatRow label="Projected First Gen Leaders" value={managementResult.currentFirstGen + Math.round(forecast.expectedPromotions)} />
+                <StatRow label="Projected Second Gen Leaders" value={managementResult.currentSecondGen} />
+              </>
+            )}
+            {managementResult && managementResult.status !== "achieved" && (
+              <>
+                <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pt-2">Management Criteria Gap</h4>
+                <StatRow label="First Gen Still Needed" value={managementResult.firstGenNeeded} highlight={managementResult.firstGenNeeded > 0} />
+                <StatRow label="Second Gen Still Needed" value={managementResult.secondGenNeeded} highlight={managementResult.secondGenNeeded > 0} />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* KPI Insufficiency */}
+        {breakdown.insufficiency.length > 0 && (
+          <div className="mt-4 p-3 bg-yellow-400/5 border border-yellow-400/20 rounded-lg">
+            <h4 className="text-[11px] font-semibold text-yellow-400 uppercase tracking-wider mb-1.5">Insufficient Data</h4>
+            {breakdown.insufficiency.map((msg, i) => (
+              <p key={i} className="text-[11px] text-yellow-400/80">• {msg}</p>
+            ))}
+          </div>
+        )}
+
+        {/* Behavioural Diagnostics */}
+        {(showRetrainingWarning || showVolumeWarning) && (
+          <div className="mt-4 space-y-2">
+            {showRetrainingWarning && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[11px] font-semibold text-destructive">⚠ Retraining needs work</p>
+                  <p className="text-[10px] text-destructive/70">Less than 25% of starters are promoting. Current rate: {Math.round(breakdown.startToPromoPct)}%</p>
+                </div>
+              </div>
+            )}
+            {showVolumeWarning && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[11px] font-semibold text-destructive">⚠ More OBS needed</p>
+                  <p className="text-[10px] text-destructive/70">Taking less than 5 OBS per week on average. Current: {breakdown.avgWeeklyOBVolume}/wk</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Recruitment Weakness Impact */}
+      {breakdown.weakestSource && (
+        <div className="glass-panel p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingDown className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-medium text-foreground">Recruitment Weakness Impact</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            {breakdown.sources.map((s) => (
+              <div key={s.label} className="bg-muted/20 rounded-lg p-3 space-y-1.5">
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">{s.label}</h4>
+                <StatRow label="Added → OB" value={`${s.addedToOB}%`} />
+                <StatRow label="OB → Start" value={`${s.obToStart}%`} />
+                <StatRow label="Start → Promotion" value={`${s.startToPromo}%`} />
+              </div>
+            ))}
+          </div>
+          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <p className="text-[11px] text-foreground">
+              <span className="font-semibold">Weakest Source: {breakdown.weakestSource.name}</span>
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Improving this conversion by 10% would result in approximately <span className="font-mono font-semibold text-primary">{breakdown.weakestSource.improvementGain}</span> additional promotions in 8 weeks.
+            </p>
           </div>
         </div>
       )}
@@ -687,10 +902,19 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
         )}
       </div>
 
-      {/* Tree container — vertical scroll only, NO horizontal scroll */}
+      {/* Tree container */}
       <div className="glass-panel">
         <CrewTree tree={tree} />
       </div>
+    </div>
+  );
+}
+
+function StatRow({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <div className="flex justify-between text-[11px]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-mono font-medium ${highlight ? "text-destructive" : "text-foreground"}`}>{value}</span>
     </div>
   );
 }
