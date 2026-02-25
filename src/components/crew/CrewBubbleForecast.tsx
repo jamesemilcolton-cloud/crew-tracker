@@ -67,6 +67,15 @@ interface CrewBubbleForecastProps {
 
 type ForecastConfidence = "High" | "Medium" | "Low";
 
+interface RetentionMetrics {
+  starterRetentionPct: number;
+  leaderRetentionPct: number;
+  starterTotal4w: number;
+  starterActive4w: number;
+  leaderTotal4w: number;
+  leaderActive4w: number;
+}
+
 interface WeightedForecast {
   weeklyInterviews: number;
   weeklyStarts: number;
@@ -77,6 +86,9 @@ interface WeightedForecast {
   expected2ndRounds: number;
   expectedStarts: number;
   expectedPromotions: number;
+  adjustedStarts: number;
+  adjustedPromotions: number;
+  retention: RetentionMetrics;
   confidence: ForecastConfidence;
 }
 
@@ -170,6 +182,38 @@ function computeWeightedForecast(candidates: Candidate[]): WeightedForecast {
     }
   }
 
+  // --- Retention Calculation (last 4 weeks) ---
+  const fourWeeksAgo = new Date(currentMonday);
+  fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+  // Starters in last 4 weeks: candidates who reached "start" in that window
+  const startersIn4w = candidates.filter((c) => {
+    const d = stageEntryDate(c, "start");
+    if (!d) return false;
+    const dt = new Date(d);
+    return dt >= fourWeeksAgo && dt < now;
+  });
+  const starterTotal4w = startersIn4w.length;
+  const starterActive4w = startersIn4w.filter((c) => c.status !== "Dropped" && c.status !== "dropped").length;
+  const starterRetentionPct = starterTotal4w > 0 ? starterActive4w / starterTotal4w : 1;
+
+  // Leaders in last 4 weeks: candidates who reached "promoted" in that window
+  const leadersIn4w = candidates.filter((c) => {
+    const d = stageEntryDate(c, "promoted");
+    if (!d) return false;
+    const dt = new Date(d);
+    return dt >= fourWeeksAgo && dt < now;
+  });
+  const leaderTotal4w = leadersIn4w.length;
+  const leaderActive4w = leadersIn4w.filter((c) => c.status !== "Dropped" && c.status !== "dropped").length;
+  const leaderRetentionPct = leaderTotal4w > 0 ? leaderActive4w / leaderTotal4w : 1;
+
+  const retention: RetentionMetrics = {
+    starterRetentionPct: Math.round(starterRetentionPct * 100),
+    leaderRetentionPct: Math.round(leaderRetentionPct * 100),
+    starterTotal4w, starterActive4w, leaderTotal4w, leaderActive4w,
+  };
+
   let expected2ndRounds = wAvgInterviews * 8;
   let expectedStarts = expected2ndRounds * interviewToStartPct;
   let expectedPromotions = expectedStarts * startToPromotionPct;
@@ -190,12 +234,16 @@ function computeWeightedForecast(candidates: Candidate[]): WeightedForecast {
     expectedPromotions *= 0.85;
   }
 
+  const adjustedStarts = Math.round(expectedStarts * starterRetentionPct * 10) / 10;
+  const adjustedPromotions = Math.round(expectedPromotions * leaderRetentionPct * 10) / 10;
+
   return {
     weeklyInterviews: wAvgInterviews, weeklyStarts: wAvgStarts, weeklyPromotions: wAvgPromotions,
     interviewToStartPct, startToPromotionPct, avgPromotionDays,
     expected2ndRounds: Math.round(expected2ndRounds * 10) / 10,
     expectedStarts: Math.round(expectedStarts * 10) / 10,
     expectedPromotions: Math.round(expectedPromotions * 10) / 10,
+    adjustedStarts, adjustedPromotions, retention,
     confidence,
   };
 }
@@ -413,8 +461,9 @@ function simulateManagementTimeline(currentTree: CrewNode, forecast: WeightedFor
 
   const avgPromotionWeeks = Math.max(1, Math.round(forecast.avgPromotionDays / 7));
   const promotionThresholdWeeks = Math.floor(avgPromotionWeeks * 0.7);
-  const weeklyNewStarts = forecast.weeklyStarts;
-  const promoRate = forecast.startToPromotionPct;
+  // Use retention-adjusted weekly starts for simulation
+  const weeklyNewStarts = forecast.weeklyStarts * (forecast.retention.starterRetentionPct / 100);
+  const promoRate = forecast.startToPromotionPct * (forecast.retention.leaderRetentionPct / 100);
 
   // Track which leaders are first-gen (recruited by root)
   const firstGenLeaderIds = new Set<string>();
@@ -658,6 +707,8 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
   // Behavioural diagnostics
   const showRetrainingWarning = breakdown.startToPromoPct < 25 && breakdown.totalStarts > 0;
   const showVolumeWarning = breakdown.avgWeeklyOBVolume < 5;
+  const showStarterRetentionWarning = forecast.retention.starterRetentionPct < 60 && forecast.retention.starterTotal4w > 0;
+  const showLeaderRetentionWarning = forecast.retention.leaderRetentionPct < 75 && forecast.retention.leaderTotal4w > 0;
 
   if (isManager) return null;
 
@@ -798,6 +849,8 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
             <StatRow label="Start → Promotion %" value={`${Math.round(breakdown.startToPromoPct)}%`} />
             <StatRow label="Avg Weeks Start → Promotion" value={breakdown.avgWeeksStartToPromo !== null ? `${breakdown.avgWeeksStartToPromo}` : "—"} />
             <StatRow label="Avg Weekly OB Volume" value={breakdown.avgWeeklyOBVolume} />
+            <StatRow label="Starter Retention % (4w)" value={`${forecast.retention.starterRetentionPct}%`} highlight={forecast.retention.starterRetentionPct < 60 && forecast.retention.starterTotal4w > 0} />
+            <StatRow label="Leader Retention % (4w)" value={`${forecast.retention.leaderRetentionPct}%`} highlight={forecast.retention.leaderRetentionPct < 75 && forecast.retention.leaderTotal4w > 0} />
           </div>
 
           {/* Projection Model */}
@@ -805,9 +858,14 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
             <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Projection Model (8 Weeks)</h4>
             <StatRow label="Projected New Starts" value={forecast.expectedStarts} />
             <StatRow label="Projected Promotions" value={forecast.expectedPromotions} />
+
+            <h4 className="text-[11px] font-semibold text-primary uppercase tracking-wider pt-2">Retention Adjusted Projection</h4>
+            <StatRow label="Adjusted Projected Starters" value={forecast.adjustedStarts} />
+            <StatRow label="Adjusted Projected Leaders" value={forecast.adjustedPromotions} />
+
             {managementResult && (
               <>
-                <StatRow label="Projected First Gen Leaders" value={managementResult.currentFirstGen + Math.round(forecast.expectedPromotions)} />
+                <StatRow label="Projected First Gen Leaders" value={managementResult.currentFirstGen + Math.round(forecast.adjustedPromotions)} />
                 <StatRow label="Projected Second Gen Leaders" value={managementResult.currentSecondGen} />
               </>
             )}
@@ -832,7 +890,7 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
         )}
 
         {/* Behavioural Diagnostics */}
-        {(showRetrainingWarning || showVolumeWarning) && (
+        {(showRetrainingWarning || showVolumeWarning || showStarterRetentionWarning || showLeaderRetentionWarning) && (
           <div className="mt-4 space-y-2">
             {showRetrainingWarning && (
               <div className="flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
@@ -849,6 +907,24 @@ export function CrewBubbleForecast({ candidates }: CrewBubbleForecastProps) {
                 <div>
                   <p className="text-[11px] font-semibold text-destructive">⚠ More OBS needed</p>
                   <p className="text-[10px] text-destructive/70">Taking less than 5 OBS per week on average. Current: {breakdown.avgWeeklyOBVolume}/wk</p>
+                </div>
+              </div>
+            )}
+            {showStarterRetentionWarning && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[11px] font-semibold text-destructive">⚠ High Starter Drop-Off</p>
+                  <p className="text-[10px] text-destructive/70">Starter retention is below 60% over the last 4 weeks. Current: {forecast.retention.starterRetentionPct}%</p>
+                </div>
+              </div>
+            )}
+            {showLeaderRetentionWarning && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[11px] font-semibold text-destructive">⚠ Leader Retention Low</p>
+                  <p className="text-[10px] text-destructive/70">Leader retention is below 75% over the last 4 weeks. Current: {forecast.retention.leaderRetentionPct}%</p>
                 </div>
               </div>
             )}
