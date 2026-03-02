@@ -6,11 +6,15 @@ import { CandidateDetail } from "./CandidateDetail";
 import { PipelineAnalytics, TrendRange } from "./PipelineAnalytics";
 import { NewCandidateForm, AddCandidatePayload } from "./NewCandidateForm";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, Trash2, RotateCcw, AlertTriangle, UserPlus, CheckCircle, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Trash2, RotateCcw, AlertTriangle, UserPlus, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +33,7 @@ interface PipelineBoardProps {
   onArchiveCandidate: (id: string) => Promise<void>;
   onDropCandidate: (id: string, reason: string) => Promise<void>;
   onRestoreCandidate: (id: string) => Promise<void>;
-  onMoveStage: (candidate: Candidate, direction: "forward" | "backward") => Promise<void>;
+  onMoveStage: (candidate: Candidate, direction: "forward" | "backward", movementDate?: string) => Promise<void>;
   loading?: boolean;
   signupDate?: Date;
 }
@@ -46,6 +50,11 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   const droppedCandidates = useMemo(() => candidates.filter(c => c.status === "Dropped" || c.status === "dropped"), [candidates]);
   const personalProspects = useMemo(() => candidates.filter(c => c.stage === "prospect" && c.status !== "Dropped" && c.status !== "dropped"), [candidates]);
   const [obTakingId, setObTakingId] = useState<string | null>(null);
+
+  // Stage movement date selector state
+  const [pendingMove, setPendingMove] = useState<{ candidate: Candidate; direction: "forward" | "backward" } | null>(null);
+  const [movementDate, setMovementDate] = useState<Date>(new Date());
+  const [movingStage, setMovingStage] = useState(false);
 
   const columns = useMemo(() => {
     return STAGES_ORDER.map((stage) => ({
@@ -102,14 +111,25 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   };
 
   const handleMoveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward") => {
+    // Show date selector modal instead of moving directly
+    setPendingMove({ candidate, direction });
+    setMovementDate(new Date());
+  }, []);
+
+  const handleConfirmMove = async () => {
+    if (!pendingMove) return;
+    setMovingStage(true);
     try {
-      await onMoveStage(candidate, direction);
-      toast.success(`Moved ${candidate.name} ${direction}`);
+      const dateStr = format(movementDate, "yyyy-MM-dd");
+      await onMoveStage(pendingMove.candidate, pendingMove.direction, dateStr);
+      toast.success(`Moved ${pendingMove.candidate.name} ${pendingMove.direction}`);
+      setPendingMove(null);
     } catch (err: any) {
       toast.error(err?.message || "Failed to move candidate");
-      throw err; // re-throw so CandidateCard knows it failed
+    } finally {
+      setMovingStage(false);
     }
-  }, [onMoveStage]);
+  };
 
   const handleConfirmDropOff = async () => {
     if (!dropOffCandidate || !dropOffReason.trim()) return;
@@ -248,7 +268,42 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         </DialogContent>
       </Dialog>
 
-      {/* MOBILE: Personal Recruits */}
+      {/* Stage Movement Date Selector Modal */}
+      <Dialog open={!!pendingMove} onOpenChange={(open) => { if (!open) setPendingMove(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-primary" />
+              Select Movement Date
+            </DialogTitle>
+            <DialogDescription>
+              Moving <span className="font-semibold text-foreground">{pendingMove?.candidate.name}</span> {pendingMove?.direction} to{" "}
+              <span className="font-semibold text-foreground">
+                {pendingMove && STAGE_CONFIG[STAGES_ORDER[STAGES_ORDER.indexOf(pendingMove.candidate.stage) + (pendingMove.direction === "forward" ? 1 : -1)]]?.label}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-2">
+            <Calendar
+              mode="single"
+              selected={movementDate}
+              onSelect={(d) => d && setMovementDate(d)}
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </div>
+          <div className="text-center text-sm text-muted-foreground">
+            Selected: <span className="font-medium text-foreground">{format(movementDate, "do MMMM yyyy")}</span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingMove(null)}>Cancel</Button>
+            <Button disabled={movingStage} onClick={handleConfirmMove}>
+              {movingStage ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              {movingStage ? "Moving…" : "Confirm Move"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {personalProspects.length > 0 && (
         <div className="md:hidden">
           <div className="glass-panel p-4">
@@ -303,7 +358,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
                   <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
                 </div>
                 <div className="flex items-center gap-1 text-[11px] text-primary">
-                  <Calendar className="w-3 h-3" />
+                  <CalendarIcon className="w-3 h-3" />
                   {c.potentialStartDate
                     ? new Date(c.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
                     : "TBD"}
@@ -397,7 +452,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
                     <p className="text-[11px] text-muted-foreground">{STAGE_CONFIG[c.stage].label}</p>
                   </div>
                   <div className="flex items-center gap-1 text-[11px] text-primary">
-                    <Calendar className="w-3 h-3" />
+                    <CalendarIcon className="w-3 h-3" />
                     {c.potentialStartDate
                       ? new Date(c.potentialStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
                       : "TBD"}

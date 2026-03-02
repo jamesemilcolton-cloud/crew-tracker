@@ -57,8 +57,8 @@ const Index = () => {
     await restoreCandidate(id);
     refetchAll();
   };
-  const handleMoveStage = async (candidate: Candidate, direction: "forward" | "backward") => {
-    await moveStage(candidate, direction);
+  const handleMoveStage = async (candidate: Candidate, direction: "forward" | "backward", movementDate?: string) => {
+    await moveStage(candidate, direction, movementDate);
     refetchAll();
   };
 

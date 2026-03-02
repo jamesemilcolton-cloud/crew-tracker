@@ -116,19 +116,22 @@ export function useCandidates(scope: "own" | "all" = "own") {
     await supabase.from("candidates").update(dbUpdates).eq("id", id);
 
     if (stageChange) {
-      await supabase.from("candidate_stage_history").insert({
+      const changedAt = stageChange.date ? `${stageChange.date}T12:00:00.000Z` : undefined;
+      const historyInsert: any = {
         candidate_id: id,
         from_stage: stageChange.from,
         to_stage: stageChange.to,
         note: stageChange.note || null,
-      });
+      };
+      if (changedAt) historyInsert.changed_at = changedAt;
+      await supabase.from("candidate_stage_history").insert(historyInsert);
     }
 
     await fetchCandidates();
   }, [user, fetchCandidates]);
 
   /** Move candidate one stage forward or backward with data corrections */
-  const moveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward") => {
+  const moveStage = useCallback(async (candidate: Candidate, direction: "forward" | "backward", movementDate?: string) => {
     if (!user) throw new Error("Not authenticated");
     const currentIdx = STAGES_ORDER.indexOf(candidate.stage);
     const targetIdx = direction === "forward" ? currentIdx + 1 : currentIdx - 1;
@@ -136,6 +139,7 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
     const targetStage = STAGES_ORDER[targetIdx];
     const dbUpdates: any = { stage: targetStage };
+    const dateToUse = movementDate || new Date().toISOString().split("T")[0];
 
     // Data corrections for backward moves
     if (direction === "backward") {
@@ -147,7 +151,7 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
     // If moving forward to "start" and no start date, set it
     if (direction === "forward" && targetStage === "start" && !candidate.potentialStartDate) {
-      dbUpdates.potential_start_date = new Date().toISOString().split("T")[0];
+      dbUpdates.potential_start_date = dateToUse;
     }
 
     const { error: updateError } = await supabase
@@ -161,11 +165,13 @@ export function useCandidates(scope: "own" | "all" = "own") {
       throw new Error(updateError.message);
     }
 
-    // Record stage history
+    // Record stage history with the selected date
+    const changedAt = `${dateToUse}T12:00:00.000Z`;
     const { error: historyError } = await supabase.from("candidate_stage_history").insert({
       candidate_id: candidate.id,
       from_stage: candidate.stage,
       to_stage: targetStage,
+      changed_at: changedAt,
       note: direction === "backward" ? "Moved backward" : null,
     });
     if (historyError) {

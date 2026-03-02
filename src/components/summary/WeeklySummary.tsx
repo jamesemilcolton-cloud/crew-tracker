@@ -52,26 +52,16 @@ function getWeekBounds(offset: number = 0) {
   return { start: monday, end: sunday };
 }
 
+/** Count unique candidates that have a history entry with to_stage = stage within the week window */
 function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date, end: Date): number {
   let count = 0;
   candidates.forEach((c) => {
-    if (stage === "obs") {
-      const created = new Date(c.createdAt);
-      if (created >= start && created <= end) count++;
-      return;
-    }
-    // Use snapshot approach: check if candidate's final position in the range includes this stage
-    const historyInRange = c.history.filter((h) => {
+    // Count based purely on stage history entries within the date range
+    const hasEntryInRange = c.history.some((h) => {
       const d = parseISO(h.date);
-      return d >= start && d <= end;
+      return h.to === stage && d >= start && d <= end;
     });
-    if (historyInRange.length > 0) {
-      const lastEntry = historyInRange[historyInRange.length - 1];
-      const finalIdx = STAGES_ORDER.indexOf(lastEntry.to as PipelineStage);
-      const stageIdx = STAGES_ORDER.indexOf(stage);
-      // Candidate counts for this stage if their final position is at or beyond it
-      if (finalIdx >= stageIdx) count++;
-    }
+    if (hasEntryInRange) count++;
   });
   return count;
 }
