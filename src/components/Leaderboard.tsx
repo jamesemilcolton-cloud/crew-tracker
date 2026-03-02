@@ -142,6 +142,12 @@ export function Leaderboard() {
         const starts = userCandidates.filter((c) => START_FORWARD.includes(c.stage)).length;
         const promotions = userCandidates.filter((c) => c.stage === "promoted").length;
 
+        // Total Obs this week only: candidates created this week (excluding prospects/dropped)
+        const thisWeekObs = userCandidates.filter((c) => {
+          const createdDate = c.created_at?.slice(0, 10);
+          return createdDate >= wsStr && createdDate <= weStr && c.stage !== "prospect" && !c.drop_off_date;
+        }).length;
+
         return {
           profileId: p.id,
           name: p.full_name,
@@ -149,7 +155,7 @@ export function Leaderboard() {
           adsUploaded: userAds.length,
           cvsDownloaded: userCvs.reduce((s, c) => s + c.count, 0),
           secondRoundsLinkedIn: userActivities.reduce((s, a) => s + a.candidates_attending_2nd_round, 0),
-          totalSecondRounds: totalInterviews,
+          totalSecondRounds: thisWeekObs,
           interviewToStartPct: totalInterviews > 0 ? Math.round((starts / totalInterviews) * 100) : 0,
           startToPromotionPct: starts > 0 ? Math.round((promotions / starts) * 100) : 0,
           activeTeamSize: userCandidates.filter((c) => START_FORWARD.includes(c.stage) && c.stage !== "promoted").length,
@@ -347,12 +353,20 @@ export function Leaderboard() {
           ws = addDays(ws, 7);
         }
 
-        // Individual all-time top 5 by Rep Profit
+        // Individual all-time: deduplicate to best week per person, then top 5
         weeklyIndividualRecords.sort((a, b) => b.repProfit - a.repProfit);
-        const top5 = weeklyIndividualRecords.slice(0, 5);
+        const bestIndividualByUser = new Map<string, typeof weeklyIndividualRecords[0]>();
+        weeklyIndividualRecords.forEach((r) => {
+          if (!bestIndividualByUser.has(r.userId)) {
+            bestIndividualByUser.set(r.userId, r);
+          }
+        });
+        const dedupedIndividual = Array.from(bestIndividualByUser.values())
+          .sort((a, b) => b.repProfit - a.repProfit)
+          .slice(0, 5);
         let rank = 1;
-        const ranked: AllTimeProfitRecord[] = top5.map((r, i) => {
-          if (i > 0 && r.repProfit < top5[i - 1].repProfit) rank = i + 1;
+        const ranked: AllTimeProfitRecord[] = dedupedIndividual.map((r, i) => {
+          if (i > 0 && r.repProfit < dedupedIndividual[i - 1].repProfit) rank = i + 1;
           const prof = profileMap.get(r.userId);
           return {
             name: prof?.full_name || "Unknown",
@@ -363,12 +377,20 @@ export function Leaderboard() {
         });
         setAllTimeProfitRecords(ranked);
 
-        // Crew all-time top 5 by Total Wire
+        // Crew all-time: deduplicate to best week per leader, then top 5
         crewWeeklyRecords.sort((a, b) => b.crewWire - a.crewWire);
-        const crewTop5 = crewWeeklyRecords.slice(0, 5);
+        const bestCrewByUser = new Map<string, typeof crewWeeklyRecords[0]>();
+        crewWeeklyRecords.forEach((r) => {
+          if (!bestCrewByUser.has(r.userId)) {
+            bestCrewByUser.set(r.userId, r);
+          }
+        });
+        const dedupedCrew = Array.from(bestCrewByUser.values())
+          .sort((a, b) => b.crewWire - a.crewWire)
+          .slice(0, 5);
         let crewRecRank = 1;
-        const crewRanked: AllTimeCrewProfitRecord[] = crewTop5.map((r, i) => {
-          if (i > 0 && r.crewWire < crewTop5[i - 1].crewWire) crewRecRank = i + 1;
+        const crewRanked: AllTimeCrewProfitRecord[] = dedupedCrew.map((r, i) => {
+          if (i > 0 && r.crewWire < dedupedCrew[i - 1].crewWire) crewRecRank = i + 1;
           return {
             name: r.name,
             crewName: r.crewName,
