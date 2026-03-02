@@ -89,37 +89,39 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
           Add Candidate
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Candidate</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="firstName" render={({ field }) => (
-              <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="First name" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="lastName" render={({ field }) => (
-              <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Last name" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="phone" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number {droppedDuringOB && <span className="text-muted-foreground font-normal">(optional)</span>}</FormLabel>
-                <FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="source" render={({ field }) => (
-              <FormItem><FormLabel>Source</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                    <SelectItem value="Office">Office</SelectItem>
-                    <SelectItem value="Personal">Personal</SelectItem>
-                  </SelectContent>
-                </Select><FormMessage />
-              </FormItem>
-            )} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField control={form.control} name="firstName" render={({ field }) => (
+                <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="First name" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="lastName" render={({ field }) => (
+                <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Last name" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="phone" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number {droppedDuringOB && <span className="text-muted-foreground font-normal">(optional)</span>}</FormLabel>
+                  <FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="source" render={({ field }) => (
+                <FormItem><FormLabel>Source</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                      <SelectItem value="Office">Office</SelectItem>
+                      <SelectItem value="Personal">Personal</SelectItem>
+                    </SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )} />
+            </div>
 
             {/* Dropped During OB toggle */}
             <FormField control={form.control} name="droppedDuringOB" render={({ field }) => (
@@ -136,26 +138,28 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
               </FormItem>
             )} />
 
-            {!droppedDuringOB && (
-              <FormField control={form.control} name="potentialStartDate" render={({ field }) => (
-                <FormItem className="flex flex-col"><FormLabel>Potential Start Date</FormLabel>
-                  <Popover><PopoverTrigger asChild>
-                    <FormControl>
-                      <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent></Popover><FormMessage />
-                </FormItem>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {!droppedDuringOB && (
+                <FormField control={form.control} name="potentialStartDate" render={({ field }) => (
+                  <FormItem className="flex flex-col"><FormLabel>Potential Start Date</FormLabel>
+                    <Popover><PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                          {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent></Popover><FormMessage />
+                  </FormItem>
+                )} />
+              )}
+              <FormField control={form.control} name="notes" render={({ field }) => (
+                <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea placeholder="Interview notes, observations..." rows={2} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
-            )}
-            <FormField control={form.control} name="notes" render={({ field }) => (
-              <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea placeholder="Interview notes, observations..." rows={3} {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit">{droppedDuringOB ? "Log OB & Drop" : "Add to Pipeline"}</Button>
