@@ -62,38 +62,27 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
 
     candidates.forEach((c) => {
-      // Skip prospects — they haven't entered the pipeline yet
+      // Skip pure prospects with no pipeline history
       if (c.stage === "prospect" && !c.history.some((h) => h.to === "obs")) return;
 
-      // For OBS: count if created within range AND actually reached OBS stage
-      const created = new Date(c.createdAt);
-      const reachedObs = c.stage !== "prospect" || c.history.some((h) => h.to === "obs");
-      if (created >= dateRange.start && created <= dateRange.end && reachedObs) {
-        counts["obs"]++;
-      }
-
-      // For other stages: determine the latest stage this candidate reached within the date range
-      // by walking history chronologically and tracking the final position
+      // Filter history entries within the selected date range
       const historyInRange = c.history.filter((h) => {
         const d = parseISO(h.date);
         return d >= dateRange.start && d <= dateRange.end;
       });
 
-      if (historyInRange.length > 0) {
-        // The last history entry in range gives us the candidate's final position for this period
-        const lastEntry = historyInRange[historyInRange.length - 1];
-        const finalStage = lastEntry.to;
-        // Count the candidate once at their final stage (not at every intermediate stage)
-        if (finalStage !== "obs") {
-          counts[finalStage]++;
+      if (historyInRange.length === 0) return;
+
+      // Collect all unique stages this candidate reached within the range
+      const stagesReachedInRange = new Set<string>();
+      historyInRange.forEach((h) => stagesReachedInRange.add(h.to));
+
+      // Count each stage the candidate reached in-range (including OBS)
+      stagesReachedInRange.forEach((stage) => {
+        if (counts[stage] !== undefined) {
+          counts[stage]++;
         }
-        // Also count all stages between obs and final stage that were "passed through" 
-        // by checking if the candidate's final stage index is >= each stage's index
-        const finalIdx = STAGES_ORDER.indexOf(finalStage as PipelineStage);
-        for (let si = 1; si < finalIdx; si++) {
-          counts[STAGES_ORDER[si]]++;
-        }
-      }
+      });
     });
     return counts;
   }, [candidates, dateRange]);
