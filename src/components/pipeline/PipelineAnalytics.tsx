@@ -2,17 +2,18 @@ import { useMemo } from "react";
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage, KPI_TARGETS } from "@/lib/types";
 import { Target, AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import { format, subWeeks, startOfWeek, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { getCalendarWeekBounds, getLastNWeeksBounds } from "@/lib/utils";
 
 export type TrendRange = "this-week" | "prev-week" | "4-weeks" | "8-weeks" | "12-weeks" | "all";
 
 export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[] = [
-  { value: "this-week", label: "This Week", weeks: 1 },
-  { value: "prev-week", label: "Previous Week", weeks: 2 },
+  { value: "this-week", label: "This Week", weeks: 0 },
+  { value: "prev-week", label: "Previous Week", weeks: 1 },
   { value: "4-weeks", label: "Last 4 Weeks", weeks: 4 },
   { value: "8-weeks", label: "Last 8 Weeks", weeks: 8 },
   { value: "12-weeks", label: "Last 12 Weeks", weeks: 12 },
-  { value: "all", label: "All Time", weeks: 24 },
+  { value: "all", label: "All Time", weeks: 0 },
 ];
 
 const FUNNEL_COLORS: Record<string, string> = {
@@ -40,22 +41,18 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
   const [collapsed, setCollapsed] = useState(false);
 
   const dateRange = useMemo(() => {
-    const now = new Date();
-    const thisMonday = startOfWeek(now, { weekStartsOn: 1 });
-    const thisSaturday = new Date(thisMonday);
-    thisSaturday.setDate(thisMonday.getDate() + 5);
-
-    if (trendRange === "this-week") return { start: thisMonday, end: thisSaturday };
-    if (trendRange === "prev-week") {
-      const prevMonday = subWeeks(thisMonday, 1);
-      const prevSaturday = new Date(prevMonday);
-      prevSaturday.setDate(prevMonday.getDate() + 5);
-      return { start: prevMonday, end: prevSaturday };
+    if (trendRange === "this-week") {
+      return getCalendarWeekBounds(0);
     }
-    if (trendRange === "all") return { start: signupDate ?? new Date(0), end: thisSaturday };
+    if (trendRange === "prev-week") {
+      return getCalendarWeekBounds(-1);
+    }
+    if (trendRange === "all") {
+      const { end } = getCalendarWeekBounds(0);
+      return { start: signupDate ?? new Date(0), end };
+    }
     const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
-    const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
-    return { start: rangeStart, end: thisSaturday };
+    return getLastNWeeksBounds(option.weeks);
   }, [trendRange, signupDate]);
 
   // Stage counts using current stage snapshot per candidate (not raw history count)
@@ -102,22 +99,8 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
   }, [candidates, dateRange]);
 
   const dateRangeLabel = useMemo(() => {
-    const now = new Date();
-    const thisMonday = startOfWeek(now, { weekStartsOn: 1 });
-    const thisSaturday = new Date(thisMonday);
-    thisSaturday.setDate(thisMonday.getDate() + 5);
-
-    if (trendRange === "this-week") return `${format(thisMonday, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
-    if (trendRange === "prev-week") {
-      const prevMonday = subWeeks(thisMonday, 1);
-      const prevSaturday = new Date(prevMonday);
-      prevSaturday.setDate(prevMonday.getDate() + 5);
-      return `${format(prevMonday, "do MMM")} – ${format(prevSaturday, "do MMM")}`;
-    }
-    const option = TREND_OPTIONS.find((o) => o.value === trendRange)!;
-    const rangeStart = startOfWeek(subWeeks(now, option.weeks), { weekStartsOn: 1 });
-    return `${format(rangeStart, "do MMM")} – ${format(thisSaturday, "do MMM")}`;
-  }, [trendRange]);
+    return `${format(dateRange.start, "do MMM")} – ${format(dateRange.end, "do MMM")}`;
+  }, [dateRange]);
 
   // Funnel data (excluding promoted)
   const funnelData = useMemo(() => {

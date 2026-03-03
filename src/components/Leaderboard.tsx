@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
 import { Trophy, TrendingUp, Users, Upload, FileText, UserCheck, Medal, Flame, PoundSterling } from "lucide-react";
-import { startOfWeek, endOfWeek, format, subWeeks, addDays } from "date-fns";
+import { format, subWeeks, addDays } from "date-fns";
+import { getCalendarWeekBounds, getCalendarWeekStrings, getMondayOfWeek } from "@/lib/utils";
 import { getAdjustedRepProfit } from "@/lib/commission";
 
 interface Profile {
@@ -95,9 +96,7 @@ export function Leaderboard() {
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Current week bounds
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const { start: weekStart, end: weekEnd } = getCalendarWeekBounds(0);
   const wsStr = format(weekStart, "yyyy-MM-dd");
   const weStr = format(weekEnd, "yyyy-MM-dd");
   const weekLabel = format(weekStart, "d MMMM yyyy");
@@ -319,11 +318,12 @@ export function Leaderboard() {
         const weeklyIndividualRecords: { userId: string; repProfit: number; weekStart: Date }[] = [];
         const crewWeeklyRecords: { userId: string; name: string; crewName: string; crewWire: number; weekStart: Date }[] = [];
 
-        let ws = startOfWeek(earliest, { weekStartsOn: 1 });
+        let ws = getMondayOfWeek(earliest);
 
         while (ws <= latest) {
           const wsS = format(ws, "yyyy-MM-dd");
-          const weS = format(endOfWeek(ws, { weekStartsOn: 1 }), "yyyy-MM-dd");
+          const weDate = new Date(ws); weDate.setDate(ws.getDate() + 6); weDate.setHours(23,59,59,999);
+          const weS = format(weDate, "yyyy-MM-dd");
 
           const weekEntries = allTx.filter((t) => t.date >= wsS && t.date <= weS);
 

@@ -12,7 +12,8 @@ import { AgeBand } from "@/lib/commission";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
+import { format } from "date-fns";
+import { getCalendarWeekBounds } from "@/lib/utils";
 
 const FIELD_LABELS = ["Doors", "Spoken", "Presentations", "Closes", "Tablets", "Sales"] as const;
 type FieldKey = "doors" | "spoken" | "presentations" | "closes" | "tablets" | "sales";
@@ -31,11 +32,8 @@ export default function Sales() {
 
   // Compute week bounds for transactions
   const weekBounds = useMemo(() => {
-    const now = new Date();
-    const base = weekOffset === 0 ? now : (weekOffset > 0 ? addWeeks(now, weekOffset) : subWeeks(now, Math.abs(weekOffset)));
-    const ws = startOfWeek(base, { weekStartsOn: 1 });
-    const we = endOfWeek(ws, { weekStartsOn: 1 });
-    return { wsStr: format(ws, "yyyy-MM-dd"), weStr: format(we, "yyyy-MM-dd") };
+    const { start, end } = getCalendarWeekBounds(weekOffset);
+    return { wsStr: format(start, "yyyy-MM-dd"), weStr: format(end, "yyyy-MM-dd") };
   }, [weekOffset]);
 
   const {
