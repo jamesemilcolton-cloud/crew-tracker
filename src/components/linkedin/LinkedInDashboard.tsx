@@ -100,8 +100,9 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     const weeks: Record<string, any> = {};
     filteredActivities.forEach((a) => {
       const d = new Date(a.date);
+      const dayOfWeek = d.getDay();
       const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay() + 1);
+      weekStart.setDate(d.getDate() - ((dayOfWeek === 0 ? 7 : dayOfWeek) - 1));
       const key = weekStart.toISOString().split("T")[0];
       if (!weeks[key]) weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: 0, attending: 0 };
       weeks[key].free += a.freeAdsUploaded;
@@ -110,8 +111,9 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     });
     Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
       const d = new Date(adDate);
+      const dayOfWeek = d.getDay();
       const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay() + 1);
+      weekStart.setDate(d.getDate() - ((dayOfWeek === 0 ? 7 : dayOfWeek) - 1));
       const key = weekStart.toISOString().split("T")[0];
       if (weeks[key]) weeks[key].cvs += count;
       else weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: count, attending: 0 };

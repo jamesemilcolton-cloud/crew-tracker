@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, startOfWeek } from "date-fns";
+import { format } from "date-fns";
+import { getMondayOfWeek } from "@/lib/utils";
 import { getAdjustedRepProfit } from "@/lib/commission";
 
 export interface SalesTransaction {
@@ -64,7 +65,7 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
       totalWire: number;
       qualityPending: number;
     }) => {
-      const ws = format(startOfWeek(new Date(tx.date), { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const ws = format(getMondayOfWeek(new Date(tx.date)), "yyyy-MM-dd");
       const { error } = await supabase.from("sales_transactions").insert({
         user_id: user!.id,
         date: tx.date,

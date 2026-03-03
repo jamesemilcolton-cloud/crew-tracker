@@ -18,7 +18,8 @@ import {
 } from "@/components/crew/CrewBubbleForecast";
 import { CrewTree } from "@/components/crew/CrewTree";
 import { BellStreakCard } from "@/components/summary/BellStreakCard";
-import { startOfWeek, endOfWeek, parseISO, format } from "date-fns";
+import { parseISO, format } from "date-fns";
+import { getCalendarWeekBounds, getCalendarWeekStrings } from "@/lib/utils";
 
 
 interface Profile {
@@ -42,15 +43,8 @@ function getRoleLabel(stage: string): string {
 
 // Summary tree rendering is now handled by the shared CrewTree component
 
-function getWeekBounds(offset: number = 0) {
-  const now = new Date();
-  const monday = startOfWeek(now, { weekStartsOn: 1 });
-  if (offset !== 0) monday.setDate(monday.getDate() - offset * 7);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { start: monday, end: sunday };
-}
+// Use central week utility
+const getWeekBounds = getCalendarWeekBounds;
 
 /** Count unique candidates that have a history entry with to_stage = stage within the week window */
 function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date, end: Date): number {
@@ -107,13 +101,7 @@ export function WeeklySummary() {
   const [crewTransactions, setCrewTransactions] = useState<SalesTransaction[]>([]);
 
   const currentWeekBounds = useMemo(() => {
-    const now = new Date();
-    const monday = startOfWeek(now, { weekStartsOn: 1 });
-    const sunday = endOfWeek(now, { weekStartsOn: 1 });
-    return {
-      start: format(monday, "yyyy-MM-dd"),
-      end: format(sunday, "yyyy-MM-dd"),
-    };
+    return getCalendarWeekStrings(0);
   }, []);
 
   // Fetch own sales for current week

@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { startOfWeek, endOfWeek, subWeeks, format, subDays, startOfDay, endOfDay, isMonday } from "date-fns";
+import { subWeeks, format, subDays, startOfDay, endOfDay, isMonday } from "date-fns";
+import { getCalendarWeekBounds } from "@/lib/utils";
 
 interface ManagedUser {
   user_id: string;
@@ -168,8 +169,7 @@ export default function Manager() {
     if (allProfiles) allProfiles.forEach(p => profileMap.set(p.id, p));
 
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const { start: weekStart, end: weekEnd } = getCalendarWeekBounds(0);
 
     const entries: PromotionQueueEntry[] = [];
 
@@ -222,9 +222,7 @@ export default function Manager() {
   }, []);
 
   const fetchLastWeekLeaderboard = useCallback(async () => {
-    const now = new Date();
-    const prevWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-    const prevWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+    const { start: prevWeekStart, end: prevWeekEnd } = getCalendarWeekBounds(-1);
 
     const { data: allProfiles } = await supabase.from("profiles").select("id, user_id, full_name, leader_id");
     const { data: allRoles } = await supabase.from("user_roles").select("user_id, role, super_admin");
@@ -417,8 +415,7 @@ export default function Manager() {
       return;
     }
 
-    const prevWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-    const prevWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+    const { start: prevWeekStart, end: prevWeekEnd } = getCalendarWeekBounds(-1);
 
     const { data: pbs } = await supabase
       .from("personal_best_log")

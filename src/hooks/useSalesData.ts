@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfiles } from "@/contexts/ProfilesContext";
-import { startOfWeek, endOfWeek, subWeeks, format, addDays, addWeeks } from "date-fns";
+import { subWeeks, format, addDays, addWeeks } from "date-fns";
+import { getCalendarWeekBounds, getMondayOfWeek } from "@/lib/utils";
 
 export interface SalesEntry {
   id: string;
@@ -28,13 +29,11 @@ interface DayData {
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 function getWeekStartForOffset(offset: number): Date {
-  const now = new Date();
-  const base = offset === 0 ? now : (offset > 0 ? addWeeks(now, offset) : subWeeks(now, Math.abs(offset)));
-  return startOfWeek(base, { weekStartsOn: 1 });
+  return getCalendarWeekBounds(offset).start;
 }
 
 function getWeekEndForOffset(offset: number): Date {
-  return endOfWeek(getWeekStartForOffset(offset), { weekStartsOn: 1 });
+  return getCalendarWeekBounds(offset).end;
 }
 
 export function useSalesData(weekOffset: number = 0) {
@@ -159,8 +158,7 @@ export function useSalesData(weekOffset: number = 0) {
     const allEntries = historicalQuery.data || [];
     const weeks: { label: string; loa: number | null }[] = [];
     for (let i = 7; i >= 0; i--) {
-      const ws = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
-      const we = endOfWeek(ws, { weekStartsOn: 1 });
+      const { start: ws, end: we } = getCalendarWeekBounds(-i);
       const wsS = format(ws, "yyyy-MM-dd");
       const weS = format(we, "yyyy-MM-dd");
       const weekEntries = allEntries.filter(
@@ -178,7 +176,7 @@ export function useSalesData(weekOffset: number = 0) {
   // Previous week totals relative to selected week
   function getPrevWeekTotals(): DayData {
     const prevStart = subWeeks(selectedWeekStart, 1);
-    const prevEnd = endOfWeek(prevStart, { weekStartsOn: 1 });
+    const prevEnd = new Date(prevStart); prevEnd.setDate(prevStart.getDate() + 6); prevEnd.setHours(23,59,59,999);
     const ws = format(prevStart, "yyyy-MM-dd");
     const we = format(prevEnd, "yyyy-MM-dd");
     const entries = (historicalQuery.data || []).filter(
@@ -197,11 +195,12 @@ export function useSalesData(weekOffset: number = 0) {
     const latest = new Date(dates[dates.length - 1]);
 
     let best = 0;
-    let ws = startOfWeek(earliest, { weekStartsOn: 1 });
+    let ws = getMondayOfWeek(earliest);
 
     while (ws <= latest) {
       const wsS = format(ws, "yyyy-MM-dd");
-      const weS = format(endOfWeek(ws, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const weDate = new Date(ws); weDate.setDate(ws.getDate() + 6); weDate.setHours(23,59,59,999);
+      const weS = format(weDate, "yyyy-MM-dd");
       const weekEntries = allEntries.filter(
         (e) => e.entry_date >= wsS && e.entry_date <= weS
       );
