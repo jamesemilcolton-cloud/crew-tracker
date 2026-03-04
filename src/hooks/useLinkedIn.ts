@@ -79,9 +79,9 @@ export function useLinkedIn() {
     await fetchAll();
   }, [user, fetchAll]);
 
-  const logCvDownload = useCallback(async (adUploadId: string, count: number) => {
+  const logCvDownload = useCallback(async (adUploadId: string, count: number, downloadDate?: string) => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = downloadDate || new Date().toISOString().split("T")[0];
 
     await supabase.from("cv_downloads").insert({
       user_id: user.id,
