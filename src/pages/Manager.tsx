@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, UserCheck, UserMinus, Trash2, CheckCircle, XCircle, Trophy, Flame, Star, Crown } from "lucide-react";
+import { ArrowLeft, Shield, UserCheck, UserMinus, Trash2, CheckCircle, XCircle, Trophy, Flame, Star, Crown, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { subWeeks, format, subDays, startOfDay, endOfDay, isMonday } from "date-fns";
 import { getCalendarWeekBounds } from "@/lib/utils";
+import { OfficePerformanceOverview } from "@/components/manager/OfficePerformanceOverview";
 
 interface ManagedUser {
   user_id: string;
@@ -844,6 +845,14 @@ export default function Manager() {
               </div>
             </CardContent>
           </Card>
+        </section>
+
+        {/* ===== OFFICE PERFORMANCE OVERVIEW ===== */}
+        <section>
+          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" /> Office Performance Overview
+          </h2>
+          <OfficePerformanceOverview />
         </section>
 
         {/* ===== USER MANAGEMENT TABLES ===== */}
