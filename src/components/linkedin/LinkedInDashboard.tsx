@@ -28,6 +28,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [cvModalAdId, setCvModalAdId] = useState("");
   const [cvModalCount, setCvModalCount] = useState("1");
+  const [cvDownloadDate, setCvDownloadDate] = useState<Date>(new Date());
 
   // Ad upload date confirmation state
   const [adDateModalOpen, setAdDateModalOpen] = useState(false);
@@ -65,21 +66,17 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
 
   const filteredCVDownloads = useMemo(() => {
     if (!cutoffDate) return cvDownloads;
-    return cvDownloads.filter((cv) => {
-      const ad = adUploads.find((a) => a.id === cv.adUploadId);
-      if (!ad) return false;
-      return new Date(ad.date) >= cutoffDate;
-    });
-  }, [cvDownloads, adUploads, cutoffDate]);
+    return cvDownloads.filter((cv) => new Date(cv.downloadDate) >= cutoffDate);
+  }, [cvDownloads, cutoffDate]);
 
-  const cvsPerAdDate = useMemo(() => {
+  // CV downloads keyed by their own download date (not ad upload date)
+  const cvsPerDownloadDate = useMemo(() => {
     const map: Record<string, number> = {};
     filteredCVDownloads.forEach((cv) => {
-      const ad = adUploads.find((a) => a.id === cv.adUploadId);
-      if (ad) map[ad.date] = (map[ad.date] || 0) + cv.count;
+      map[cv.downloadDate] = (map[cv.downloadDate] || 0) + cv.count;
     });
     return map;
-  }, [filteredCVDownloads, adUploads]);
+  }, [filteredCVDownloads]);
 
   const chartData = useMemo(() => {
     if (isThisWeek) {
@@ -94,7 +91,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
         date.setDate(monday.getDate() + i);
         const key = date.toISOString().split("T")[0];
         const activity = filteredActivities.find((a) => a.date === key);
-        return { week: name, free: activity?.freeAdsUploaded ?? 0, paid: activity?.paidAdsUploaded ?? 0, cvs: cvsPerAdDate[key] ?? 0, attending: activity?.candidatesAttending2ndRound ?? 0 };
+        return { week: name, free: activity?.freeAdsUploaded ?? 0, paid: activity?.paidAdsUploaded ?? 0, cvs: cvsPerDownloadDate[key] ?? 0, attending: activity?.candidatesAttending2ndRound ?? 0 };
       });
     }
     const weeks: Record<string, any> = {};
@@ -109,8 +106,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       weeks[key].paid += a.paidAdsUploaded;
       weeks[key].attending += a.candidatesAttending2ndRound;
     });
-    Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
-      const d = new Date(adDate);
+    Object.entries(cvsPerDownloadDate).forEach(([dlDate, count]) => {
+      const d = new Date(dlDate);
       const dayOfWeek = d.getDay();
       const weekStart = new Date(d);
       weekStart.setDate(d.getDate() - ((dayOfWeek === 0 ? 7 : dayOfWeek) - 1));
@@ -119,7 +116,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       else weeks[key] = { week: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`, free: 0, paid: 0, cvs: count, attending: 0 };
     });
     return Object.values(weeks);
-  }, [filteredActivities, isThisWeek, cvsPerAdDate]);
+  }, [filteredActivities, isThisWeek, cvsPerDownloadDate]);
 
   const correlationData = useMemo(() => {
     if (isThisWeek) {
@@ -134,7 +131,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
         date.setDate(monday.getDate() + i);
         const key = date.toISOString().split("T")[0];
         const activity = filteredActivities.find((a) => a.date === key);
-        return { period: name, cvs: cvsPerAdDate[key] ?? 0, interviews: activity?.candidatesAttending2ndRound ?? 0 };
+        return { period: name, cvs: cvsPerDownloadDate[key] ?? 0, interviews: activity?.candidatesAttending2ndRound ?? 0 };
       });
     }
 
@@ -146,8 +143,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       return weekStart.toISOString().split("T")[0];
     };
 
-    Object.entries(cvsPerAdDate).forEach(([adDate, count]) => {
-      const key = getWeekKey(adDate);
+    Object.entries(cvsPerDownloadDate).forEach(([dlDate, count]) => {
+      const key = getWeekKey(dlDate);
       const ws = new Date(key);
       if (!weeks[key]) weeks[key] = { period: `${ws.getDate()}/${ws.getMonth() + 1}`, cvs: 0, interviews: 0, sortKey: key };
       weeks[key].cvs += count;
@@ -161,7 +158,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     });
 
     return Object.values(weeks).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(({ period, cvs, interviews }) => ({ period, cvs, interviews }));
-  }, [filteredActivities, isThisWeek, cvsPerAdDate]);
+  }, [filteredActivities, isThisWeek, cvsPerDownloadDate]);
 
   // === Best Day to Upload: ALL-TIME data, layered free/paid bars ===
   const bestDayBarData = useMemo(() => {
@@ -173,7 +170,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     cvDownloads.forEach((cv) => {
       const ad = adUploads.find((a) => a.id === cv.adUploadId);
       if (ad) {
-        const jsDay = new Date(ad.date).getDay();
+        const jsDay = new Date(cv.downloadDate).getDay();
         const idx = jsDay === 0 ? 6 : jsDay - 1;
         if (ad.type === "free") freeDayMap[idx] += cv.count;
         else paidDayMap[idx] += cv.count;
@@ -232,6 +229,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       setCvModalOpen(true);
       setCvModalAdId("");
       setCvModalCount("1");
+      setCvDownloadDate(new Date());
       return;
     }
     if (type === "free" || type === "paid") {
@@ -256,7 +254,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     if (!cvModalAdId || !cvModalCount) return;
     const count = parseInt(cvModalCount, 10);
     if (isNaN(count) || count <= 0) return;
-    await logCvDownload(cvModalAdId, count);
+    const dateStr = format(cvDownloadDate, "yyyy-MM-dd");
+    await logCvDownload(cvModalAdId, count, dateStr);
     setCvModalOpen(false);
   };
 
@@ -354,6 +353,32 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Date CV was downloaded</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !cvDownloadDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {cvDownloadDate ? format(cvDownloadDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={cvDownloadDate}
+                    onSelect={(d) => d && setCvDownloadDate(d)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Number of CVs downloaded</Label>
