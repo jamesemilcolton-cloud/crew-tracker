@@ -167,10 +167,11 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     const paidDayMap = [0, 0, 0, 0, 0, 0, 0];
 
     // Use ALL cv downloads (not filtered) for all-time accuracy
+    // Attribute CVs to the day the AD was uploaded, not the day the CV was downloaded
     cvDownloads.forEach((cv) => {
       const ad = adUploads.find((a) => a.id === cv.adUploadId);
       if (ad) {
-        const jsDay = new Date(cv.downloadDate).getDay();
+        const jsDay = new Date(ad.date).getDay();
         const idx = jsDay === 0 ? 6 : jsDay - 1;
         if (ad.type === "free") freeDayMap[idx] += cv.count;
         else paidDayMap[idx] += cv.count;
