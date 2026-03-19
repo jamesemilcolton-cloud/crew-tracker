@@ -5,6 +5,7 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
+import { LinkedInResources } from "@/components/linkedin/LinkedInResources";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
 import { Users, Linkedin, GitBranch, ChevronDown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
