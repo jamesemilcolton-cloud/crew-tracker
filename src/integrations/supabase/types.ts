@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_linkedin_ads: {
+        Row: {
+          ad_number: number
+          ad_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          title_number: number
+          upload_date: string
+          user_id: string
+        }
+        Insert: {
+          ad_number: number
+          ad_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title_number: number
+          upload_date?: string
+          user_id: string
+        }
+        Update: {
+          ad_number?: number
+          ad_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title_number?: number
+          upload_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ad_uploads: {
         Row: {
           ad_type: string
@@ -212,6 +245,54 @@ export type Database = {
           id?: string
           paid_ads_uploaded?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_ads_library: {
+        Row: {
+          content: string
+          id: string
+          slot_number: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content?: string
+          id?: string
+          slot_number: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          id?: string
+          slot_number?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      linkedin_titles: {
+        Row: {
+          content: string
+          id: string
+          slot_number: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content?: string
+          id?: string
+          slot_number: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          id?: string
+          slot_number?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
