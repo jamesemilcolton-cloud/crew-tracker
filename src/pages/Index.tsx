@@ -5,8 +5,9 @@ import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
+import { LinkedInResources } from "@/components/linkedin/LinkedInResources";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, ChevronDown, ArrowLeft } from "lucide-react";
+import { Users, Linkedin, GitBranch, BookOpen, ChevronDown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
@@ -17,12 +18,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "pipeline" | "linkedin" | "crew";
+type Tab = "pipeline" | "linkedin" | "crew" | "resources";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
   { id: "linkedin", label: "LinkedIn & Personal", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
+  { id: "resources", label: "LinkedIn Resources", icon: <BookOpen className="w-4 h-4" /> },
 ];
 
 const Index = () => {
@@ -192,6 +194,7 @@ const Index = () => {
         )}
         {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} signupDate={signupDate} />}
         {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
+        {activeTab === "resources" && <LinkedInResources />}
         
       </main>
     </div>
