@@ -194,6 +194,7 @@ const Index = () => {
         )}
         {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} signupDate={signupDate} />}
         {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
+        {activeTab === "resources" && <LinkedInResources />}
         
       </main>
     </div>
