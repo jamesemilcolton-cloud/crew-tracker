@@ -13,8 +13,8 @@ const allModules = [
     subtitle: "Weekly Performance Overview",
     icon: BarChart3,
     path: "/week-summary",
-    hsl: "220 60% 50%",
-    hslDark: "220 60% 35%",
+    hsl: "150 70% 45%",
+    hslDark: "150 70% 32%",
     requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
   },
   {
