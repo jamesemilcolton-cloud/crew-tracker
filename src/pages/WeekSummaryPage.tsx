@@ -18,8 +18,8 @@ const WeekSummaryPage = () => {
               <Button variant="ghost" size="sm" onClick={() => navigate("/home")} className="text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4 mr-1" /> Modules
               </Button>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "hsl(220 60% 45% / 0.2)" }}>
-                <BarChart3 className="w-4 h-4" style={{ color: "hsl(220 60% 55%)" }} />
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "hsl(150 70% 45% / 0.2)" }}>
+                <BarChart3 className="w-4 h-4" style={{ color: "hsl(150 70% 45%)" }} />
               </div>
               <h1 className="text-sm font-semibold text-foreground tracking-tight">Week Summary</h1>
             </div>
