@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Users, DollarSign, Trophy, Shield, Lock, BarChart3 } from "lucide-react";
+import { Users, DollarSign, Trophy, Shield, Lock, BarChart3, Linkedin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
 import { useIsMobile } from "@/hooks/use-mobile";
