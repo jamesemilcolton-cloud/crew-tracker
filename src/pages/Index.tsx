@@ -3,11 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Candidate } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
-import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
-import { LinkedInResources } from "@/components/linkedin/LinkedInResources";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, Linkedin, GitBranch, BookOpen, ChevronDown, ArrowLeft } from "lucide-react";
+import { Users, GitBranch, ChevronDown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
@@ -18,13 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "pipeline" | "linkedin" | "crew" | "resources";
+type Tab = "pipeline" | "crew";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
-  { id: "linkedin", label: "LinkedIn & Personal", icon: <Linkedin className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
-  { id: "resources", label: "LinkedIn Resources", icon: <BookOpen className="w-4 h-4" /> },
 ];
 
 const Index = () => {
