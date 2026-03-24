@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ModuleSelection from "./pages/ModuleSelection";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
+import LinkedInPage from "./pages/LinkedIn";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import WeekSummaryPage from "./pages/WeekSummaryPage";
 import Manager from "./pages/Manager";
