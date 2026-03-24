@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ModuleSelection from "./pages/ModuleSelection";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
+import LinkedInPage from "./pages/LinkedIn";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import WeekSummaryPage from "./pages/WeekSummaryPage";
 import Manager from "./pages/Manager";
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/week-summary" element={<ProtectedRoute><WeekSummaryPage /></ProtectedRoute>} />
                 <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
                 <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+                <Route path="/linkedin" element={<RoleRoute allowedRoles={["leader", "manager"]}><LinkedInPage /></RoleRoute>} />
                 <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />

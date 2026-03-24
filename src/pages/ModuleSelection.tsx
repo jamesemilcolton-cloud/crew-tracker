@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Users, DollarSign, Trophy, Shield, Lock, BarChart3 } from "lucide-react";
+import { Users, DollarSign, Trophy, Shield, Lock, BarChart3, Linkedin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -35,6 +35,16 @@ const allModules = [
     path: "/recruitment",
     hsl: "172 66% 50%",
     hslDark: "172 66% 38%",
+    requiredRoles: ["leader", "manager"] as string[],
+  },
+  {
+    id: "linkedin",
+    label: "LINKEDIN",
+    subtitle: "Ads & Resources",
+    icon: Linkedin,
+    path: "/linkedin",
+    hsl: "210 70% 50%",
+    hslDark: "210 70% 38%",
     requiredRoles: ["leader", "manager"] as string[],
   },
   {
