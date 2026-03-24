@@ -62,6 +62,7 @@ const App = () => (
                 <Route path="/week-summary" element={<ProtectedRoute><WeekSummaryPage /></ProtectedRoute>} />
                 <Route path="/recruitment" element={<RoleRoute allowedRoles={["leader", "manager"]}><Index /></RoleRoute>} />
                 <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+                <Route path="/linkedin" element={<RoleRoute allowedRoles={["leader", "manager"]}><LinkedInPage /></RoleRoute>} />
                 <Route path="/leaderboards" element={<RoleRoute allowedRoles={["leader", "manager"]}><LeaderboardPage /></RoleRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/manager" element={<ManagerRoute><Manager /></ManagerRoute>} />

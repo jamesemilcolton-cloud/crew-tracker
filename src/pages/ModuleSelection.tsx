@@ -38,6 +38,16 @@ const allModules = [
     requiredRoles: ["leader", "manager"] as string[],
   },
   {
+    id: "linkedin",
+    label: "LINKEDIN",
+    subtitle: "Ads & Resources",
+    icon: Linkedin,
+    path: "/linkedin",
+    hsl: "210 70% 50%",
+    hslDark: "210 70% 38%",
+    requiredRoles: ["leader", "manager"] as string[],
+  },
+  {
     id: "leaderboards",
     label: "LEADERBOARDS",
     subtitle: "Rankings & Results",
