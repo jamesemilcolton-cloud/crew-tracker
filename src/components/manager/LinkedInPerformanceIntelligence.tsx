@@ -249,7 +249,7 @@ export function LinkedInPerformanceIntelligence() {
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
             <Zap className="w-3.5 h-3.5" style={{ color: "hsl(38 92% 50%)" }} />
-            Top 10 Ad + Title Combinations
+            Top 15 Ad + Title Combinations
           </CardTitle>
         </CardHeader>
         <CardContent>
