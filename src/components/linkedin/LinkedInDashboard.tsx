@@ -251,7 +251,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
 
   const handleAdDateConfirm = async () => {
     const dateStr = format(adUploadDate, "yyyy-MM-dd");
-    await logActivity(adDateModalType, dateStr);
+    await logActivity(adDateModalType, dateStr, parseInt(adTitleNumber), parseInt(adAdNumber));
     setAdDateModalOpen(false);
   };
 
