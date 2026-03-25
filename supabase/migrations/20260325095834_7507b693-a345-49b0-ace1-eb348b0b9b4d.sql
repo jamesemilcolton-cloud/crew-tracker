@@ -1,0 +1,1 @@
+ALTER TABLE public.ad_uploads ADD COLUMN close_date date DEFAULT NULL;
