@@ -225,7 +225,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     attending: filteredActivities.reduce((s, a) => s + a.candidatesAttending2ndRound, 0),
   }), [filteredActivities, totalAttributedCVs]);
 
-  const availableAds = useMemo(() => [...adUploads].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30), [adUploads]);
+  const activeAds = useMemo(() => adUploads.filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)), [adUploads]);
+  const availableAds = useMemo(() => [...adUploads].filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30), [adUploads]);
 
   const handleQuickAdd = async (type: string) => {
     if (type === "cv") {
