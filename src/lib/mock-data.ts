@@ -312,7 +312,7 @@ export const mockAdUploads: AdUpload[] = (() => {
       ads.push({ id: `ad-${adId++}`, date: a.date, type: "free", titleNumber: 1, adNumber: 1, closeDate: null });
     }
     for (let i = 0; i < a.paidAdsUploaded; i++) {
-      ads.push({ id: `ad-${adId++}`, date: a.date, type: "paid", titleNumber: 1, adNumber: 1 });
+      ads.push({ id: `ad-${adId++}`, date: a.date, type: "paid", titleNumber: 1, adNumber: 1, closeDate: null });
     }
   });
   return ads;
