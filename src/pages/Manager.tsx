@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { subWeeks, format, subDays, startOfDay, endOfDay, isMonday } from "date-fns";
 import { getCalendarWeekBounds } from "@/lib/utils";
 import { OfficePerformanceOverview } from "@/components/manager/OfficePerformanceOverview";
+import { LinkedInPerformanceIntelligence } from "@/components/manager/LinkedInPerformanceIntelligence";
 
 interface ManagedUser {
   user_id: string;
