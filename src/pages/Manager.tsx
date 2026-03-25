@@ -848,6 +848,14 @@ export default function Manager() {
           </Card>
         </section>
 
+        {/* ===== LINKEDIN PERFORMANCE INTELLIGENCE ===== */}
+        <section>
+          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Linkedin className="w-4 h-4" style={{ color: "hsl(210 70% 50%)" }} /> LinkedIn Performance Intelligence
+          </h2>
+          <LinkedInPerformanceIntelligence />
+        </section>
+
         {/* ===== OFFICE PERFORMANCE OVERVIEW ===== */}
         <section>
           <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
