@@ -113,7 +113,7 @@ export function LinkedInPerformanceIntelligence() {
     runs.map(r => ({ duration: r.duration, cvs: r.totalCVs })),
   [runs]);
 
-  // 4. Top 10 Ad+Title combos by avg CVs per run
+  // 4. Top 15 Ad+Title combos by avg CVs per run
   const comboData = useMemo(() => {
     const map = new Map<string, { adNumber: number; titleNumber: number; totalCVs: number; totalDuration: number; count: number }>();
     for (const r of runs) {
