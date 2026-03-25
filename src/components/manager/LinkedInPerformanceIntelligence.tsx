@@ -133,7 +133,7 @@ export function LinkedInPerformanceIntelligence() {
         avgCVs: Math.round((c.totalCVs / c.count) * 10) / 10,
       }))
       .sort((a, b) => b.avgCVs - a.avgCVs)
-      .slice(0, 10);
+      .slice(0, 15);
   }, [runs]);
 
   const tooltipStyle = {
