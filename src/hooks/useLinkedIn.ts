@@ -40,7 +40,7 @@ export function useLinkedIn() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const logActivity = useCallback(async (type: "free" | "paid" | "attend", dateOverride?: string) => {
+  const logActivity = useCallback(async (type: "free" | "paid" | "attend", dateOverride?: string, titleNumber?: number, adNumber?: number) => {
     if (!user) return;
     const today = dateOverride || new Date().toISOString().split("T")[0];
 
@@ -49,7 +49,9 @@ export function useLinkedIn() {
         user_id: user.id,
         upload_date: today,
         ad_type: type,
-      });
+        title_number: titleNumber ?? 1,
+        ad_number: adNumber ?? 1,
+      } as any);
     }
 
     // Upsert linkedin_activity
