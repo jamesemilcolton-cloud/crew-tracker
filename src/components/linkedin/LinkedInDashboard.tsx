@@ -303,12 +303,12 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Confirm {adDateModalType === "free" ? "Free" : "Paid"} Ad Upload Date
+              Log {adDateModalType === "free" ? "Free" : "Paid"} Ad Upload
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label>Ad Upload Date</Label>
+              <Label>Upload Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -332,12 +332,36 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Title Number</Label>
+              <Select value={adTitleNumber} onValueChange={setAdTitleNumber}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>Title {n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Ad Number</Label>
+              <Select value={adAdNumber} onValueChange={setAdAdNumber}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>Ad {n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
               <p className="text-[11px] text-muted-foreground">
-                This date will be used for ad attribution. Confirm or adjust before submitting.
+                <strong>Ad Type:</strong> {adDateModalType === "free" ? "📢 Free" : "💰 Paid"}
               </p>
             </div>
             <Button onClick={handleAdDateConfirm} className="w-full">
-              Confirm & Log {adDateModalType === "free" ? "Free" : "Paid"} Ad
+              Confirm & Log Ad
             </Button>
           </div>
         </DialogContent>
