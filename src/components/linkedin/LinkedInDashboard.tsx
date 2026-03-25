@@ -239,6 +239,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       // Open date confirmation dialog instead of instant logging
       setAdDateModalType(type);
       setAdUploadDate(new Date());
+      setAdTitleNumber("1");
+      setAdAdNumber("1");
       setAdDateModalOpen(true);
       return;
     }
