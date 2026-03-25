@@ -309,7 +309,7 @@ export const mockAdUploads: AdUpload[] = (() => {
   let adId = 0;
   mockLinkedInActivity.forEach((a) => {
     for (let i = 0; i < a.freeAdsUploaded; i++) {
-      ads.push({ id: `ad-${adId++}`, date: a.date, type: "free" });
+      ads.push({ id: `ad-${adId++}`, date: a.date, type: "free", titleNumber: 1, adNumber: 1 });
     }
     for (let i = 0; i < a.paidAdsUploaded; i++) {
       ads.push({ id: `ad-${adId++}`, date: a.date, type: "paid" });
