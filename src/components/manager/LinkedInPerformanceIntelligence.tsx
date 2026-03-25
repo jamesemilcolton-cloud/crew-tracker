@@ -113,7 +113,7 @@ export function LinkedInPerformanceIntelligence() {
     runs.map(r => ({ duration: r.duration, cvs: r.totalCVs })),
   [runs]);
 
-  // 4. Top 10 Ad+Title combos by avg CVs per run
+  // 4. Top 15 Ad+Title combos by avg CVs per run
   const comboData = useMemo(() => {
     const map = new Map<string, { adNumber: number; titleNumber: number; totalCVs: number; totalDuration: number; count: number }>();
     for (const r of runs) {
@@ -133,7 +133,7 @@ export function LinkedInPerformanceIntelligence() {
         avgCVs: Math.round((c.totalCVs / c.count) * 10) / 10,
       }))
       .sort((a, b) => b.avgCVs - a.avgCVs)
-      .slice(0, 10);
+      .slice(0, 15);
   }, [runs]);
 
   const tooltipStyle = {
@@ -249,7 +249,7 @@ export function LinkedInPerformanceIntelligence() {
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
             <Zap className="w-3.5 h-3.5" style={{ color: "hsl(38 92% 50%)" }} />
-            Top 10 Ad + Title Combinations
+            Top 15 Ad + Title Combinations
           </CardTitle>
         </CardHeader>
         <CardContent>
