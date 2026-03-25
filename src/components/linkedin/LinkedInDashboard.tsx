@@ -23,7 +23,7 @@ interface LinkedInDashboardProps {
 }
 
 export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardProps) {
-  const { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload } = useLinkedIn();
+  const { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload, closeAdRun } = useLinkedIn();
 
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [cvModalAdId, setCvModalAdId] = useState("");
