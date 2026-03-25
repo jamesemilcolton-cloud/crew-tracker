@@ -34,6 +34,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
   const [adDateModalOpen, setAdDateModalOpen] = useState(false);
   const [adDateModalType, setAdDateModalType] = useState<"free" | "paid">("free");
   const [adUploadDate, setAdUploadDate] = useState<Date>(new Date());
+  const [adTitleNumber, setAdTitleNumber] = useState("1");
+  const [adAdNumber, setAdAdNumber] = useState("1");
 
   const filteredActivities = useMemo(() => {
     if (trendRange === "all") {
