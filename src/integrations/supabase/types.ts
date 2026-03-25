@@ -51,6 +51,7 @@ export type Database = {
         Row: {
           ad_number: number
           ad_type: string
+          close_date: string | null
           created_at: string
           id: string
           title_number: number
@@ -60,6 +61,7 @@ export type Database = {
         Insert: {
           ad_number?: number
           ad_type: string
+          close_date?: string | null
           created_at?: string
           id?: string
           title_number?: number
@@ -69,6 +71,7 @@ export type Database = {
         Update: {
           ad_number?: number
           ad_type?: string
+          close_date?: string | null
           created_at?: string
           id?: string
           title_number?: number

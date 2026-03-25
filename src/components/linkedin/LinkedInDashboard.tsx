@@ -23,7 +23,7 @@ interface LinkedInDashboardProps {
 }
 
 export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardProps) {
-  const { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload } = useLinkedIn();
+  const { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload, closeAdRun } = useLinkedIn();
 
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [cvModalAdId, setCvModalAdId] = useState("");
@@ -225,7 +225,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     attending: filteredActivities.reduce((s, a) => s + a.candidatesAttending2ndRound, 0),
   }), [filteredActivities, totalAttributedCVs]);
 
-  const availableAds = useMemo(() => [...adUploads].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30), [adUploads]);
+  const activeAds = useMemo(() => adUploads.filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)), [adUploads]);
+  const availableAds = useMemo(() => [...adUploads].filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30), [adUploads]);
 
   const handleQuickAdd = async (type: string) => {
     if (type === "cv") {
@@ -366,6 +367,42 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Live Ads Section */}
+      {activeAds.length > 0 && (
+        <div className="glass-panel p-4">
+          <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            Live Ads ({activeAds.length})
+          </h3>
+          <div className="space-y-2">
+            {activeAds.map((ad) => {
+              const daysRunning = Math.floor((new Date().getTime() - new Date(ad.date).getTime()) / (1000 * 60 * 60 * 24));
+              const adCvs = cvDownloads.filter(cv => cv.adUploadId === ad.id).reduce((s, cv) => s + cv.count, 0);
+              return (
+                <div key={ad.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground">
+                      Ad {ad.adNumber} — Title {ad.titleNumber} — {ad.type === "free" ? "📢 Free" : "💰 Paid"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Uploaded {format(new Date(ad.date), "d MMM yyyy")} · {daysRunning} day{daysRunning !== 1 ? "s" : ""} running · {adCvs} CVs
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[10px] h-7 px-3 ml-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => closeAdRun(ad.id)}
+                  >
+                    Close Ad
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* CV Modal */}
       <Dialog open={cvModalOpen} onOpenChange={setCvModalOpen}>

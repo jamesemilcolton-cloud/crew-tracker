@@ -3,379 +3,281 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, TrendingUp, Zap, Clock, ArrowUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BarChart3, TrendingUp, Zap, Clock, ArrowUpDown, ScatterChart as ScatterIcon } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  ScatterChart, Scatter, Cell,
+} from "recharts";
 
-interface AdUploadRow {
+interface AdRunRow {
   id: string;
   user_id: string;
   upload_date: string;
+  close_date: string | null;
   ad_type: string;
   title_number: number;
   ad_number: number;
 }
 
 interface CVDownloadRow {
-  id: string;
-  user_id: string;
   ad_upload_id: string;
-  download_date: string;
   count: number;
 }
 
-interface CandidateRow {
+interface RunWithCVs {
   id: string;
-  source: string;
-  stage: string;
-  created_at: string;
-}
-
-interface StageHistoryRow {
-  candidate_id: string;
-  to_stage: string;
-  changed_at: string;
-}
-
-interface ComboStats {
   adNumber: number;
   titleNumber: number;
-  cvs: number;
-  obs: number;
-  starts: number;
-  conversion: number;
+  adType: string;
+  duration: number;
+  totalCVs: number;
 }
 
-type SortKey = "starts" | "conversion" | "cvs";
-
 export function LinkedInPerformanceIntelligence() {
-  const [adUploads, setAdUploads] = useState<AdUploadRow[]>([]);
-  const [cvDownloads, setCvDownloads] = useState<CVDownloadRow[]>([]);
-  const [candidates, setCandidates] = useState<CandidateRow[]>([]);
-  const [stageHistory, setStageHistory] = useState<StageHistoryRow[]>([]);
+  const [runs, setRuns] = useState<RunWithCVs[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("starts");
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [adRes, cvRes, candRes, histRes] = await Promise.all([
-        supabase.from("ad_uploads").select("*").order("upload_date"),
-        supabase.from("cv_downloads").select("*").order("download_date"),
-        supabase.from("candidates").select("id, source, stage, created_at").eq("source", "LinkedIn"),
-        supabase.from("candidate_stage_history").select("candidate_id, to_stage, changed_at"),
+      const [adRes, cvRes] = await Promise.all([
+        supabase.from("ad_uploads").select("*").not("close_date", "is", null),
+        supabase.from("cv_downloads").select("ad_upload_id, count"),
       ]);
 
-      setAdUploads((adRes.data ?? []) as any[]);
-      setCvDownloads(cvRes.data ?? []);
-      setCandidates(candRes.data ?? []);
-      setStageHistory(histRes.data ?? []);
+      const ads = (adRes.data ?? []) as AdRunRow[];
+      const cvs = cvRes.data ?? [];
+
+      // Aggregate CVs per ad_upload_id
+      const cvMap = new Map<string, number>();
+      for (const cv of cvs) {
+        cvMap.set(cv.ad_upload_id, (cvMap.get(cv.ad_upload_id) ?? 0) + cv.count);
+      }
+
+      const validRuns: RunWithCVs[] = [];
+      for (const ad of ads) {
+        if (!ad.close_date) continue;
+        const duration = Math.floor(
+          (new Date(ad.close_date).getTime() - new Date(ad.upload_date).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (duration < 1) continue;
+        const totalCVs = cvMap.get(ad.id) ?? 0;
+        if (totalCVs === 0) continue;
+
+        validRuns.push({
+          id: ad.id,
+          adNumber: (ad as any).ad_number ?? 1,
+          titleNumber: (ad as any).title_number ?? 1,
+          adType: ad.ad_type,
+          duration,
+          totalCVs,
+        });
+      }
+
+      setRuns(validRuns);
       setLoading(false);
     };
     fetchData();
   }, []);
 
-  // Build combo stats: group by ad_number + title_number
-  const comboStats = useMemo(() => {
-    const comboMap = new Map<string, { adNumber: number; titleNumber: number; cvs: number; adUploadIds: Set<string> }>();
-
-    // Aggregate CVs by ad+title combo
-    for (const ad of adUploads) {
-      const key = `${ad.ad_number}-${ad.title_number}`;
-      if (!comboMap.has(key)) {
-        comboMap.set(key, { adNumber: ad.ad_number, titleNumber: ad.title_number, cvs: 0, adUploadIds: new Set() });
-      }
-      comboMap.get(key)!.adUploadIds.add(ad.id);
-    }
-
-    for (const cv of cvDownloads) {
-      const ad = adUploads.find(a => a.id === cv.ad_upload_id);
-      if (ad) {
-        const key = `${ad.ad_number}-${ad.title_number}`;
-        if (comboMap.has(key)) {
-          comboMap.get(key)!.cvs += cv.count;
-        }
-      }
-    }
-
-    // Count OBs and Starts from stage history for LinkedIn candidates
-    const linkedInCandidateIds = new Set(candidates.map(c => c.id));
-
-    const obsCount = new Map<string, number>(); // not per combo - we'll attribute broadly
-    const startCount = new Map<string, number>();
-
-    // For simplicity: attribute OBs/starts to ALL LinkedIn candidates (source=LinkedIn)
-    // since we can't directly link a candidate to a specific ad combo without phone matching
-    const totalObs = stageHistory.filter(h => linkedInCandidateIds.has(h.candidate_id) && h.to_stage === "obs").length;
-    const totalStarts = stageHistory.filter(h => linkedInCandidateIds.has(h.candidate_id) && h.to_stage === "start").length;
-    const totalCvs = [...comboMap.values()].reduce((s, c) => s + c.cvs, 0);
-
-    // Proportionally attribute OBs and starts based on CV volume
-    const results: ComboStats[] = [];
-    for (const [, combo] of comboMap) {
-      const proportion = totalCvs > 0 ? combo.cvs / totalCvs : 0;
-      const obs = Math.round(totalObs * proportion);
-      const starts = Math.round(totalStarts * proportion);
-      const conversion = obs > 0 ? Math.round((starts / obs) * 1000) / 10 : 0;
-      results.push({
-        adNumber: combo.adNumber,
-        titleNumber: combo.titleNumber,
-        cvs: combo.cvs,
-        obs,
-        starts,
-        conversion,
-      });
-    }
-
-    return results;
-  }, [adUploads, cvDownloads, candidates, stageHistory]);
-
-  // Aggregated by ad number only
-  const adStats = useMemo(() => {
-    const map = new Map<number, { cvs: number; obs: number; starts: number }>();
-    for (const c of comboStats) {
-      const existing = map.get(c.adNumber) ?? { cvs: 0, obs: 0, starts: 0 };
-      existing.cvs += c.cvs;
-      existing.obs += c.obs;
-      existing.starts += c.starts;
-      map.set(c.adNumber, existing);
+  // 1. Best Ad Number — avg CVs per run
+  const adBarData = useMemo(() => {
+    const map = new Map<number, { totalCVs: number; count: number }>();
+    for (const r of runs) {
+      const e = map.get(r.adNumber) ?? { totalCVs: 0, count: 0 };
+      e.totalCVs += r.totalCVs;
+      e.count += 1;
+      map.set(r.adNumber, e);
     }
     return [...map.entries()]
-      .map(([adNumber, s]) => ({
-        adNumber,
-        ...s,
-        conversion: s.obs > 0 ? Math.round((s.starts / s.obs) * 1000) / 10 : 0,
-      }))
-      .sort((a, b) => b.starts - a.starts || b.conversion - a.conversion);
-  }, [comboStats]);
+      .map(([adNumber, s]) => ({ name: `Ad ${adNumber}`, avgCVs: Math.round((s.totalCVs / s.count) * 10) / 10 }))
+      .sort((a, b) => b.avgCVs - a.avgCVs);
+  }, [runs]);
 
-  // Aggregated by title number only
-  const titleStats = useMemo(() => {
-    const map = new Map<number, { cvs: number; obs: number; starts: number }>();
-    for (const c of comboStats) {
-      const existing = map.get(c.titleNumber) ?? { cvs: 0, obs: 0, starts: 0 };
-      existing.cvs += c.cvs;
-      existing.obs += c.obs;
-      existing.starts += c.starts;
-      map.set(c.titleNumber, existing);
+  // 2. Best Title Number — avg CVs per run
+  const titleBarData = useMemo(() => {
+    const map = new Map<number, { totalCVs: number; count: number }>();
+    for (const r of runs) {
+      const e = map.get(r.titleNumber) ?? { totalCVs: 0, count: 0 };
+      e.totalCVs += r.totalCVs;
+      e.count += 1;
+      map.set(r.titleNumber, e);
     }
     return [...map.entries()]
-      .map(([titleNumber, s]) => ({
-        titleNumber,
-        ...s,
-        conversion: s.obs > 0 ? Math.round((s.starts / s.obs) * 1000) / 10 : 0,
+      .map(([titleNumber, s]) => ({ name: `Title ${titleNumber}`, avgCVs: Math.round((s.totalCVs / s.count) * 10) / 10 }))
+      .sort((a, b) => b.avgCVs - a.avgCVs);
+  }, [runs]);
+
+  // 3. Scatter: Duration vs Total CVs
+  const scatterData = useMemo(() =>
+    runs.map(r => ({ duration: r.duration, cvs: r.totalCVs })),
+  [runs]);
+
+  // 4. Top 10 Ad+Title combos by avg CVs per run
+  const comboData = useMemo(() => {
+    const map = new Map<string, { adNumber: number; titleNumber: number; totalCVs: number; totalDuration: number; count: number }>();
+    for (const r of runs) {
+      const key = `${r.adNumber}-${r.titleNumber}`;
+      const e = map.get(key) ?? { adNumber: r.adNumber, titleNumber: r.titleNumber, totalCVs: 0, totalDuration: 0, count: 0 };
+      e.totalCVs += r.totalCVs;
+      e.totalDuration += r.duration;
+      e.count += 1;
+      map.set(key, e);
+    }
+    return [...map.values()]
+      .map(c => ({
+        adNumber: c.adNumber,
+        titleNumber: c.titleNumber,
+        runs: c.count,
+        avgDuration: Math.round((c.totalDuration / c.count) * 10) / 10,
+        avgCVs: Math.round((c.totalCVs / c.count) * 10) / 10,
       }))
-      .sort((a, b) => b.starts - a.starts || b.conversion - a.conversion);
-  }, [comboStats]);
+      .sort((a, b) => b.avgCVs - a.avgCVs)
+      .slice(0, 10);
+  }, [runs]);
 
-  // Best combo
-  const bestCombo = useMemo(() => {
-    return [...comboStats].sort((a, b) => b.starts - a.starts || b.conversion - a.conversion)[0] ?? null;
-  }, [comboStats]);
-
-  // Sorted full table
-  const sortedComboStats = useMemo(() => {
-    return [...comboStats].sort((a, b) => {
-      if (sortKey === "starts") return b.starts - a.starts || b.conversion - a.conversion;
-      if (sortKey === "conversion") return b.conversion - a.conversion || b.starts - a.starts;
-      return b.cvs - a.cvs;
-    });
-  }, [comboStats, sortKey]);
-
-  // Delay intelligence
-  const delayStats = useMemo(() => {
-    // Ad upload → CV download delay
-    const adToCvDelays: number[] = [];
-    for (const cv of cvDownloads) {
-      const ad = adUploads.find(a => a.id === cv.ad_upload_id);
-      if (ad) {
-        const diff = (new Date(cv.download_date).getTime() - new Date(ad.upload_date).getTime()) / (1000 * 60 * 60 * 24);
-        if (diff >= 0) adToCvDelays.push(diff);
-      }
-    }
-
-    const avgAdToCv = adToCvDelays.length > 0 ? Math.round((adToCvDelays.reduce((s, d) => s + d, 0) / adToCvDelays.length) * 10) / 10 : null;
-
-    // CV download → OB (approximate: use candidate created_at as proxy for when CV became a candidate)
-    // OB → Start from stage history
-    const linkedInCandidateIds = new Set(candidates.map(c => c.id));
-    const obsEntries = stageHistory.filter(h => linkedInCandidateIds.has(h.candidate_id) && h.to_stage === "obs");
-    const startEntries = stageHistory.filter(h => linkedInCandidateIds.has(h.candidate_id) && h.to_stage === "start");
-
-    const obToStartDelays: number[] = [];
-    for (const start of startEntries) {
-      const ob = obsEntries.find(o => o.candidate_id === start.candidate_id);
-      if (ob) {
-        const diff = (new Date(start.changed_at).getTime() - new Date(ob.changed_at).getTime()) / (1000 * 60 * 60 * 24);
-        if (diff >= 0) obToStartDelays.push(diff);
-      }
-    }
-
-    const avgObToStart = obToStartDelays.length > 0 ? Math.round((obToStartDelays.reduce((s, d) => s + d, 0) / obToStartDelays.length) * 10) / 10 : null;
-
-    return { avgAdToCv, avgObToStart };
-  }, [adUploads, cvDownloads, candidates, stageHistory]);
+  const tooltipStyle = {
+    background: "hsl(222 44% 8%)",
+    border: "1px solid hsl(222 30% 16%)",
+    borderRadius: "8px",
+    fontSize: "12px",
+  };
 
   if (loading) {
     return <div className="text-center text-muted-foreground py-8 text-sm">Loading LinkedIn intelligence...</div>;
   }
 
+  if (runs.length === 0) {
+    return (
+      <Card className="glass-panel">
+        <CardContent className="py-8 text-center text-muted-foreground text-sm">
+          No closed ad runs with CV data yet. Analytics will appear once recruiters close their ad runs.
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {/* Top Cards: Best Ad, Best Title, Best Combo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Best Ad */}
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Closed Runs", value: runs.length, color: "hsl(210 70% 50%)" },
+          { label: "Total CVs", value: runs.reduce((s, r) => s + r.totalCVs, 0), color: "hsl(172 66% 50%)" },
+          { label: "Avg CVs/Run", value: Math.round((runs.reduce((s, r) => s + r.totalCVs, 0) / runs.length) * 10) / 10, color: "hsl(38 92% 50%)" },
+          { label: "Avg Duration", value: `${Math.round((runs.reduce((s, r) => s + r.duration, 0) / runs.length) * 10) / 10}d`, color: "hsl(270 60% 50%)" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="stat-card text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+            <p className="text-xl font-bold font-mono" style={{ color }}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Bar Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Best Ad Number */}
         <Card className="glass-panel">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="w-3.5 h-3.5" style={{ color: "hsl(210 70% 50%)" }} />
-              Best Performing Ad
+              Best Performing Ad Number
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {adStats.length > 0 ? (
-              <div>
-                <p className="text-2xl font-bold font-mono" style={{ color: "hsl(210 70% 50%)" }}>Ad {adStats[0].adNumber}</p>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-muted-foreground">
-                  <span>{adStats[0].cvs} CVs</span>
-                  <span>{adStats[0].obs} OBs</span>
-                  <span>{adStats[0].starts} Starts</span>
-                  <span>{adStats[0].conversion}% Conv.</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data yet</p>
-            )}
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={adBarData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
+                <Bar dataKey="avgCVs" name="Avg CVs/Run" fill="hsl(210 70% 50%)" radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Best Title */}
+        {/* Best Title Number */}
         <Card className="glass-panel">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
               <TrendingUp className="w-3.5 h-3.5" style={{ color: "hsl(270 60% 50%)" }} />
-              Best Performing Title
+              Best Performing Title Number
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {titleStats.length > 0 ? (
-              <div>
-                <p className="text-2xl font-bold font-mono" style={{ color: "hsl(270 60% 50%)" }}>Title {titleStats[0].titleNumber}</p>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-muted-foreground">
-                  <span>{titleStats[0].cvs} CVs</span>
-                  <span>{titleStats[0].obs} OBs</span>
-                  <span>{titleStats[0].starts} Starts</span>
-                  <span>{titleStats[0].conversion}% Conv.</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data yet</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Best Combo */}
-        <Card className="glass-panel">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
-              <Zap className="w-3.5 h-3.5" style={{ color: "hsl(38 92% 50%)" }} />
-              Best Ad + Title Combination
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {bestCombo ? (
-              <div>
-                <p className="text-xl font-bold font-mono" style={{ color: "hsl(38 92% 50%)" }}>
-                  Ad {bestCombo.adNumber} + Title {bestCombo.titleNumber}
-                </p>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-muted-foreground">
-                  <span>{bestCombo.cvs} CVs</span>
-                  <span>{bestCombo.obs} OBs</span>
-                  <span>{bestCombo.starts} Starts</span>
-                  <span>{bestCombo.conversion}% Conv.</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data yet</p>
-            )}
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={titleBarData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} />
+                <Bar dataKey="avgCVs" name="Avg CVs/Run" fill="hsl(270 60% 50%)" radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Delay Intelligence */}
+      {/* Duration Scatter */}
       <Card className="glass-panel">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" style={{ color: "hsl(172 66% 50%)" }} />
-            Ad Delay Intelligence
+            <ScatterIcon className="w-3.5 h-3.5" style={{ color: "hsl(38 92% 50%)" }} />
+            Duration vs CVs (Optimal Ad Length)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/30 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Avg Ad Upload → CV Download</p>
-              <p className="text-xl font-bold font-mono" style={{ color: "hsl(172 66% 50%)" }}>
-                {delayStats.avgAdToCv !== null ? `${delayStats.avgAdToCv} days` : "—"}
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30 border border-border/30 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Avg OB → Start</p>
-              <p className="text-xl font-bold font-mono" style={{ color: "hsl(172 66% 50%)" }}>
-                {delayStats.avgObToStart !== null ? `${delayStats.avgObToStart} days` : "—"}
-              </p>
-            </div>
-          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <ScatterChart margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+              <XAxis dataKey="duration" name="Duration (days)" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} label={{ value: "Days", position: "insideBottomRight", offset: -4, fontSize: 10, fill: "hsl(215 20% 55%)" }} />
+              <YAxis dataKey="cvs" name="CVs" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} axisLine={false} tickLine={false} label={{ value: "CVs", angle: -90, position: "insideLeft", fontSize: 10, fill: "hsl(215 20% 55%)" }} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "hsl(210 40% 96%)" }} cursor={{ strokeDasharray: "3 3" }} />
+              <Scatter data={scatterData} fill="hsl(38 92% 50%)">
+                {scatterData.map((_, i) => (
+                  <Cell key={i} fill="hsl(38 92% 50%)" />
+                ))}
+              </Scatter>
+            </ScatterChart>
+          </ResponsiveContainer>
+          <p className="text-[10px] text-muted-foreground/60 mt-1 text-center">
+            Each dot is one closed ad run. Identify the sweet-spot duration for maximum CV response.
+          </p>
         </CardContent>
       </Card>
 
-      {/* Full Performance Table */}
+      {/* Top 10 Combo Table */}
       <Card className="glass-panel">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
-              <ArrowUpDown className="w-3.5 h-3.5" style={{ color: "hsl(210 70% 50%)" }} />
-              Ad Performance Table
-            </CardTitle>
-            <div className="flex gap-1">
-              {(["starts", "conversion", "cvs"] as SortKey[]).map((key) => (
-                <Button
-                  key={key}
-                  variant={sortKey === key ? "default" : "outline"}
-                  size="sm"
-                  className="text-[10px] h-6 px-2"
-                  onClick={() => setSortKey(key)}
-                >
-                  {key === "starts" ? "Starts" : key === "conversion" ? "Conv %" : "CVs"}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
+            <Zap className="w-3.5 h-3.5" style={{ color: "hsl(38 92% 50%)" }} />
+            Top 10 Ad + Title Combinations
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {sortedComboStats.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No ad data recorded yet.</p>
+          {comboData.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No combination data yet.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Ad #</TableHead>
-                  <TableHead>Title #</TableHead>
-                  <TableHead>CVs</TableHead>
-                  <TableHead>OBs</TableHead>
-                  <TableHead>Starts</TableHead>
-                  <TableHead>Conv %</TableHead>
+                  <TableHead>#</TableHead>
+                  <TableHead>Ad</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Runs</TableHead>
+                  <TableHead>Avg Duration</TableHead>
+                  <TableHead>Avg CVs/Run</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedComboStats.map((row, i) => (
+                {comboData.map((row, i) => (
                   <TableRow key={i}>
+                    <TableCell className="font-medium text-muted-foreground">{i + 1}</TableCell>
                     <TableCell className="font-medium">Ad {row.adNumber}</TableCell>
                     <TableCell>Title {row.titleNumber}</TableCell>
-                    <TableCell>{row.cvs}</TableCell>
-                    <TableCell>{row.obs}</TableCell>
+                    <TableCell>{row.runs}</TableCell>
+                    <TableCell>{row.avgDuration}d</TableCell>
                     <TableCell>
-                      <Badge variant={row.starts > 0 ? "default" : "outline"}>{row.starts}</Badge>
+                      <Badge variant={row.avgCVs >= 5 ? "default" : "outline"}>{row.avgCVs}</Badge>
                     </TableCell>
-                    <TableCell>{row.conversion}%</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
