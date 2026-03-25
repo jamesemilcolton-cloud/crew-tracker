@@ -378,7 +378,9 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
                 <SelectTrigger><SelectValue placeholder="Select an ad upload..." /></SelectTrigger>
                 <SelectContent>
                   {availableAds.map((ad) => (
-                    <SelectItem key={ad.id} value={ad.id}>{ad.date} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} Ad</SelectItem>
+                    <SelectItem key={ad.id} value={ad.id}>
+                      Ad {ad.adNumber} — Title {ad.titleNumber} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} — Uploaded {format(new Date(ad.date), "d MMM")}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
