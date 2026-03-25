@@ -119,7 +119,14 @@ export function useLinkedIn() {
     await fetchAll();
   }, [user, fetchAll]);
 
-  return { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload, refetch: fetchAll };
+  const closeAdRun = useCallback(async (adId: string) => {
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    await supabase.from("ad_uploads").update({ close_date: today } as any).eq("id", adId).eq("user_id", user.id);
+    await fetchAll();
+  }, [user, fetchAll]);
+
+  return { activities, adUploads, cvDownloads, loading, logActivity, logCvDownload, closeAdRun, refetch: fetchAll };
 }
 
 // Fetch ALL users' linkedin data for leaderboard
