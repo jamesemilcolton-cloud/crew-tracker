@@ -49,23 +49,29 @@ export type Database = {
       }
       ad_uploads: {
         Row: {
+          ad_number: number
           ad_type: string
           created_at: string
           id: string
+          title_number: number
           upload_date: string
           user_id: string
         }
         Insert: {
+          ad_number?: number
           ad_type: string
           created_at?: string
           id?: string
+          title_number?: number
           upload_date?: string
           user_id: string
         }
         Update: {
+          ad_number?: number
           ad_type?: string
           created_at?: string
           id?: string
+          title_number?: number
           upload_date?: string
           user_id?: string
         }

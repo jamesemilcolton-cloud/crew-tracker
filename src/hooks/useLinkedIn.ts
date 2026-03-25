@@ -28,6 +28,7 @@ export function useLinkedIn() {
 
     setAdUploads((adRes.data ?? []).map((a) => ({
       id: a.id, date: a.upload_date, type: a.ad_type as "free" | "paid",
+      titleNumber: (a as any).title_number ?? 1, adNumber: (a as any).ad_number ?? 1,
     })));
 
     setCvDownloads((cvRes.data ?? []).map((c) => ({
@@ -39,7 +40,7 @@ export function useLinkedIn() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const logActivity = useCallback(async (type: "free" | "paid" | "attend", dateOverride?: string) => {
+  const logActivity = useCallback(async (type: "free" | "paid" | "attend", dateOverride?: string, titleNumber?: number, adNumber?: number) => {
     if (!user) return;
     const today = dateOverride || new Date().toISOString().split("T")[0];
 
@@ -48,7 +49,9 @@ export function useLinkedIn() {
         user_id: user.id,
         upload_date: today,
         ad_type: type,
-      });
+        title_number: titleNumber ?? 1,
+        ad_number: adNumber ?? 1,
+      } as any);
     }
 
     // Upsert linkedin_activity
@@ -139,6 +142,7 @@ export function useLinkedInAll() {
 
     setAdUploads((adRes.data ?? []).map((a) => ({
       id: a.id, user_id: a.user_id, date: a.upload_date, type: a.ad_type as "free" | "paid",
+      titleNumber: (a as any).title_number ?? 1, adNumber: (a as any).ad_number ?? 1,
     })));
 
     setCvDownloads((cvRes.data ?? []).map((c) => ({

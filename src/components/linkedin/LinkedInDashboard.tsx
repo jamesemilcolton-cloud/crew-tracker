@@ -34,6 +34,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
   const [adDateModalOpen, setAdDateModalOpen] = useState(false);
   const [adDateModalType, setAdDateModalType] = useState<"free" | "paid">("free");
   const [adUploadDate, setAdUploadDate] = useState<Date>(new Date());
+  const [adTitleNumber, setAdTitleNumber] = useState("1");
+  const [adAdNumber, setAdAdNumber] = useState("1");
 
   const filteredActivities = useMemo(() => {
     if (trendRange === "all") {
@@ -237,6 +239,8 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       // Open date confirmation dialog instead of instant logging
       setAdDateModalType(type);
       setAdUploadDate(new Date());
+      setAdTitleNumber("1");
+      setAdAdNumber("1");
       setAdDateModalOpen(true);
       return;
     }
@@ -247,7 +251,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
 
   const handleAdDateConfirm = async () => {
     const dateStr = format(adUploadDate, "yyyy-MM-dd");
-    await logActivity(adDateModalType, dateStr);
+    await logActivity(adDateModalType, dateStr, parseInt(adTitleNumber), parseInt(adAdNumber));
     setAdDateModalOpen(false);
   };
 
@@ -299,12 +303,12 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Confirm {adDateModalType === "free" ? "Free" : "Paid"} Ad Upload Date
+              Log {adDateModalType === "free" ? "Free" : "Paid"} Ad Upload
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label>Ad Upload Date</Label>
+              <Label>Upload Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -328,12 +332,36 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Title Number</Label>
+              <Select value={adTitleNumber} onValueChange={setAdTitleNumber}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>Title {n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Ad Number</Label>
+              <Select value={adAdNumber} onValueChange={setAdAdNumber}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>Ad {n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
               <p className="text-[11px] text-muted-foreground">
-                This date will be used for ad attribution. Confirm or adjust before submitting.
+                <strong>Ad Type:</strong> {adDateModalType === "free" ? "📢 Free" : "💰 Paid"}
               </p>
             </div>
             <Button onClick={handleAdDateConfirm} className="w-full">
-              Confirm & Log {adDateModalType === "free" ? "Free" : "Paid"} Ad
+              Confirm & Log Ad
             </Button>
           </div>
         </DialogContent>
@@ -350,7 +378,9 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
                 <SelectTrigger><SelectValue placeholder="Select an ad upload..." /></SelectTrigger>
                 <SelectContent>
                   {availableAds.map((ad) => (
-                    <SelectItem key={ad.id} value={ad.id}>{ad.date} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} Ad</SelectItem>
+                    <SelectItem key={ad.id} value={ad.id}>
+                      Ad {ad.adNumber} — Title {ad.titleNumber} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} — Uploaded {format(new Date(ad.date), "d MMM")}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

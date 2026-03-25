@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, UserCheck, UserMinus, Trash2, CheckCircle, XCircle, Trophy, Flame, Star, Crown, Activity } from "lucide-react";
+import { ArrowLeft, Shield, UserCheck, UserMinus, Trash2, CheckCircle, XCircle, Trophy, Flame, Star, Crown, Activity, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { subWeeks, format, subDays, startOfDay, endOfDay, isMonday } from "date-fns";
 import { getCalendarWeekBounds } from "@/lib/utils";
 import { OfficePerformanceOverview } from "@/components/manager/OfficePerformanceOverview";
+import { LinkedInPerformanceIntelligence } from "@/components/manager/LinkedInPerformanceIntelligence";
 
 interface ManagedUser {
   user_id: string;
@@ -845,6 +846,14 @@ export default function Manager() {
               </div>
             </CardContent>
           </Card>
+        </section>
+
+        {/* ===== LINKEDIN PERFORMANCE INTELLIGENCE ===== */}
+        <section>
+          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Linkedin className="w-4 h-4" style={{ color: "hsl(210 70% 50%)" }} /> LinkedIn Performance Intelligence
+          </h2>
+          <LinkedInPerformanceIntelligence />
         </section>
 
         {/* ===== OFFICE PERFORMANCE OVERVIEW ===== */}

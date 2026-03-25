@@ -52,6 +52,8 @@ export interface AdUpload {
   id: string;
   date: string;
   type: "free" | "paid";
+  titleNumber: number;
+  adNumber: number;
 }
 
 export interface CVDownloadEntry {
