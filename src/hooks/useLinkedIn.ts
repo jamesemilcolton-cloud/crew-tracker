@@ -151,6 +151,7 @@ export function useLinkedInAll() {
     setAdUploads((adRes.data ?? []).map((a) => ({
       id: a.id, user_id: a.user_id, date: a.upload_date, type: a.ad_type as "free" | "paid",
       titleNumber: (a as any).title_number ?? 1, adNumber: (a as any).ad_number ?? 1,
+      closeDate: (a as any).close_date ?? null,
     })));
 
     setCvDownloads((cvRes.data ?? []).map((c) => ({
