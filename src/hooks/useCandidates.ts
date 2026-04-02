@@ -74,12 +74,12 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
   const addCandidate = useCallback(async (candidate: Omit<Candidate, "id" | "history" | "createdAt">) => {
     if (!user) return;
-    const { data, error } = await supabase.from("candidates").insert({
+    const insertData: any = {
       user_id: user.id,
       name: candidate.name,
       first_name: candidate.firstName || "",
       last_name: candidate.lastName || "",
-      phone: candidate.phone,
+      phone: candidate.phone || "",
       notes: candidate.notes,
       source: candidate.source,
       stage: candidate.stage,
@@ -88,7 +88,8 @@ export function useCandidates(scope: "own" | "all" = "own") {
       has_sales_pitch_access: candidate.hasSalesPitchAccess,
       has_evo_app_access: candidate.hasEvoAppAccess,
       recruited_by: candidate.recruitedBy || null,
-    }).select().single();
+    };
+    const { data, error } = await supabase.from("candidates").insert(insertData).select().single();
 
     if (data) {
       setCandidates((prev) => [...prev, rowToCandidate(data, [])]);
