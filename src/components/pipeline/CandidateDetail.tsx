@@ -23,9 +23,10 @@ interface CandidateDetailProps {
   onClose: () => void;
   onUpdate: (updated: Candidate) => void;
   onArchive: (id: string) => void;
+  onDropOff?: (candidate: Candidate) => void;
 }
 
-export function CandidateDetail({ candidate, onClose, onUpdate, onArchive }: CandidateDetailProps) {
+export function CandidateDetail({ candidate, onClose, onUpdate, onArchive, onDropOff }: CandidateDetailProps) {
   const [editing, setEditing] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [stage, setStage] = useState(candidate.stage);
@@ -83,9 +84,9 @@ export function CandidateDetail({ candidate, onClose, onUpdate, onArchive }: Can
         </button>
         <h3 className="text-base font-semibold text-foreground truncate mx-4">{candidate.name}</h3>
         <button
-          onClick={() => onArchive(candidate.id)}
+          onClick={() => onDropOff ? onDropOff(candidate) : onArchive(candidate.id)}
           className="text-destructive hover:text-destructive/80 transition-colors flex items-center gap-1.5 text-sm"
-          title="Delete candidate"
+          title="Drop candidate"
         >
           <Trash2 className="w-4 h-4" />
           <span>Drop</span>

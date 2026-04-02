@@ -55,8 +55,8 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
     return getLastNWeeksBounds(option.weeks);
   }, [trendRange, signupDate]);
 
-  // Stage counts using current stage snapshot per candidate (not raw history count)
-  // This prevents inflation when candidates move backward and forward
+  // Stage counts using final valid stage per candidate (cumulative funnel)
+  // Backward moves invalidate previous forward stages for analytics
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     STAGES_ORDER.forEach((s) => { counts[s] = 0; });
@@ -73,16 +73,17 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
 
       if (historyInRange.length === 0) return;
 
-      // Collect all unique stages this candidate reached within the range
-      const stagesReachedInRange = new Set<string>();
-      historyInRange.forEach((h) => stagesReachedInRange.add(h.to));
+      // Sort chronologically and take the LAST entry as the effective stage
+      const sorted = [...historyInRange].sort((a, b) => a.date.localeCompare(b.date));
+      const effectiveStage = sorted[sorted.length - 1].to;
+      const effectiveIdx = STAGES_ORDER.indexOf(effectiveStage);
 
-      // Count each stage the candidate reached in-range (including OBS)
-      stagesReachedInRange.forEach((stage) => {
-        if (counts[stage] !== undefined) {
-          counts[stage]++;
-        }
-      });
+      if (effectiveIdx < 0) return;
+
+      // Cumulative funnel: count candidate in all stages up to their effective stage
+      for (let i = 0; i <= effectiveIdx; i++) {
+        counts[STAGES_ORDER[i]]++;
+      }
     });
     return counts;
   }, [candidates, dateRange]);
