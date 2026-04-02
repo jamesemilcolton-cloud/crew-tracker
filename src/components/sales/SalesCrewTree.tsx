@@ -203,7 +203,7 @@ export default function SalesCrewTree({
     async function fetch() {
       const { data } = await supabase
         .from("candidates")
-        .select("id, name, stage, recruited_by, archived_at, phone, notes, source, status, potential_start_date, has_sales_pitch_access, has_evo_app_access")
+        .select("id, name, stage, recruited_by, archived_at, notes, source, status, potential_start_date, has_sales_pitch_access, has_evo_app_access")
         .is("archived_at", null);
       if (data) setCandidates(data);
     }
