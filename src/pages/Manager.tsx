@@ -140,7 +140,7 @@ export default function Manager() {
       return {
         user_id: p.user_id,
         full_name: p.full_name,
-        phone: p.phone ?? "",
+        phone: (p as any).username ?? "",
         leader_id: p.leader_id,
         leader_name: leaderName,
         role: r.role,
