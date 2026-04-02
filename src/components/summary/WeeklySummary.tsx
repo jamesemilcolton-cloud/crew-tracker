@@ -28,7 +28,7 @@ interface Profile {
   full_name: string;
   leader_id: string | null;
   crew_name: string;
-  phone: string;
+  candidate_record_id: string | null;
 }
 
 /** Map pipeline stage to a display role label */
@@ -449,14 +449,14 @@ export function WeeklySummary() {
     }).length;
 
     // 2. HCS: crew members at solo+ with ≥1 sale this week
-    // Build phone→candidate stage map for active candidates at solo+
-    const soloOrAbovePhones = new Set(
-      activeTeam.filter((c) => ["solo", "promoted"].includes(c.stage)).map((c) => c.phone).filter(Boolean)
+    // Build candidate ID set for active candidates at solo+
+    const soloOrAboveCandidateIds = new Set(
+      activeTeam.filter((c) => ["solo", "promoted"].includes(c.stage)).map((c) => c.id)
     );
-    // Get user_ids of crew members at solo+ by matching profile phone to candidate phone
+    // Get user_ids of crew members at solo+ by matching profile candidate_record_id
     const soloUserIds = new Set(
       allProfiles
-        .filter((p) => descendantIds.has(p.id) && p.phone && soloOrAbovePhones.has(p.phone))
+        .filter((p) => descendantIds.has(p.id) && p.candidate_record_id && soloOrAboveCandidateIds.has(p.candidate_record_id))
         .map((p) => p.user_id)
     );
     // Also include the current user (leader) — they are solo+ by definition

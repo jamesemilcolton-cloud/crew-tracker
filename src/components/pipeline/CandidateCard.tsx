@@ -47,7 +47,10 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
       onClick={() => onClick(candidate)}
     >
       <div className="flex items-start justify-between mb-2">
-        <h4 className="font-medium text-sm text-foreground truncate flex-1">{candidate.name}</h4>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-sm text-foreground truncate">{candidate.name}</h4>
+          <span className="text-[10px] text-muted-foreground font-mono">{candidate.candidateId}</span>
+        </div>
         {onDropOff && (
           <button
             className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 ml-1"

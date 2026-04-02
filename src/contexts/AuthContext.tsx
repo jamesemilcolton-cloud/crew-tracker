@@ -11,7 +11,9 @@ interface Profile {
   leader_id: string | null;
   crew_name: string;
   created_at: string;
-  phone: string;
+  username: string;
+  user_code: string;
+  candidate_record_id: string | null;
 }
 
 export type AppRole = "brand_ambassador" | "leader" | "manager";
@@ -27,8 +29,8 @@ interface AuthContextType {
   profile: Profile | null;
   userRole: UserRole | null;
   loading: boolean;
-  signUp: (email: string, password: string, firstName: string, lastName: string, leaderId: string | null, crewName: string, phone: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (username: string, password: string, firstName: string, lastName: string, leaderId: string | null, crewName: string, candidateRecordId?: string) => Promise<{ error: any }>;
+  signIn: (username: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refetchRole: () => Promise<void>;
 }
@@ -48,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("user_id", userId)
       .single();
-    setProfile(data);
+    if (data) setProfile(data as unknown as Profile);
   };
 
   const fetchRole = async (userId: string) => {
@@ -71,11 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (event === "INITIAL_SESSION") {
-          // Handled by the initial getSession call below
           return;
         }
 
-        // Only react to real auth changes (login, logout, token refresh)
         if (session?.user) {
           fetchProfile(session.user.id);
           fetchRole(session.user.id);
@@ -101,16 +101,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string, leaderId: string | null, crewName: string, phone: string) => {
+  const signUp = async (username: string, password: string, firstName: string, lastName: string, leaderId: string | null, crewName: string, candidateRecordId?: string) => {
+    // Use internal email for auth (username@missioncontrol.internal)
+    const internalEmail = `${username.toLowerCase().trim()}@missioncontrol.internal`;
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: internalEmail,
       password,
-      options: { emailRedirectTo: window.location.origin },
     });
     if (error) return { error };
 
     if (data.user) {
-      // Use upsert to handle cases where profile might partially exist
       const { error: profileError } = await supabase.from("profiles").upsert({
         user_id: data.user.id,
         first_name: firstName,
@@ -118,30 +119,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: `${firstName} ${lastName}`.trim(),
         leader_id: leaderId || null,
         crew_name: crewName,
-        phone: phone,
-      }, { onConflict: "user_id" });
+        username: username.toLowerCase().trim(),
+        candidate_record_id: candidateRecordId || null,
+      } as any, { onConflict: "user_id" });
       if (profileError) {
         console.error("Profile creation failed:", profileError);
         return { error: profileError };
       }
 
-      // Link matching candidate record by phone number
-      const { data: matchingCandidates } = await supabase
-        .from("candidates")
-        .select("id")
-        .eq("phone", phone.trim())
-        .is("archived_at", null);
-
-      if (matchingCandidates && matchingCandidates.length > 0) {
-        // Update candidate(s) with matching phone: set names to account values
+      // Link matching candidate record if candidateRecordId provided
+      if (candidateRecordId) {
         const fullName = `${firstName} ${lastName}`.trim();
-        for (const candidate of matchingCandidates) {
-          await supabase.from("candidates").update({
-            name: fullName,
-            first_name: firstName,
-            last_name: lastName,
-          }).eq("id", candidate.id);
-        }
+        await supabase.from("candidates").update({
+          name: fullName,
+          first_name: firstName,
+          last_name: lastName,
+        }).eq("id", candidateRecordId);
       }
 
       await fetchProfile(data.user.id);
@@ -150,9 +143,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+  const signIn = async (username: string, password: string) => {
+    try {
+      // Use edge function for username-based login
+      const { data, error } = await supabase.functions.invoke("username-login", {
+        body: { username: username.trim(), password },
+      });
+
+      if (error) {
+        return { error: { message: "Invalid username or password" } };
+      }
+
+      if (data?.error) {
+        return { error: { message: data.error } };
+      }
+
+      if (data?.session) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        if (sessionError) {
+          return { error: sessionError };
+        }
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      return { error: { message: err.message || "Login failed" } };
+    }
   };
 
   const signOut = async () => {

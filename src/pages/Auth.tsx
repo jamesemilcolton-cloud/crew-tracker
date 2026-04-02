@@ -1,143 +1,38 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, LogIn, UserPlus } from "lucide-react";
-
-interface LeaderOption {
-  id: string;
-  full_name: string;
-}
-
-const THE_OFFICE_VALUE = "__the_office__";
+import { Users, LogIn, Lock } from "lucide-react";
 
 export default function Auth() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [confirmPhone, setConfirmPhone] = useState("");
-  const [crewName, setCrewName] = useState("");
-  const [leaderId, setLeaderId] = useState<string>("");
-  const [leaders, setLeaders] = useState<LeaderOption[]>([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { signUp, signIn } = useAuth();
+  const { signIn } = useAuth();
 
   useEffect(() => {
     if (!loading && user) navigate("/");
   }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (isSignUp) {
-      const fetchLeaders = async () => {
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .in("role", ["leader", "manager"]);
-
-        if (roles && roles.length > 0) {
-          const userIds = roles.map((r: any) => r.user_id);
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("user_id", userIds);
-          setLeaders(profiles ?? []);
-        } else {
-          setLeaders([]);
-        }
-      };
-      fetchLeaders();
-    }
-  }, [isSignUp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
 
-    if (isSignUp) {
-      if (!firstName.trim() || !lastName.trim()) {
-        setError("First name and last name are required.");
-        setSubmitting(false);
-        return;
-      }
-      if (!crewName.trim()) {
-        setError("Crew Name is required.");
-        setSubmitting(false);
-        return;
-      }
-      if (!phone.trim()) {
-        setError("Phone number is required.");
-        setSubmitting(false);
-        return;
-      }
-      if (phone.trim() !== confirmPhone.trim()) {
-        setError("Phone numbers do not match.");
-        setSubmitting(false);
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Passwords do not match.");
-        setSubmitting(false);
-        return;
-      }
-      if (!leaderId) {
-        setError("You must select a leader or 'The Office'.");
-        setSubmitting(false);
-        return;
-      }
+    if (!username.trim()) {
+      setError("Username is required.");
+      setSubmitting(false);
+      return;
+    }
 
-      // Pipeline validation only applies when a specific leader is selected
-      if (leaderId !== THE_OFFICE_VALUE) {
-        // Check if phone number exists as a candidate in the pipeline
-        const { data: matchingCandidates } = await supabase
-          .from("candidates")
-          .select("id, phone")
-          .eq("phone", phone.trim())
-          .is("archived_at", null);
-
-        if (!matchingCandidates || matchingCandidates.length === 0) {
-          setError("No pipeline record found with this phone number. You must be added to a recruitment pipeline before creating an account.");
-          setSubmitting(false);
-          return;
-        }
-      }
-
-      // Check if phone is already used by another profile
-      const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("phone", phone.trim());
-
-      if (existingProfile && existingProfile.length > 0) {
-        setError("An account with this phone number already exists.");
-        setSubmitting(false);
-        return;
-      }
-
-      const actualLeaderId = leaderId === THE_OFFICE_VALUE ? null : leaderId;
-      const { error } = await signUp(email, password, firstName.trim(), lastName.trim(), actualLeaderId, crewName.trim(), phone.trim());
-      if (error) setError(error.message);
-    } else {
-      const { error } = await signIn(email, password);
-      if (error) {
-        // Check if this is an unconfirmed email
-        if (error.message?.toLowerCase().includes("email not confirmed")) {
-          setError("Please verify your email before logging in. Check your inbox for a confirmation link.");
-        } else {
-          setError(error.message);
-        }
-      }
+    const { error } = await signIn(username, password);
+    if (error) {
+      setError(error.message || "Invalid username or password");
     }
     setSubmitting(false);
   };
@@ -160,83 +55,36 @@ export default function Auth() {
           <h1 className="text-xl font-semibold text-foreground tracking-tight">Mission Control</h1>
         </div>
 
-        <div className="flex items-center bg-muted/30 rounded-lg p-0.5 mb-6">
-          <button
-            onClick={() => { setIsSignUp(false); setError(""); }}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${!isSignUp ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LogIn className="w-4 h-4" /> Sign In
-          </button>
-          <button
-            onClick={() => { setIsSignUp(true); setError(""); }}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isSignUp ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <UserPlus className="w-4 h-4" /> Sign Up
-          </button>
+        <div className="flex items-center justify-center gap-2 mb-6 text-sm text-muted-foreground">
+          <LogIn className="w-4 h-4" />
+          <span>Use your username to log in</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>First Name</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Last Name</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Phone Number</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+44 7700 900000" required />
-                <p className="text-[11px] text-muted-foreground">Must match your phone number in an existing recruitment pipeline.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Confirm Phone Number</Label>
-                <Input value={confirmPhone} onChange={(e) => setConfirmPhone(e.target.value)} placeholder="+44 7700 900000" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Crew Name</Label>
-                <Input value={crewName} onChange={(e) => setCrewName(e.target.value)} required />
-              </div>
-            </>
-          )}
-
           <div className="space-y-2">
-            <Label>Email</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+            <Label>Username</Label>
+            <Input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
+              required
+              autoComplete="username"
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Password</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={6}
+              autoComplete="current-password"
+            />
           </div>
-
-          {isSignUp && (
-            <>
-              <div className="space-y-2">
-                <Label>Confirm Password</Label>
-                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
-              </div>
-              <div className="space-y-2">
-                <Label>Select Your Leader</Label>
-                <Select value={leaderId} onValueChange={setLeaderId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose your leader" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={THE_OFFICE_VALUE}>The Office</SelectItem>
-                    {leaders.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>{l.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground">Select your leader, or choose "The Office" if unassigned.</p>
-              </div>
-            </>
-          )}
 
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
@@ -245,8 +93,15 @@ export default function Auth() {
           )}
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
+            {submitting ? "Signing in..." : "Sign In"}
           </Button>
+
+          <div className="flex items-center gap-2 justify-center mt-4 p-3 bg-muted/30 rounded-lg">
+            <Lock className="w-4 h-4 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Signup is invite-only. Use your invite link to create an account.
+            </p>
+          </div>
         </form>
       </div>
     </div>
