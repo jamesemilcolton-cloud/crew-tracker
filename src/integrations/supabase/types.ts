@@ -118,6 +118,7 @@ export type Database = {
       candidates: {
         Row: {
           archived_at: string | null
+          candidate_id: string
           created_at: string
           drop_off_date: string | null
           drop_off_reason: string | null
@@ -139,6 +140,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          candidate_id: string
           created_at?: string
           drop_off_date?: string | null
           drop_off_reason?: string | null
@@ -160,6 +162,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          candidate_id?: string
           created_at?: string
           drop_off_date?: string | null
           drop_off_reason?: string | null
@@ -381,6 +384,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          candidate_record_id: string | null
           created_at: string
           crew_name: string
           first_name: string
@@ -388,12 +392,14 @@ export type Database = {
           id: string
           last_name: string
           leader_id: string | null
-          phone: string
           updated_at: string
+          user_code: string
           user_id: string
+          username: string
           weekly_email_enabled: boolean
         }
         Insert: {
+          candidate_record_id?: string | null
           created_at?: string
           crew_name?: string
           first_name?: string
@@ -401,12 +407,14 @@ export type Database = {
           id?: string
           last_name?: string
           leader_id?: string | null
-          phone?: string
           updated_at?: string
+          user_code: string
           user_id: string
+          username: string
           weekly_email_enabled?: boolean
         }
         Update: {
+          candidate_record_id?: string | null
           created_at?: string
           crew_name?: string
           first_name?: string
@@ -414,9 +422,10 @@ export type Database = {
           id?: string
           last_name?: string
           leader_id?: string | null
-          phone?: string
           updated_at?: string
+          user_code?: string
           user_id?: string
+          username?: string
           weekly_email_enabled?: boolean
         }
         Relationships: [
@@ -600,6 +609,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_candidate_id: { Args: never; Returns: string }
+      generate_user_code: { Args: never; Returns: string }
       get_my_profile_id: { Args: never; Returns: string }
       get_user_role: { Args: { _user_id: string }; Returns: Json }
       has_role: {
