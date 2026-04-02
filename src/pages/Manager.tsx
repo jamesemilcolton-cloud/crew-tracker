@@ -22,7 +22,7 @@ import { LinkedInPerformanceIntelligence } from "@/components/manager/LinkedInPe
 interface ManagedUser {
   user_id: string;
   full_name: string;
-  phone: string;
+  
   leader_id: string | null;
   leader_name: string | null;
   role: string;
@@ -140,7 +140,7 @@ export default function Manager() {
       return {
         user_id: p.user_id,
         full_name: p.full_name,
-        phone: (p as any).username ?? "",
+        
         leader_id: p.leader_id,
         leader_name: leaderName,
         role: r.role,
