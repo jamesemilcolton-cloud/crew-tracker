@@ -44,7 +44,7 @@ const candidateSchema = z.object({
 
 type CandidateFormValues = z.infer<typeof candidateSchema>;
 
-export interface AddCandidatePayload extends Omit<Candidate, "id" | "history" | "createdAt"> {
+export interface AddCandidatePayload extends Omit<Candidate, "id" | "candidateId" | "history" | "createdAt"> {
   droppedDuringOB?: boolean;
 }
 
