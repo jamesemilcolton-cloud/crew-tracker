@@ -1,5 +1,5 @@
 import { Candidate, STAGE_CONFIG, STAGES_ORDER, PipelineStage } from "@/lib/types";
-import { X, Phone, Calendar, Edit2, Save, CalendarIcon, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Hash, Calendar, Edit2, Save, CalendarIcon, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
