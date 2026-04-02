@@ -14,6 +14,7 @@ import LeaderboardPage from "./pages/LeaderboardPage";
 import WeekSummaryPage from "./pages/WeekSummaryPage";
 import Manager from "./pages/Manager";
 import Auth from "./pages/Auth";
+import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 
