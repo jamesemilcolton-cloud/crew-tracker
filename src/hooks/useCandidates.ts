@@ -10,7 +10,7 @@ function rowToCandidate(row: any, history: any[]): Candidate {
     name: row.name,
     firstName: row.first_name || "",
     lastName: row.last_name || "",
-    phone: row.phone || "",
+    
     notes: row.notes,
     source: row.source as any,
     stage: row.stage as PipelineStage,
