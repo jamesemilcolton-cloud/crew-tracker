@@ -28,7 +28,7 @@ interface Profile {
   full_name: string;
   leader_id: string | null;
   crew_name: string;
-  phone: string;
+  candidate_record_id: string | null;
 }
 
 /** Map pipeline stage to a display role label */
