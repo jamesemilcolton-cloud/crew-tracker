@@ -23,6 +23,7 @@ interface CandidateDetailProps {
   onClose: () => void;
   onUpdate: (updated: Candidate) => void;
   onArchive: (id: string) => void;
+  onDropOff?: (candidate: Candidate) => void;
 }
 
 export function CandidateDetail({ candidate, onClose, onUpdate, onArchive }: CandidateDetailProps) {
