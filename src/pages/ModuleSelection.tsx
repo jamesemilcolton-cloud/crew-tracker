@@ -180,13 +180,13 @@ export default function ModuleSelection() {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background flex flex-col relative">
+      <div className="min-h-screen bg-background flex flex-col relative overflow-auto">
         <ParticleCanvas />
         <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 relative z-10">
           <h1 className="text-sm font-semibold text-foreground tracking-widest uppercase">Mission Control</h1>
           <ProfileDropdown />
         </header>
-        <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 relative z-10">
+        <main className="flex-1 flex flex-col items-center gap-4 px-6 py-8 relative z-10">
           {allModules.map((m) => {
             const Icon = m.icon;
             const unlocked = isModuleUnlocked(m.requiredRoles);
