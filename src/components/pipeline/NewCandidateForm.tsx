@@ -48,7 +48,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
 
   const form = useForm<CandidateFormValues>({
     resolver: zodResolver(candidateSchema),
-    defaultValues: { firstName: "", lastName: "", phone: "", notes: "", droppedDuringOB: false },
+    defaultValues: { firstName: "", lastName: "", notes: "", droppedDuringOB: false },
   });
 
   const droppedDuringOB = useWatch({ control: form.control, name: "droppedDuringOB" });
