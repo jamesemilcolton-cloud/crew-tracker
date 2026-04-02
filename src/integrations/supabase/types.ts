@@ -434,7 +434,6 @@ export type Database = {
           user_code: string
           user_id: string
           username: string
-          weekly_email_enabled: boolean
         }
         Insert: {
           candidate_record_id?: string | null
@@ -449,7 +448,6 @@ export type Database = {
           user_code: string
           user_id: string
           username: string
-          weekly_email_enabled?: boolean
         }
         Update: {
           candidate_record_id?: string | null
@@ -464,7 +462,6 @@ export type Database = {
           user_code?: string
           user_id?: string
           username?: string
-          weekly_email_enabled?: boolean
         }
         Relationships: [
           {
