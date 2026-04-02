@@ -20,9 +20,61 @@ const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: CandidateCardProps) {
   const [moving, setMoving] = useState<"forward" | "backward" | null>(null);
   const [pulse, setPulse] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+  const { user } = useAuth();
 
   const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
+
+  // Show invite button: stage is start or later, and no account linked yet
+  const showInviteButton = hasStarted && !candidate.hasAccountLinked;
+
+  const handleCopyInviteLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingInvite || !user) return;
+    setGeneratingInvite(true);
+
+    try {
+      // Check for existing unused invite token
+      const { data: existing } = await supabase
+        .from("invite_tokens")
+        .select("token")
+        .eq("candidate_id", candidate.id)
+        .eq("used", false)
+        .maybeSingle();
+
+      let tokenValue: string;
+
+      if (existing?.token) {
+        tokenValue = existing.token;
+      } else {
+        // Generate new token
+        const { data: newToken, error } = await supabase
+          .from("invite_tokens")
+          .insert({ candidate_id: candidate.id, created_by: user.id } as any)
+          .select("token")
+          .single();
+
+        if (error || !newToken) {
+          toast.error("Failed to generate invite link");
+          setGeneratingInvite(false);
+          return;
+        }
+        tokenValue = (newToken as any).token;
+      }
+
+      const inviteUrl = `${window.location.origin}/signup?token=${tokenValue}`;
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteCopied(true);
+      toast.success("Invite link copied!");
+      setTimeout(() => setInviteCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy invite link");
+    } finally {
+      setGeneratingInvite(false);
+    }
+  };
 
   const stageIdx = STAGES_ORDER.indexOf(candidate.stage);
   const isFirst = stageIdx === 0;
