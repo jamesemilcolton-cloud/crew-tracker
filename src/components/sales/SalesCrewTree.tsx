@@ -239,7 +239,7 @@ export default function SalesCrewTree({
       id: c.id,
       candidateId: (c as any).candidate_id || "",
       name: c.name,
-      phone: c.phone || "",
+      phone: "",
       notes: c.notes,
       source: c.source as "LinkedIn" | "Office",
       stage: c.stage as any,
