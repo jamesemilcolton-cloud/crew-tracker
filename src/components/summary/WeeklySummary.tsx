@@ -46,16 +46,24 @@ function getRoleLabel(stage: string): string {
 // Use central week utility
 const getWeekBounds = getCalendarWeekBounds;
 
-/** Count unique candidates that have a history entry with to_stage = stage within the week window */
+/** Count unique candidates whose final valid stage in the date range is >= the target stage (cumulative funnel).
+ *  Backward moves invalidate previous forward stages — only the last history entry counts. */
 function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date, end: Date): number {
+  const targetIdx = STAGES_ORDER.indexOf(stage);
+  if (targetIdx < 0) return 0;
   let count = 0;
   candidates.forEach((c) => {
-    // Count based purely on stage history entries within the date range
-    const hasEntryInRange = c.history.some((h) => {
+    const historyInRange = c.history.filter((h) => {
       const d = parseISO(h.date);
-      return h.to === stage && d >= start && d <= end;
+      return d >= start && d <= end;
     });
-    if (hasEntryInRange) count++;
+    if (historyInRange.length === 0) return;
+    // Sort chronologically, take the last entry as the effective stage
+    const sorted = [...historyInRange].sort((a, b) => a.date.localeCompare(b.date));
+    const effectiveStage = sorted[sorted.length - 1].to as PipelineStage;
+    const effectiveIdx = STAGES_ORDER.indexOf(effectiveStage);
+    // Cumulative: count if effective stage >= target stage
+    if (effectiveIdx >= targetIdx) count++;
   });
   return count;
 }
