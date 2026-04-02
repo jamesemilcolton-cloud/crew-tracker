@@ -95,7 +95,7 @@ export function useCandidates(scope: "own" | "all" = "own") {
       name: candidate.name,
       first_name: candidate.firstName || "",
       last_name: candidate.lastName || "",
-      phone: candidate.phone || "",
+      
       notes: candidate.notes,
       source: candidate.source,
       stage: candidate.stage,

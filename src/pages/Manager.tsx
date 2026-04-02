@@ -22,7 +22,7 @@ import { LinkedInPerformanceIntelligence } from "@/components/manager/LinkedInPe
 interface ManagedUser {
   user_id: string;
   full_name: string;
-  phone: string;
+  
   leader_id: string | null;
   leader_name: string | null;
   role: string;
