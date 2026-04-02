@@ -27,19 +27,10 @@ import {
 const candidateSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(50, "First name too long"),
   lastName: z.string().trim().min(1, "Last name is required").max(50, "Last name too long"),
-  phone: z.string().trim().max(20, "Phone number too long").default(""),
   source: z.enum(["LinkedIn", "Office", "Personal"] as const, { required_error: "Source is required" }),
   notes: z.string().trim().max(2000, "Notes too long").default(""),
   potentialStartDate: z.date().optional(),
   droppedDuringOB: z.boolean().default(false),
-}).superRefine((data, ctx) => {
-  if (!data.droppedDuringOB && (!data.phone || data.phone.trim().length === 0)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Phone number is required",
-      path: ["phone"],
-    });
-  }
 });
 
 type CandidateFormValues = z.infer<typeof candidateSchema>;
