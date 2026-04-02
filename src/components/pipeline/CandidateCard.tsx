@@ -154,6 +154,28 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
         </div>
       )}
 
+      {/* Invite link button */}
+      {showInviteButton && (
+        <button
+          className={cn(
+            "flex items-center justify-center gap-1.5 w-full mt-2 py-1.5 rounded-md text-[11px] font-medium transition-colors",
+            inviteCopied
+              ? "bg-emerald-500/15 text-emerald-400"
+              : "bg-primary/10 text-primary hover:bg-primary/20"
+          )}
+          onClick={handleCopyInviteLink}
+          disabled={generatingInvite}
+        >
+          {generatingInvite ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : inviteCopied ? (
+            <><Check className="w-3.5 h-3.5" /> Link Copied</>
+          ) : (
+            <><Link2 className="w-3.5 h-3.5" /> Copy Invite Link</>
+          )}
+        </button>
+      )}
+
       {/* Stage navigation arrows */}
       {onMoveStage && (
         <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-border/30">
