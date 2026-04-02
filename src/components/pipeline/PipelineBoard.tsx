@@ -396,7 +396,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         </div>
         {selectedCandidate && (
           <div className="flex-shrink-0 w-72">
-            <CandidateDetail candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={handleUpdate} onArchive={handleArchive} />
+            <CandidateDetail candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={handleUpdate} onArchive={handleArchive} onDropOff={(c) => { setSelectedCandidate(null); setDropOffCandidate(c); }} />
           </div>
         )}
       </div>
