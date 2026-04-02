@@ -59,7 +59,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
       name: `${data.firstName} ${data.lastName}`.trim(),
       firstName: data.firstName,
       lastName: data.lastName,
-      phone: data.phone,
+      phone: "",
       notes: data.notes,
       source: data.source,
       stage: initialStage as any,
