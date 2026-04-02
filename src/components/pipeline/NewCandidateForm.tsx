@@ -27,19 +27,10 @@ import {
 const candidateSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(50, "First name too long"),
   lastName: z.string().trim().min(1, "Last name is required").max(50, "Last name too long"),
-  phone: z.string().trim().max(20, "Phone number too long").default(""),
   source: z.enum(["LinkedIn", "Office", "Personal"] as const, { required_error: "Source is required" }),
   notes: z.string().trim().max(2000, "Notes too long").default(""),
   potentialStartDate: z.date().optional(),
   droppedDuringOB: z.boolean().default(false),
-}).superRefine((data, ctx) => {
-  if (!data.droppedDuringOB && (!data.phone || data.phone.trim().length === 0)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Phone number is required",
-      path: ["phone"],
-    });
-  }
 });
 
 type CandidateFormValues = z.infer<typeof candidateSchema>;
@@ -57,7 +48,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
 
   const form = useForm<CandidateFormValues>({
     resolver: zodResolver(candidateSchema),
-    defaultValues: { firstName: "", lastName: "", phone: "", notes: "", droppedDuringOB: false },
+    defaultValues: { firstName: "", lastName: "", notes: "", droppedDuringOB: false },
   });
 
   const droppedDuringOB = useWatch({ control: form.control, name: "droppedDuringOB" });
@@ -68,7 +59,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
       name: `${data.firstName} ${data.lastName}`.trim(),
       firstName: data.firstName,
       lastName: data.lastName,
-      phone: data.phone,
+      phone: "",
       notes: data.notes,
       source: data.source,
       stage: initialStage as any,
@@ -101,13 +92,6 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
               )} />
               <FormField control={form.control} name="lastName" render={({ field }) => (
                 <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Last name" {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="phone" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number {droppedDuringOB && <span className="text-muted-foreground font-normal">(optional)</span>}</FormLabel>
-                  <FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
               )} />
               <FormField control={form.control} name="source" render={({ field }) => (
                 <FormItem><FormLabel>Source</FormLabel>
