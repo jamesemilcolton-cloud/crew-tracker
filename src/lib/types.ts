@@ -41,6 +41,7 @@ export interface Candidate {
   archivedAt?: string | null;
   dropOffReason?: string | null;
   dropOffDate?: string | null;
+  hasAccountLinked?: boolean;
 }
 
 export interface KPITarget {

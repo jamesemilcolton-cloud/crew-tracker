@@ -61,13 +61,28 @@ export function useCandidates(scope: "own" | "all" = "own") {
       historyRows = data ?? [];
     }
 
+    // Check which candidates have linked accounts
+    const linkedCandidateIds = new Set<string>();
+    if (ids.length > 0) {
+      const { data: linkedProfiles } = await supabase
+        .from("profiles")
+        .select("candidate_record_id")
+        .in("candidate_record_id", ids);
+      (linkedProfiles ?? []).forEach((p) => {
+        if (p.candidate_record_id) linkedCandidateIds.add(p.candidate_record_id);
+      });
+    }
+
     const historyMap: Record<string, any[]> = {};
     (historyRows ?? []).forEach((h) => {
       if (!historyMap[h.candidate_id]) historyMap[h.candidate_id] = [];
       historyMap[h.candidate_id].push(h);
     });
 
-    setCandidates(rows.map((r) => rowToCandidate(r, historyMap[r.id] ?? [])));
+    setCandidates(rows.map((r) => ({
+      ...rowToCandidate(r, historyMap[r.id] ?? []),
+      hasAccountLinked: linkedCandidateIds.has(r.id),
+    })));
     setLoading(false);
   }, [user, scope]);
 

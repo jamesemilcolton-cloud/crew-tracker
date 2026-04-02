@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
-import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight, Loader2, Link2, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface CandidateCardProps {
   candidate: Candidate;
@@ -17,9 +20,61 @@ const START_FORWARD_STAGES = STAGES_ORDER.slice(STAGES_ORDER.indexOf("start"));
 export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: CandidateCardProps) {
   const [moving, setMoving] = useState<"forward" | "backward" | null>(null);
   const [pulse, setPulse] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+  const { user } = useAuth();
 
   const showAccessIndicators = REHASH_FORWARD_STAGES.includes(candidate.stage);
   const hasStarted = START_FORWARD_STAGES.includes(candidate.stage);
+
+  // Show invite button: stage is start or later, and no account linked yet
+  const showInviteButton = hasStarted && !candidate.hasAccountLinked;
+
+  const handleCopyInviteLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingInvite || !user) return;
+    setGeneratingInvite(true);
+
+    try {
+      // Check for existing unused invite token
+      const { data: existing } = await supabase
+        .from("invite_tokens")
+        .select("token")
+        .eq("candidate_id", candidate.id)
+        .eq("used", false)
+        .maybeSingle();
+
+      let tokenValue: string;
+
+      if (existing?.token) {
+        tokenValue = existing.token;
+      } else {
+        // Generate new token
+        const { data: newToken, error } = await supabase
+          .from("invite_tokens")
+          .insert({ candidate_id: candidate.id, created_by: user.id } as any)
+          .select("token")
+          .single();
+
+        if (error || !newToken) {
+          toast.error("Failed to generate invite link");
+          setGeneratingInvite(false);
+          return;
+        }
+        tokenValue = (newToken as any).token;
+      }
+
+      const inviteUrl = `${window.location.origin}/signup?token=${tokenValue}`;
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteCopied(true);
+      toast.success("Invite link copied!");
+      setTimeout(() => setInviteCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy invite link");
+    } finally {
+      setGeneratingInvite(false);
+    }
+  };
 
   const stageIdx = STAGES_ORDER.indexOf(candidate.stage);
   const isFirst = stageIdx === 0;
@@ -97,6 +152,28 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
             </span>
           </div>
         </div>
+      )}
+
+      {/* Invite link button */}
+      {showInviteButton && (
+        <button
+          className={cn(
+            "flex items-center justify-center gap-1.5 w-full mt-2 py-1.5 rounded-md text-[11px] font-medium transition-colors",
+            inviteCopied
+              ? "bg-emerald-500/15 text-emerald-400"
+              : "bg-primary/10 text-primary hover:bg-primary/20"
+          )}
+          onClick={handleCopyInviteLink}
+          disabled={generatingInvite}
+        >
+          {generatingInvite ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : inviteCopied ? (
+            <><Check className="w-3.5 h-3.5" /> Link Copied</>
+          ) : (
+            <><Link2 className="w-3.5 h-3.5" /> Copy Invite Link</>
+          )}
+        </button>
       )}
 
       {/* Stage navigation arrows */}
