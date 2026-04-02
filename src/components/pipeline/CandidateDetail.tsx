@@ -26,7 +26,7 @@ interface CandidateDetailProps {
   onDropOff?: (candidate: Candidate) => void;
 }
 
-export function CandidateDetail({ candidate, onClose, onUpdate, onArchive }: CandidateDetailProps) {
+export function CandidateDetail({ candidate, onClose, onUpdate, onArchive, onDropOff }: CandidateDetailProps) {
   const [editing, setEditing] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [stage, setStage] = useState(candidate.stage);
