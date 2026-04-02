@@ -26,7 +26,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const Index = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("pipeline");
-  const [trendRange, setTrendRange] = useState<TrendRange>("4-weeks");
+  const [trendRange, setTrendRange] = useState<TrendRange>("this-week");
   const { profile } = useAuth();
   const signupDate = useMemo(() => profile?.created_at ? new Date(profile.created_at) : undefined, [profile?.created_at]);
 
