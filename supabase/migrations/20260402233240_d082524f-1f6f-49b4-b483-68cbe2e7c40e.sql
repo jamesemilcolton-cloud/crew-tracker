@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles DROP COLUMN weekly_email_enabled;
