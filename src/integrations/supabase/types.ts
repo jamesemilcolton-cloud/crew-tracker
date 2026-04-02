@@ -129,7 +129,6 @@ export type Database = {
           last_name: string
           name: string
           notes: string
-          phone: string
           potential_start_date: string | null
           recruited_by: string | null
           source: string
@@ -151,7 +150,6 @@ export type Database = {
           last_name?: string
           name: string
           notes?: string
-          phone?: string
           potential_start_date?: string | null
           recruited_by?: string | null
           source?: string
@@ -173,7 +171,6 @@ export type Database = {
           last_name?: string
           name?: string
           notes?: string
-          phone?: string
           potential_start_date?: string | null
           recruited_by?: string | null
           source?: string
