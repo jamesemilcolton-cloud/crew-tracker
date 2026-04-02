@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
-import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Calendar, HelpCircle, Trash2, ChevronLeft, ChevronRight, Loader2, Link2, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface CandidateCardProps {
   candidate: Candidate;
