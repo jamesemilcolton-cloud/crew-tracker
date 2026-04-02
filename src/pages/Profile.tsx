@@ -25,8 +25,6 @@ export default function Profile() {
     }
   }, [profile]);
 
-  const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
-
   const handleSave = async () => {
     if (!user || !profile) return;
     setSaving(true);
@@ -35,7 +33,6 @@ export default function Profile() {
       const trimmedLast = lastName.trim();
       const fullName = `${trimmedFirst} ${trimmedLast}`.trim();
 
-      // Update profile
       const { error } = await supabase.from("profiles").update({
         first_name: trimmedFirst,
         last_name: trimmedLast,
@@ -44,13 +41,13 @@ export default function Profile() {
       }).eq("user_id", user.id);
       if (error) throw error;
 
-      // Sync name to linked candidate records (matched by phone) — only for non-managers
-      if (!isManager && profile.phone) {
+      // Sync name to linked candidate record if exists
+      if (profile.candidate_record_id) {
         await supabase.from("candidates").update({
           name: fullName,
           first_name: trimmedFirst,
           last_name: trimmedLast,
-        }).eq("phone", profile.phone);
+        }).eq("id", profile.candidate_record_id);
       }
 
       toast.success("Profile updated");
@@ -99,8 +96,12 @@ export default function Profile() {
               <Input id="crewName" value={crewName} onChange={e => setCrewName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>{isManager ? "Email (ID)" : "Phone Number (ID)"}</Label>
-              <Input value={isManager ? (user?.email || "—") : (profile?.phone || "—")} disabled className="opacity-60" />
+              <Label>Username</Label>
+              <Input value={profile?.username || "—"} disabled className="opacity-60" />
+            </div>
+            <div className="space-y-2">
+              <Label>User Code</Label>
+              <Input value={profile?.user_code || "—"} disabled className="opacity-60" />
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
