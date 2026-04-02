@@ -97,8 +97,8 @@ export function CandidateDetail({ candidate, onClose, onUpdate, onArchive, onDro
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="w-4 h-4" />
-            <span>{candidate.phone}</span>
+            <Hash className="w-4 h-4" />
+            <span className="font-mono">{candidate.candidateId}</span>
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
