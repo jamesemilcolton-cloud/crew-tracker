@@ -23,7 +23,7 @@ interface CandidateRow {
   stage: string;
   recruited_by: string | null;
   archived_at: string | null;
-  phone: string;
+  
   notes: string;
   source: string;
   status: string | null;
