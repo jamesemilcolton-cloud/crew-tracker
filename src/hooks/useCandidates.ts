@@ -118,7 +118,6 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     if (updates.stage !== undefined) dbUpdates.stage = updates.stage;
     if (updates.status !== undefined) dbUpdates.status = updates.status || null;

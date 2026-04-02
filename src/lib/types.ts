@@ -27,7 +27,7 @@ export interface Candidate {
   name: string;
   firstName?: string;
   lastName?: string;
-  phone: string;
+  phone?: string;
   notes: string;
   source: CandidateSource;
   stage: PipelineStage;
