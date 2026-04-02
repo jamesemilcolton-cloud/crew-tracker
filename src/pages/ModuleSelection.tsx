@@ -159,12 +159,21 @@ function ParticleCanvas() {
 
 export default function ModuleSelection() {
   const navigate = useNavigate();
-  const { profile, userRole } = useAuth();
+  const { profile, userRole, loading } = useAuth();
   const isMobile = useIsMobile();
   const [hovered, setHovered] = useState<string | null>(null);
 
-  const isManager = userRole?.role === "manager" && userRole?.super_admin;
-  const userRoleName = userRole?.role ?? "brand_ambassador";
+  // Wait for role to load before rendering modules — prevents fallback to brand_ambassador
+  if (loading || !userRole) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <span className="text-muted-foreground text-sm">Loading...</span>
+      </div>
+    );
+  }
+
+  const isManager = userRole.role === "manager" && userRole.super_admin;
+  const userRoleName = userRole.role;
 
   const isModuleUnlocked = (requiredRoles: string[]) => requiredRoles.includes(userRoleName);
   const isManagerUnlocked = isManager;
