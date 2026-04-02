@@ -97,7 +97,7 @@ export default function Manager() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_id, full_name, phone, leader_id");
+      .select("user_id, full_name, leader_id, username");
 
     const { data: roles } = await supabase
       .from("user_roles")
