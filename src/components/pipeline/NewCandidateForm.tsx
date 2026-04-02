@@ -93,13 +93,6 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
               <FormField control={form.control} name="lastName" render={({ field }) => (
                 <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Last name" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={form.control} name="phone" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number {droppedDuringOB && <span className="text-muted-foreground font-normal">(optional)</span>}</FormLabel>
-                  <FormControl><Input placeholder="+44 7000 000000" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
               <FormField control={form.control} name="source" render={({ field }) => (
                 <FormItem><FormLabel>Source</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
