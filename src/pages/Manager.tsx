@@ -583,6 +583,25 @@ export default function Manager() {
     return `#${rank}`;
   };
 
+  const handleResetPassword = async (targetUser: ManagedUser) => {
+    setActionLoading(targetUser.user_id);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-password", {
+        body: { action: "generate_token", target_user_id: targetUser.user_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const resetLink = `${window.location.origin}/reset-password?token=${data.token}`;
+      await navigator.clipboard.writeText(resetLink);
+      toast.success(`Reset link for ${targetUser.full_name} copied to clipboard`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate reset link");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const renderUserTable = (userList: ManagedUser[]) => (
     <Table>
       <TableHeader>
@@ -619,7 +638,12 @@ export default function Manager() {
                 )}
                 {(isSelf || u.role === "manager") && <span className="text-xs text-muted-foreground">—</span>}
               </TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right space-x-1">
+                {!isSelf && (
+                  <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10" onClick={() => handleResetPassword(u)} disabled={actionLoading === u.user_id} title="Reset Password">
+                    <KeyRound className="w-4 h-4" />
+                  </Button>
+                )}
                 {!isSelf && !u.super_admin ? (
                   <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(u)} disabled={actionLoading === u.user_id}>
                     <Trash2 className="w-4 h-4" />
