@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { subDays } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -120,7 +122,12 @@ export function LinkedInResources() {
 
   // Separate active and closed ads
   const activeAdRuns = adRuns.filter((a) => !a.close_date);
-  const closedAdRuns = adRuns.filter((a) => !!a.close_date);
+  const closedAdRuns = useMemo(() => {
+    const cutoff = subDays(new Date(), 14);
+    return adRuns
+      .filter((a) => !!a.close_date && new Date(a.close_date) >= cutoff)
+      .sort((a, b) => new Date(b.close_date!).getTime() - new Date(a.close_date!).getTime());
+  }, [adRuns]);
 
   return (
     <div className="space-y-8">
@@ -172,8 +179,8 @@ export function LinkedInResources() {
         {/* Closed ads */}
         {closedAdRuns.length > 0 && (
           <div className="mt-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Closed Ads</h3>
-            <div className="overflow-x-auto">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Closed Ads <span className="text-xs font-normal">(last 14 days)</span></h3>
+            <ScrollArea className="max-h-[300px] overflow-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/50 text-muted-foreground text-xs">
@@ -208,7 +215,7 @@ export function LinkedInResources() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           </div>
         )}
       </section>
