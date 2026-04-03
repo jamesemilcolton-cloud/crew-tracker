@@ -93,10 +93,17 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
     }
   };
 
+  const sourceStyle = {
+    Office: { border: "border-l-emerald-500", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    LinkedIn: { border: "border-l-blue-500", badge: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+    Personal: { border: "border-l-yellow-500", badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  }[candidate.source] ?? { border: "border-l-muted", badge: "bg-muted text-muted-foreground border-border" };
+
   return (
     <div
       className={cn(
-        "candidate-card animate-fade-in relative group cursor-pointer transition-all",
+        "candidate-card animate-fade-in relative group cursor-pointer transition-all border-l-[3px]",
+        sourceStyle.border,
         pulse && "ring-2 ring-primary/50 scale-[1.02]"
       )}
       onClick={() => onClick(candidate)}
@@ -121,8 +128,8 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
       </div>
 
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border text-muted-foreground">
-          {candidate.source}
+        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4", sourceStyle.badge)}>
+          {candidate.source === "Office" ? "The Office" : candidate.source || "Unknown"}
         </Badge>
       </div>
 
