@@ -109,13 +109,26 @@ export default function Sales() {
   const [saleDate, setSaleDate] = useState("");
 
   const doSave = (date: string, data: Record<FieldKey, number>) => {
+    const newSalesCount = data.sales;
+
     saveDayMutation.mutate({ date, data }, {
       onSuccess: () => {
         toast.success("Day saved");
 
+        // If no sales, skip all transaction logic
+        if (newSalesCount === 0) {
+          // Still need to clean up any existing transactions if user reduced to 0
+          const existingTxCount = getTransactionsForDate(date).length;
+          if (existingTxCount > 0) {
+            deleteTransactionsForDate.mutate({ date, count: existingTxCount }, {
+              onSuccess: () => toast.info(`Removed ${existingTxCount} excess transaction(s)`),
+            });
+          }
+          return;
+        }
+
         // Check if sales transactions need to be logged or adjusted
         const existingTxCount = getTransactionsForDate(date).length;
-        const newSalesCount = data.sales;
 
         if (newSalesCount > existingTxCount) {
           // Need to log more sale transactions
