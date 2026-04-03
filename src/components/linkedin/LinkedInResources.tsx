@@ -179,8 +179,8 @@ export function LinkedInResources() {
         {/* Closed ads */}
         {closedAdRuns.length > 0 && (
           <div className="mt-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Closed Ads</h3>
-            <div className="overflow-x-auto">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Closed Ads <span className="text-xs font-normal">(last 14 days)</span></h3>
+            <ScrollArea className="max-h-[300px] overflow-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/50 text-muted-foreground text-xs">
@@ -215,7 +215,7 @@ export function LinkedInResources() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           </div>
         )}
       </section>
