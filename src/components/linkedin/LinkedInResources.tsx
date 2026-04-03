@@ -122,7 +122,12 @@ export function LinkedInResources() {
 
   // Separate active and closed ads
   const activeAdRuns = adRuns.filter((a) => !a.close_date);
-  const closedAdRuns = adRuns.filter((a) => !!a.close_date);
+  const closedAdRuns = useMemo(() => {
+    const cutoff = subDays(new Date(), 14);
+    return adRuns
+      .filter((a) => !!a.close_date && new Date(a.close_date) >= cutoff)
+      .sort((a, b) => new Date(b.close_date!).getTime() - new Date(a.close_date!).getTime());
+  }, [adRuns]);
 
   return (
     <div className="space-y-8">
