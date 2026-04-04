@@ -11,6 +11,7 @@ import { Copy, Save, Check } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { LinkedInHelpBox } from "./LinkedInHelpBox";
 
 interface AdRun {
   id: string;
@@ -131,6 +132,52 @@ export function LinkedInResources() {
 
   return (
     <div className="space-y-8">
+      <LinkedInHelpBox>
+        <p className="font-medium text-foreground">LinkedIn Resources — How to Use</p>
+        <p>This section is used to manage and track your LinkedIn ads performance and applications.</p>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Best Practice</p>
+          <p className="font-medium text-foreground/80 mb-1">Post ads at the right time</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Always upload ads at 8:00 AM</li>
+            <li>This allows applications to come in before people start work (around 9:00 AM)</li>
+            <li>Avoid posting in the evening — you will lose momentum</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground/80 mb-1">Control ad timing</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Close ads in the evening</li>
+            <li>Wait until the next morning to upload a new one</li>
+            <li>This helps reset the algorithm and improves performance</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground/80 mb-1">Speed is critical</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Download CVs and send them to your manager on the same day</li>
+            <li>Candidates are applying to multiple roles — being first gives you an advantage</li>
+            <li>The faster you act, the better your chances</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Screening Questions (MANDATORY)</p>
+          <p className="mb-2">Always include these to filter out unsuitable applicants:</p>
+          <ul className="list-disc list-inside space-y-2 ml-1">
+            <li><span className="italic">We must fill this position urgently. Can you start immediately?</span><br /><span className="ml-5 text-xs">Ideal answer: YES (already included by default)</span></li>
+            <li><span className="italic">Do you live in Northern Ireland or are willing to relocate?</span><br /><span className="ml-5 text-xs">Ideal answer: YES (MUST HAVE)</span></li>
+            <li><span className="italic">Do you currently have a Tier 4 student visa?</span><br /><span className="ml-5 text-xs">Ideal answer: NO (MUST HAVE)</span></li>
+            <li><span className="italic">Are you willing and able to commute?</span><br /><span className="ml-5 text-xs">Ideal answer: YES (MUST HAVE)</span></li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <p className="font-medium text-foreground italic">These questions prevent unqualified candidates from applying and save time during screening.</p>
+      </LinkedInHelpBox>
+
       {/* SECTION 1 — Live Ads (read-only feed from ad_uploads) */}
       <section>
         <div className="flex items-center justify-between mb-4">
