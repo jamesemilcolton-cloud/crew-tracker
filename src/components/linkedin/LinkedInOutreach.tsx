@@ -71,12 +71,12 @@ export function LinkedInOutreach() {
         sent: update.sent ?? current.sent,
         replies: update.replies ?? current.replies,
         interviews: update.interviews ?? current.interviews,
-        activity_log: update.activity_log ?? current.activity_log,
+        activity_log: JSON.parse(JSON.stringify(update.activity_log ?? current.activity_log)),
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase
         .from("linkedin_outreach")
-        .upsert(payload, { onConflict: "user_id,activity_date" });
+        .upsert(payload as any, { onConflict: "user_id,activity_date" });
       if (error) throw error;
     },
     onSuccess: () => {
