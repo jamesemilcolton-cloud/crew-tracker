@@ -27,7 +27,7 @@ import {
 const candidateSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(50, "First name too long"),
   lastName: z.string().trim().min(1, "Last name is required").max(50, "Last name too long"),
-  source: z.enum(["LinkedIn", "Office", "Personal"] as const, { required_error: "Source is required" }),
+  source: z.enum(["LinkedIn", "Office", "Personal", "LinkedIn Messages"] as const, { required_error: "Source is required" }),
   notes: z.string().trim().max(2000, "Notes too long").default(""),
   potentialStartDate: z.date().optional(),
   droppedDuringOB: z.boolean().default(false),
@@ -101,6 +101,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
                       <SelectItem value="LinkedIn">LinkedIn</SelectItem>
                       <SelectItem value="Office">Office</SelectItem>
                       <SelectItem value="Personal">Personal</SelectItem>
+                      <SelectItem value="LinkedIn Messages">LinkedIn Messages</SelectItem>
                     </SelectContent>
                   </Select><FormMessage />
                 </FormItem>

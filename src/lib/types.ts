@@ -12,7 +12,7 @@ export type PipelineStage =
 
 export type CandidateStatus = "Offered" | "Declined" | "Dropped" | "dropped";
 
-export type CandidateSource = "LinkedIn" | "Office" | "Personal";
+export type CandidateSource = "LinkedIn" | "Office" | "Personal" | "LinkedIn Messages";
 
 export interface StageChange {
   from: PipelineStage;

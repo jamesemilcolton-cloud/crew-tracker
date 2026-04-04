@@ -203,10 +203,9 @@ export function LinkedInOutreach() {
   const replyRate = current.sent > 0 ? Math.round((current.replies / current.sent) * 100) : 0;
   const interviewRate = current.sent > 0 ? Math.round((current.interviews / current.sent) * 100) : 0;
 
-  const cards = [
+  const incrementCards = [
     { key: "sent" as const, label: "Sent", sub: "Messages sent today", value: current.sent, target: TARGETS.sent, color: "210 70% 50%", icon: Send, incrementType: "sent" as const },
     { key: "replies" as const, label: "Replies", sub: "People who replied", value: current.replies, target: TARGETS.replies, color: "45 90% 55%", icon: MessageSquareReply, incrementType: "reply" as const },
-    { key: "interviews" as const, label: "Interviews", sub: "Calls booked", value: current.interviews, target: TARGETS.interviews, color: "142 60% 45%", icon: PhoneCall, incrementType: "interview" as const },
   ];
 
   return (
@@ -329,7 +328,7 @@ export function LinkedInOutreach() {
 
       {/* Tracker cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {cards.map((card) => {
+        {incrementCards.map((card) => {
           const pct = card.target > 0 ? Math.min((card.value / card.target) * 100, 100) : 0;
           return (
             <Card key={card.key} className="relative overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm">
@@ -362,6 +361,32 @@ export function LinkedInOutreach() {
             </Card>
           );
         })}
+
+        {/* Interviews card - no +1 button, shows instructional message */}
+        <Card className="relative overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-muted/30">
+            <div
+              className="h-full transition-all duration-300"
+              style={{ width: `${TARGETS.interviews > 0 ? Math.min((current.interviews / TARGETS.interviews) * 100, 100) : 0}%`, background: `hsl(142 60% 45%)` }}
+            />
+          </div>
+          <CardContent className="pt-6 pb-4 px-5">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `hsl(142 60% 45% / 0.15)` }}>
+                <PhoneCall className="w-5 h-5" style={{ color: `hsl(142 60% 45%)` }} />
+              </div>
+            </div>
+            <div className="text-4xl font-bold tracking-tight text-foreground">{current.interviews}</div>
+            <div className="text-sm font-semibold mt-1" style={{ color: `hsl(142 60% 45%)` }}>Interviews</div>
+            <p className="text-xs text-muted-foreground mt-0.5">Calls booked</p>
+            <div className="text-[10px] text-muted-foreground mt-2">{current.interviews}/{TARGETS.interviews} target</div>
+            <div className="mt-3 p-2.5 rounded-md bg-primary/5 border border-primary/20">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Add a candidate to the recruitment pipeline on the Recruitment module with <span className="font-semibold text-foreground">'LinkedIn Messages'</span> as source to register this count.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Conversion rates */}
