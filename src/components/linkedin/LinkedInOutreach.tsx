@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { LinkedInHelpBox } from "./LinkedInHelpBox";
 
 interface ActivityLogEntry {
   type: "sent" | "reply" | "interview";
