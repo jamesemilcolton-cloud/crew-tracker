@@ -203,10 +203,9 @@ export function LinkedInOutreach() {
   const replyRate = current.sent > 0 ? Math.round((current.replies / current.sent) * 100) : 0;
   const interviewRate = current.sent > 0 ? Math.round((current.interviews / current.sent) * 100) : 0;
 
-  const cards = [
+  const incrementCards = [
     { key: "sent" as const, label: "Sent", sub: "Messages sent today", value: current.sent, target: TARGETS.sent, color: "210 70% 50%", icon: Send, incrementType: "sent" as const },
     { key: "replies" as const, label: "Replies", sub: "People who replied", value: current.replies, target: TARGETS.replies, color: "45 90% 55%", icon: MessageSquareReply, incrementType: "reply" as const },
-    { key: "interviews" as const, label: "Interviews", sub: "Calls booked", value: current.interviews, target: TARGETS.interviews, color: "142 60% 45%", icon: PhoneCall, incrementType: "interview" as const },
   ];
 
   return (
