@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, subWeeks, eachDayOfInterval, isAfter } from "date-fns";
 import { CalendarIcon, Send, MessageSquareReply, PhoneCall, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 
 interface ActivityLogEntry {
   type: "sent" | "reply" | "interview";
@@ -26,8 +27,51 @@ interface OutreachData {
 
 const TARGETS = { sent: 25, replies: 10, interviews: 4 };
 
+type WeeklyFilter = "this_week" | "last_week" | "last_4" | "last_8" | "last_12" | "all_time";
+
+const FILTER_OPTIONS: { value: WeeklyFilter; label: string }[] = [
+  { value: "this_week", label: "This Week" },
+  { value: "last_week", label: "Last Week" },
+  { value: "last_4", label: "Last 4 Weeks" },
+  { value: "last_8", label: "Last 8 Weeks" },
+  { value: "last_12", label: "Last 12 Weeks" },
+  { value: "all_time", label: "All Time" },
+];
+
+function getFilterRange(filter: WeeklyFilter): { start: Date; end: Date } {
+  const now = new Date();
+  const thisMonday = startOfWeek(now, { weekStartsOn: 1 });
+
+  switch (filter) {
+    case "this_week":
+      return { start: thisMonday, end: now };
+    case "last_week": {
+      const prevMonday = subWeeks(thisMonday, 1);
+      const prevSunday = endOfWeek(prevMonday, { weekStartsOn: 1 });
+      return { start: prevMonday, end: prevSunday };
+    }
+    case "last_4":
+    case "last_8":
+    case "last_12": {
+      const weeks = filter === "last_4" ? 4 : filter === "last_8" ? 8 : 12;
+      const rangeStart = subWeeks(thisMonday, weeks);
+      const prevSunday = new Date(thisMonday);
+      prevSunday.setDate(thisMonday.getDate() - 1);
+      prevSunday.setHours(23, 59, 59, 999);
+      return { start: rangeStart, end: prevSunday };
+    }
+    case "all_time":
+      return { start: new Date(2020, 0, 1), end: now };
+  }
+}
+
+function isDailyView(filter: WeeklyFilter): boolean {
+  return filter === "this_week" || filter === "last_week";
+}
+
 export function LinkedInOutreach() {
   const [date, setDate] = useState<Date>(new Date());
+  const [weeklyFilter, setWeeklyFilter] = useState<WeeklyFilter>("this_week");
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const dateStr = format(date, "yyyy-MM-dd");
@@ -55,6 +99,64 @@ export function LinkedInOutreach() {
     enabled: !!user?.id,
   });
 
+  // Fetch range data for weekly performance chart
+  const filterRange = useMemo(() => getFilterRange(weeklyFilter), [weeklyFilter]);
+  const { data: rangeData } = useQuery({
+    queryKey: ["linkedin-outreach-range", user?.id, format(filterRange.start, "yyyy-MM-dd"), format(filterRange.end, "yyyy-MM-dd")],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("linkedin_outreach")
+        .select("activity_date, sent, replies, interviews")
+        .eq("user_id", user.id)
+        .gte("activity_date", format(filterRange.start, "yyyy-MM-dd"))
+        .lte("activity_date", format(filterRange.end, "yyyy-MM-dd"))
+        .order("activity_date", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const chartData = useMemo(() => {
+    if (!rangeData || rangeData.length === 0) return [];
+
+    if (isDailyView(weeklyFilter)) {
+      const { start, end } = filterRange;
+      const days = eachDayOfInterval({ start, end: isAfter(end, new Date()) ? new Date() : end });
+      const dayMap = new Map(rangeData.map((r) => [r.activity_date, r]));
+      return days.map((d) => {
+        const key = format(d, "yyyy-MM-dd");
+        const row = dayMap.get(key);
+        return {
+          label: format(d, "EEE"),
+          sent: row?.sent ?? 0,
+          replies: row?.replies ?? 0,
+          interviews: row?.interviews ?? 0,
+        };
+      });
+    }
+
+    // Group by week
+    const weekBuckets = new Map<string, { sent: number; replies: number; interviews: number }>();
+    rangeData.forEach((r) => {
+      const d = new Date(r.activity_date + "T00:00:00");
+      const mon = startOfWeek(d, { weekStartsOn: 1 });
+      const key = format(mon, "yyyy-MM-dd");
+      const bucket = weekBuckets.get(key) ?? { sent: 0, replies: 0, interviews: 0 };
+      bucket.sent += r.sent;
+      bucket.replies += r.replies;
+      bucket.interviews += r.interviews;
+      weekBuckets.set(key, bucket);
+    });
+
+    const sorted = Array.from(weekBuckets.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return sorted.map(([key, vals], i) => ({
+      label: weeklyFilter === "all_time" ? format(new Date(key + "T00:00:00"), "MMM d") : `Week ${i + 1}`,
+      ...vals,
+    }));
+  }, [rangeData, weeklyFilter, filterRange]);
+
   const current: OutreachData = useMemo(() => ({
     sent: outreach?.sent ?? 0,
     replies: outreach?.replies ?? 0,
@@ -81,6 +183,7 @@ export function LinkedInOutreach() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["linkedin-outreach", user?.id, dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["linkedin-outreach-range"] });
     },
     onError: () => toast.error("Failed to save"),
   });
@@ -206,6 +309,72 @@ export function LinkedInOutreach() {
           </Card>
         ))}
       </div>
+
+      {/* Weekly Performance */}
+      <Card className="border-border/50 bg-card/60">
+        <CardContent className="py-5 px-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+            <h3 className="text-sm font-semibold text-foreground">Weekly Performance</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {FILTER_OPTIONS.map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={weeklyFilter === opt.value ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setWeeklyFilter(opt.value)}
+                  className={cn(
+                    "text-[11px] h-7 px-2.5 rounded-md",
+                    weeklyFilter === opt.value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {chartData.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">No outreach data for this period.</p>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    axisLine={{ stroke: "hsl(var(--border) / 0.3)" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))" }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                  />
+                  <Line type="monotone" dataKey="sent" stroke="hsl(210 70% 50%)" strokeWidth={2} dot={{ r: 3 }} name="Sent" />
+                  <Line type="monotone" dataKey="replies" stroke="hsl(45 90% 55%)" strokeWidth={2} dot={{ r: 3 }} name="Replies" />
+                  <Line type="monotone" dataKey="interviews" stroke="hsl(142 60% 45%)" strokeWidth={2} dot={{ r: 3 }} name="Interviews" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Activity log */}
       <Card className="border-border/50 bg-card/60">
