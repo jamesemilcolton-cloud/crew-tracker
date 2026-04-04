@@ -29,6 +29,7 @@ interface OfficeMeans {
   sales: number;
   avg_rep_profit: number;
   avg_total_wire: number;
+  office_total_wire: number;
   rep_count: number;
 }
 
@@ -120,7 +121,9 @@ export function OfficePerformanceOverview() {
 
   function calcMeans(entries: any[], transactions: any[]): OfficeMeans | null {
     if (entries.length === 0) return null;
-    const repCount = entries.length;
+    // Count unique reps who logged gauges
+    const uniqueRepIds = new Set(entries.map((e: any) => e.user_id));
+    const repCount = uniqueRepIds.size;
     const totals = { doors: 0, spoken: 0, presentations: 0, closes: 0, tablets: 0, sales: 0 };
     entries.forEach(e => {
       GAUGE_KEYS.forEach(k => { totals[k] += e[k] || 0; });
@@ -147,6 +150,7 @@ export function OfficePerformanceOverview() {
       sales: Math.round((totals.sales / repCount) * 10) / 10,
       avg_rep_profit: totalRepProfit / financialRepCount,
       avg_total_wire: totalWire / financialRepCount,
+      office_total_wire: totalWire,
       rep_count: repCount,
     };
   }
@@ -266,7 +270,7 @@ export function OfficePerformanceOverview() {
               <div className="bg-primary/5 rounded-lg p-3 border border-primary/10 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Office Wire (Week)</p>
                 <p className="text-xl font-bold text-primary">
-                  £{(weekMeans.avg_total_wire * weekMeans.rep_count).toFixed(2)}
+                  £{weekMeans.office_total_wire.toFixed(2)}
                 </p>
               </div>
             </div>
