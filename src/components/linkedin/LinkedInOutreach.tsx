@@ -43,7 +43,14 @@ export function LinkedInOutreach() {
         .eq("activity_date", dateStr)
         .maybeSingle();
       if (error) throw error;
-      return data as (OutreachData & { id: string }) | null;
+      if (!data) return null;
+      return {
+        id: data.id,
+        sent: data.sent,
+        replies: data.replies,
+        interviews: data.interviews,
+        activity_log: (data.activity_log as unknown as ActivityLogEntry[]) ?? [],
+      };
     },
     enabled: !!user?.id,
   });
