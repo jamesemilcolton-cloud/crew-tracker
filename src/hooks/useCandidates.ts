@@ -110,6 +110,34 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
     if (data) {
       setCandidates((prev) => [...prev, rowToCandidate(data, [])]);
+
+      // If source is "LinkedIn Messages", increment interviews on today's outreach record
+      if (candidate.source === "LinkedIn Messages") {
+        const today = format(new Date(), "yyyy-MM-dd");
+        const { data: existing } = await supabase
+          .from("linkedin_outreach")
+          .select("id, interviews, activity_log")
+          .eq("user_id", user.id)
+          .eq("activity_date", today)
+          .maybeSingle();
+
+        const currentInterviews = existing?.interviews ?? 0;
+        const currentLog = (existing?.activity_log as any[] | null) ?? [];
+        const newLog = [...currentLog, { type: "interview", label: "+1 Interview (LinkedIn Messages candidate)" }];
+
+        await supabase
+          .from("linkedin_outreach")
+          .upsert({
+            user_id: user.id,
+            activity_date: today,
+            sent: 0,
+            replies: 0,
+            interviews: currentInterviews + 1,
+            activity_log: JSON.parse(JSON.stringify(newLog)),
+            updated_at: new Date().toISOString(),
+            ...(existing ? { id: existing.id } : {}),
+          } as any, { onConflict: "user_id,activity_date" });
+      }
     }
     return { data, error };
   }, [user]);
