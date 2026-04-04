@@ -145,6 +145,7 @@ const LinkedInPage = () => {
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
         {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} signupDate={signupDate} />}
         {activeTab === "resources" && <LinkedInResources />}
+        {activeTab === "outreach" && <LinkedInOutreach />}
       </main>
     </div>
   );
