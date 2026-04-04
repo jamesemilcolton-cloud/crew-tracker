@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { LinkedInDashboard } from "@/components/linkedin/LinkedInDashboard";
 import { LinkedInResources } from "@/components/linkedin/LinkedInResources";
+import { LinkedInOutreach } from "@/components/linkedin/LinkedInOutreach";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Linkedin, BookOpen, ChevronDown, ArrowLeft } from "lucide-react";
+import { Linkedin, BookOpen, ChevronDown, ArrowLeft, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
@@ -14,11 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "linkedin" | "resources";
+type Tab = "linkedin" | "resources" | "outreach";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "linkedin", label: "LinkedIn & Personal", icon: <Linkedin className="w-4 h-4" /> },
   { id: "resources", label: "LinkedIn Resources", icon: <BookOpen className="w-4 h-4" /> },
+  { id: "outreach", label: "LinkedIn Outreach", icon: <Send className="w-4 h-4" /> },
 ];
 
 const LinkedInPage = () => {
@@ -143,6 +145,7 @@ const LinkedInPage = () => {
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 lg:px-6 py-4">
         {activeTab === "linkedin" && <LinkedInDashboard trendRange={trendRange} signupDate={signupDate} />}
         {activeTab === "resources" && <LinkedInResources />}
+        {activeTab === "outreach" && <LinkedInOutreach />}
       </main>
     </div>
   );

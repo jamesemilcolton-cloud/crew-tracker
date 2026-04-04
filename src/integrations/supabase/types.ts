@@ -322,6 +322,42 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_outreach: {
+        Row: {
+          activity_date: string
+          activity_log: Json
+          created_at: string
+          id: string
+          interviews: number
+          replies: number
+          sent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string
+          activity_log?: Json
+          created_at?: string
+          id?: string
+          interviews?: number
+          replies?: number
+          sent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          activity_log?: Json
+          created_at?: string
+          id?: string
+          interviews?: number
+          replies?: number
+          sent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       linkedin_titles: {
         Row: {
           content: string
