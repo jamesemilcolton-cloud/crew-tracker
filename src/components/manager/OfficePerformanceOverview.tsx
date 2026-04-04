@@ -29,6 +29,7 @@ interface OfficeMeans {
   sales: number;
   avg_rep_profit: number;
   avg_total_wire: number;
+  office_total_wire: number;
   rep_count: number;
 }
 
