@@ -18,7 +18,7 @@ import {
 type Tab = "linkedin" | "resources" | "outreach";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "linkedin", label: "LinkedIn & Personal", icon: <Linkedin className="w-4 h-4" /> },
+  { id: "linkedin", label: "LinkedIn Ads", icon: <Linkedin className="w-4 h-4" /> },
   { id: "resources", label: "LinkedIn Resources", icon: <BookOpen className="w-4 h-4" /> },
   { id: "outreach", label: "LinkedIn Outreach", icon: <Send className="w-4 h-4" /> },
 ];
