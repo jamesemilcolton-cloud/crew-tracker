@@ -270,7 +270,7 @@ export function OfficePerformanceOverview() {
               <div className="bg-primary/5 rounded-lg p-3 border border-primary/10 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Office Wire (Week)</p>
                 <p className="text-xl font-bold text-primary">
-                  £{(weekMeans.avg_total_wire * weekMeans.rep_count).toFixed(2)}
+                  £{weekMeans.office_total_wire.toFixed(2)}
                 </p>
               </div>
             </div>
