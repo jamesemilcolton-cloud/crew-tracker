@@ -11,6 +11,7 @@ import { Copy, Save, Check } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { LinkedInHelpBox } from "./LinkedInHelpBox";
 
 interface AdRun {
   id: string;
