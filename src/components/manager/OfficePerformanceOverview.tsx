@@ -121,7 +121,9 @@ export function OfficePerformanceOverview() {
 
   function calcMeans(entries: any[], transactions: any[]): OfficeMeans | null {
     if (entries.length === 0) return null;
-    const repCount = entries.length;
+    // Count unique reps who logged gauges
+    const uniqueRepIds = new Set(entries.map((e: any) => e.user_id));
+    const repCount = uniqueRepIds.size;
     const totals = { doors: 0, spoken: 0, presentations: 0, closes: 0, tablets: 0, sales: 0 };
     entries.forEach(e => {
       GAUGE_KEYS.forEach(k => { totals[k] += e[k] || 0; });
@@ -148,6 +150,7 @@ export function OfficePerformanceOverview() {
       sales: Math.round((totals.sales / repCount) * 10) / 10,
       avg_rep_profit: totalRepProfit / financialRepCount,
       avg_total_wire: totalWire / financialRepCount,
+      office_total_wire: totalWire,
       rep_count: repCount,
     };
   }
