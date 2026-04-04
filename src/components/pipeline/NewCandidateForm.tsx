@@ -101,6 +101,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
                       <SelectItem value="LinkedIn">LinkedIn</SelectItem>
                       <SelectItem value="Office">Office</SelectItem>
                       <SelectItem value="Personal">Personal</SelectItem>
+                      <SelectItem value="LinkedIn Messages">LinkedIn Messages</SelectItem>
                     </SelectContent>
                   </Select><FormMessage />
                 </FormItem>
