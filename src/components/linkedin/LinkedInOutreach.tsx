@@ -211,6 +211,85 @@ export function LinkedInOutreach() {
 
   return (
     <div className="space-y-6">
+      <LinkedInHelpBox>
+        <p className="font-medium text-foreground">LinkedIn Outreach — How to Use</p>
+        <p>This page is used to track your personal outreach performance.</p>
+        <p>You are measuring:</p>
+        <ul className="list-disc list-inside space-y-1 ml-1">
+          <li>Messages Sent</li>
+          <li>Replies</li>
+          <li>Interviews booked</li>
+        </ul>
+        <p>This shows your conversion rate from outreach → hires.</p>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Best Practice</p>
+          <p className="font-medium text-foreground/80 mb-1">Finding candidates</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Search on LinkedIn for:
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Marketing</li>
+                <li>Sales</li>
+                <li>Hospitality</li>
+                <li>Retail</li>
+              </ul>
+            </li>
+            <li>These backgrounds tend to perform well in this role</li>
+            <li>Filter location to Belfast / Northern Ireland</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground/80 mb-1">Connection strategy</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Send connection requests first</li>
+            <li>Once accepted, you can message them for free</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground/80 mb-1">Outreach process</p>
+          <ol className="list-decimal list-inside space-y-1 ml-1">
+            <li>Connect with candidates</li>
+            <li>Wait for acceptance</li>
+            <li>Send a message</li>
+            <li>Track results on this page</li>
+          </ol>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Daily Targets</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Aim for:
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>25 connections per day</li>
+                <li>25 messages per day</li>
+              </ul>
+            </li>
+          </ul>
+          <p className="mt-1">This builds momentum and creates a steady pipeline.</p>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Tracking</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>Log your activity daily:
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Sent → Replies → Interviews</li>
+              </ul>
+            </li>
+          </ul>
+          <p className="mt-1">This helps you understand:</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>What messaging works</li>
+            <li>Your conversion rate</li>
+            <li>How to improve over time</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <p className="font-medium text-foreground italic">Consistency is key — small daily actions compound into strong results.</p>
+      </LinkedInHelpBox>
+
       {/* Header with date picker */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

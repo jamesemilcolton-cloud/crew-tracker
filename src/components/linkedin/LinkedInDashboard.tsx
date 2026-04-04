@@ -279,6 +279,60 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
 
   return (
     <div className="space-y-4">
+      <LinkedInHelpBox>
+        <p className="font-medium text-foreground">LinkedIn Ads — How to Use</p>
+        <p>This section is used to track the performance of your ads and measure how many CVs each ad generates.</p>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Best Practice</p>
+          <p className="font-medium text-foreground/80 mb-1">Add ads to the system</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>After uploading an ad, select its type and add it to the Live Feed on the LinkedIn Resources page</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground/80 mb-1">Track CV downloads</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>When candidates apply, mark CV Downloaded</li>
+            <li>Select which ad the CV came from</li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Why this matters</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>This allows you to track:
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Which ads perform best</li>
+                <li>Which job titles attract the most candidates</li>
+              </ul>
+            </li>
+            <li>If an ad runs for multiple days:
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>You can log CVs each day separately</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <div>
+          <p className="font-medium text-foreground mb-1">Performance Insights</p>
+          <ul className="list-disc list-inside space-y-1 ml-1">
+            <li>The statistics section will improve over time</li>
+            <li>This helps you:
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Identify winning ads</li>
+                <li>Improve efficiency</li>
+                <li>Focus on what works</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+        <hr className="border-border/30" />
+        <p className="font-medium text-foreground italic">Consistency in tracking = better decisions.</p>
+      </LinkedInHelpBox>
+
       {/* Quick Log */}
       <div className="glass-panel p-4">
         <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
