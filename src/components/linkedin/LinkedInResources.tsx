@@ -135,7 +135,7 @@ export function LinkedInResources() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Live Ads</h2>
-          <span className="text-xs text-muted-foreground">Managed from LinkedIn &amp; Personal</span>
+          <span className="text-xs text-muted-foreground">Managed from LinkedIn Ads</span>
         </div>
 
         <div className="overflow-x-auto">
