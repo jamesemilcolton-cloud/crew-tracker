@@ -109,6 +109,7 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(initialUserId ?? null);
   const [userAllEntries, setUserAllEntries] = useState<ActivityEntry[]>([]);
+  const [selectedUserProfileName, setSelectedUserProfileName] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialUserId) {
@@ -121,6 +122,12 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
   useEffect(() => {
     if (selectedUser) {
       fetchUserAllEntries(selectedUser);
+      // Fetch profile name for display
+      supabase.from("profiles").select("full_name").eq("user_id", selectedUser).single().then(({ data }) => {
+        setSelectedUserProfileName(data?.full_name ?? null);
+      });
+    } else {
+      setSelectedUserProfileName(null);
     }
   }, [selectedUser]);
 
@@ -188,7 +195,7 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
   }, []);
 
   const userEntries = selectedUser ? entries.filter(e => e.user_id === selectedUser) : [];
-  const selectedUserName = selectedUser ? entries.find(e => e.user_id === selectedUser)?.user_name ?? userAllEntries[0]?.user_name ?? "Unknown" : "";
+  const selectedUserName = selectedUser ? (selectedUserProfileName ?? entries.find(e => e.user_id === selectedUser)?.user_name ?? userAllEntries[0]?.user_name ?? "Unknown") : "";
 
   const getUserSummary = (): UserSummary | null => {
     if (!selectedUser) return null;
