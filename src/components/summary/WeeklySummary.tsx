@@ -561,32 +561,48 @@ export function WeeklySummary() {
     );
   }
 
-  // ── Inline KPI with conversion arrows between stages ──
-  function RecruitmentKPIsInline() {
-    return (
-      <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-        <SectionLabel icon={Target} label="Recruitment KPIs" />
-        <div className="space-y-0.5">
-          {kpiStages.map((stage, i) => {
+  // ── Compact 2-column KPI funnel ──
+  function RecruitmentKPIsCompact() {
+    const leftStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash"];
+    const rightStages: PipelineStage[] = ["contact_before_start", "start", "solo", "promoted"];
+    
+    function StageBlock({ stages, startConvIdx }: { stages: PipelineStage[]; startConvIdx: number }) {
+      return (
+        <div className="space-y-0">
+          {stages.map((stage, i) => {
             const count = thisWeekCounts[stage] || 0;
-            const conv = i > 0 ? conversionPairs[i - 1] : null;
+            const convIdx = startConvIdx + i;
+            const conv = convIdx > 0 && convIdx <= conversionPairs.length ? conversionPairs[convIdx - 1] : null;
+            // For right column, first item needs the bridging conversion from rehash→cbs
+            const bridgeConv = startConvIdx > 0 && i === 0 ? conversionPairs[startConvIdx - 1] : null;
+            const showConv = i > 0 ? conversionPairs[startConvIdx + i - 1] : bridgeConv;
             return (
               <div key={stage}>
-                {conv && (
-                  <div className="flex items-center justify-center py-0.5">
-                    <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/50" />
-                    <span className={`text-[9px] tabular-nums ml-1 ${conv.pct === 0 ? "text-muted-foreground/40" : conv.pct >= 80 ? "text-primary" : conv.pct >= 50 ? "text-foreground" : "text-destructive"}`}>
-                      {conv.pct}%
+                {showConv && (
+                  <div className="flex items-center justify-center py-px">
+                    <ChevronDown className="w-2 h-2 text-muted-foreground/40" />
+                    <span className={`text-[8px] tabular-nums ml-0.5 ${showConv.pct === 0 ? "text-muted-foreground/40" : showConv.pct >= 80 ? "text-primary" : showConv.pct >= 50 ? "text-foreground" : "text-destructive"}`}>
+                      {showConv.pct}%
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-between bg-muted/20 rounded px-2 py-1">
-                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{STAGE_CONFIG[stage].label}</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums">{count}</span>
+                <div className="flex items-center justify-between bg-muted/20 rounded px-1.5 py-0.5">
+                  <span className="text-[8px] uppercase tracking-wider text-muted-foreground">{STAGE_CONFIG[stage].label}</span>
+                  <span className="text-xs font-bold text-foreground tabular-nums">{count}</span>
                 </div>
               </div>
             );
           })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-card/80 border border-border/50 rounded-lg p-2">
+        <SectionLabel icon={Target} label="Recruitment KPIs" />
+        <div className="grid grid-cols-2 gap-1.5">
+          <StageBlock stages={leftStages} startConvIdx={0} />
+          <StageBlock stages={rightStages} startConvIdx={5} />
         </div>
       </div>
     );
