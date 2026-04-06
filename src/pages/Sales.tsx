@@ -514,6 +514,26 @@ export default function Sales() {
                   );
                 })}
               </tbody>
+              <tfoot>
+                {(() => {
+                  const daysWithEntries = DAYS.map((_, i) => getEntryForDate(getDateForDay(i))).filter(Boolean) as SalesEntry[];
+                  const count = daysWithEntries.length;
+                  if (count === 0) return null;
+                  return (
+                    <tr className="border-t border-[hsl(var(--module-sales)/0.3)]">
+                      <td className="py-2 text-[hsl(var(--module-sales))] font-semibold text-[11px]">Avg ({count}d)</td>
+                      {FIELD_KEYS.map((key) => {
+                        const avg = daysWithEntries.reduce((s, e) => s + e[key], 0) / count;
+                        return (
+                          <td key={key} className="py-2 text-right font-mono font-semibold text-[hsl(var(--module-sales))]">
+                            {avg % 1 === 0 ? avg : avg.toFixed(1)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })()}
+              </tfoot>
             </table>
           </CardContent>
         </Card>
