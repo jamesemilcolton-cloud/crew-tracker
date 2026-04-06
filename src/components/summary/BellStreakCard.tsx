@@ -12,7 +12,7 @@ interface DailyTotal {
 }
 
 function qualifies(d: DailyTotal): boolean {
-  return d.salesCount >= 3 && d.repProfit >= 150;
+  return d.salesCount >= 3 && d.repProfit >= 120;
 }
 
 function calcStreak(dailyTotals: Map<string, DailyTotal>): number {
