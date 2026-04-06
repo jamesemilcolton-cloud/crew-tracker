@@ -243,7 +243,7 @@ export function BellStreakCard() {
               {config.label(streak)}
             </span>
             <span className="text-[11px] text-muted-foreground">
-              3+ sales &amp; £150+ rep profit per day
+              3+ sales &amp; £120+ rep profit per day
             </span>
           </div>
 
