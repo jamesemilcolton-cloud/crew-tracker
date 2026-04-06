@@ -7,11 +7,8 @@ import { SalesTransaction } from "@/hooks/useSalesTransactions";
 import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target, Lock } from "lucide-react";
 import {
-  CrewBubbleSnapshot,
   getDescendantProfileIds,
   buildRecursiveTree,
   CrewNode,
@@ -20,7 +17,12 @@ import { CrewTree } from "@/components/crew/CrewTree";
 import { BellStreakCard } from "@/components/summary/BellStreakCard";
 import { parseISO, format } from "date-fns";
 import { getCalendarWeekBounds, getCalendarWeekStrings } from "@/lib/utils";
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Profile {
   id: string;
@@ -31,7 +33,6 @@ interface Profile {
   candidate_record_id: string | null;
 }
 
-/** Map pipeline stage to a display role label */
 function getRoleLabel(stage: string): string {
   switch (stage) {
     case "start": return "Brand Ambassador";
@@ -41,13 +42,8 @@ function getRoleLabel(stage: string): string {
   }
 }
 
-// Summary tree rendering is now handled by the shared CrewTree component
-
-// Use central week utility
 const getWeekBounds = getCalendarWeekBounds;
 
-/** Count unique candidates whose final valid stage in the date range is >= the target stage (cumulative funnel).
- *  Backward moves invalidate previous forward stages — only the last history entry counts. */
 function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date, end: Date): number {
   const targetIdx = STAGES_ORDER.indexOf(stage);
   if (targetIdx < 0) return 0;
@@ -58,14 +54,32 @@ function countInRange(candidates: Candidate[], stage: PipelineStage, start: Date
       return d >= start && d <= end;
     });
     if (historyInRange.length === 0) return;
-    // Sort chronologically, take the last entry as the effective stage
     const sorted = [...historyInRange].sort((a, b) => a.date.localeCompare(b.date));
     const effectiveStage = sorted[sorted.length - 1].to as PipelineStage;
     const effectiveIdx = STAGES_ORDER.indexOf(effectiveStage);
-    // Cumulative: count if effective stage >= target stage
     if (effectiveIdx >= targetIdx) count++;
   });
   return count;
+}
+
+// ── Compact stat box ──
+function StatBox({ label, value, className = "", small = false }: { label: string; value: string | number; className?: string; small?: boolean }) {
+  return (
+    <div className={`bg-muted/30 rounded-md px-2 py-1.5 text-center ${className}`}>
+      <div className="text-[8px] uppercase tracking-wider text-muted-foreground leading-tight">{label}</div>
+      <div className={`font-bold text-foreground tabular-nums ${small ? "text-sm" : "text-lg"}`}>{value}</div>
+    </div>
+  );
+}
+
+// ── Section heading ──
+function SectionLabel({ icon: Icon, label, color }: { icon: any; label: string; color?: string }) {
+  return (
+    <div className="flex items-center gap-1.5 mb-1.5">
+      <Icon className="w-3 h-3" style={color ? { color } : undefined} />
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{label}</span>
+    </div>
+  );
 }
 
 export function WeeklySummary() {
@@ -79,7 +93,6 @@ export function WeeklySummary() {
   const { profiles: sharedProfiles, loading: profilesLoading } = useProfiles();
   const allProfilesRaw = sharedProfiles as Profile[];
 
-  // Fetch manager user_ids to exclude from crew tree
   const [managerUserIds, setManagerUserIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     supabase
@@ -92,7 +105,6 @@ export function WeeklySummary() {
       });
   }, []);
 
-  // Filter out manager/super_admin profiles from tree building
   const allProfiles = useMemo(
     () => allProfilesRaw.filter((p) => !managerUserIds.has(p.user_id)),
     [allProfilesRaw, managerUserIds]
@@ -100,6 +112,7 @@ export function WeeklySummary() {
 
   const isManager = userRole?.role === "manager" && !!userRole?.super_admin;
   const isLeader = userRole?.role === "leader";
+  const showCrewColumns = isLeader || isManager;
 
   // Sales snapshot data
   const [salesLoading, setSalesLoading] = useState(true);
@@ -108,27 +121,18 @@ export function WeeklySummary() {
   const [ownTransactions, setOwnTransactions] = useState<SalesTransaction[]>([]);
   const [crewTransactions, setCrewTransactions] = useState<SalesTransaction[]>([]);
 
-  const currentWeekBounds = useMemo(() => {
-    return getCalendarWeekStrings(0);
-  }, []);
+  const currentWeekBounds = useMemo(() => getCalendarWeekStrings(0), []);
 
-  // Fetch own sales for current week
   useEffect(() => {
     if (!user) return;
     async function fetchOwnSales() {
       const [salesRes, txRes] = await Promise.all([
-        supabase
-          .from("sales_entries")
-          .select("*")
-          .eq("user_id", user!.id)
-          .gte("entry_date", currentWeekBounds.start)
-          .lte("entry_date", currentWeekBounds.end),
-        supabase
-          .from("sales_transactions")
+        supabase.from("sales_entries").select("*").eq("user_id", user!.id)
+          .gte("entry_date", currentWeekBounds.start).lte("entry_date", currentWeekBounds.end),
+        supabase.from("sales_transactions")
           .select("id, user_id, date, week_start, age_band, ask_amount, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
           .eq("user_id", user!.id)
-          .gte("date", currentWeekBounds.start)
-          .lte("date", currentWeekBounds.end),
+          .gte("date", currentWeekBounds.start).lte("date", currentWeekBounds.end),
       ]);
       setOwnSalesEntries(salesRes.data ?? []);
       setOwnTransactions((txRes.data ?? []) as SalesTransaction[]);
@@ -136,59 +140,39 @@ export function WeeklySummary() {
     fetchOwnSales();
   }, [user, currentWeekBounds]);
 
-  // Fetch crew sales based on role
   useEffect(() => {
     if (!user || !userRole || !profile) { setSalesLoading(false); return; }
     const role = userRole.role;
-
     async function fetchCrewSales() {
       if (role === "brand_ambassador") {
-        setCrewSalesEntries([]);
-        setCrewTransactions([]);
-        setSalesLoading(false);
-        return;
+        setCrewSalesEntries([]); setCrewTransactions([]); setSalesLoading(false); return;
       }
-
       if (role === "manager" && userRole.super_admin) {
         const [salesRes, txRes] = await Promise.all([
           supabase.from("sales_entries").select("*")
-            .gte("entry_date", currentWeekBounds.start)
-            .lte("entry_date", currentWeekBounds.end),
+            .gte("entry_date", currentWeekBounds.start).lte("entry_date", currentWeekBounds.end),
           supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
-            .gte("date", currentWeekBounds.start)
-            .lte("date", currentWeekBounds.end),
+            .gte("date", currentWeekBounds.start).lte("date", currentWeekBounds.end),
         ]);
-        setCrewSalesEntries(salesRes.data ?? []);
-        setCrewTransactions((txRes.data ?? []) as SalesTransaction[]);
+        setCrewSalesEntries(salesRes.data ?? []); setCrewTransactions((txRes.data ?? []) as SalesTransaction[]);
       } else {
         const { data: profiles } = await supabase.from("profiles").select("id, user_id, leader_id");
         if (!profiles || !profile) { setSalesLoading(false); return; }
-
         const myProfileId = profile.id;
         function getDescendantUserIds(leaderId: string): string[] {
           const directReports = profiles!.filter((p) => p.leader_id === leaderId);
           const userIds: string[] = [];
-          for (const dr of directReports) {
-            userIds.push(dr.user_id);
-            userIds.push(...getDescendantUserIds(dr.id));
-          }
+          for (const dr of directReports) { userIds.push(dr.user_id); userIds.push(...getDescendantUserIds(dr.id)); }
           return userIds;
         }
-        const crewUserIds = [user!.id, ...getDescendantUserIds(myProfileId)];
-        const uniqueIds = [...new Set(crewUserIds)];
-
+        const uniqueIds = [...new Set([user!.id, ...getDescendantUserIds(myProfileId)])];
         const [salesRes, txRes] = await Promise.all([
-          supabase.from("sales_entries").select("*")
-            .in("user_id", uniqueIds)
-            .gte("entry_date", currentWeekBounds.start)
-            .lte("entry_date", currentWeekBounds.end),
+          supabase.from("sales_entries").select("*").in("user_id", uniqueIds)
+            .gte("entry_date", currentWeekBounds.start).lte("entry_date", currentWeekBounds.end),
           supabase.from("sales_transactions").select("id, user_id, date, week_start, isa_upfront, owner_upfront, total_wire, quality_pending, created_at")
-            .in("user_id", uniqueIds)
-            .gte("date", currentWeekBounds.start)
-            .lte("date", currentWeekBounds.end),
+            .in("user_id", uniqueIds).gte("date", currentWeekBounds.start).lte("date", currentWeekBounds.end),
         ]);
-        setCrewSalesEntries(salesRes.data ?? []);
-        setCrewTransactions((txRes.data ?? []) as SalesTransaction[]);
+        setCrewSalesEntries(salesRes.data ?? []); setCrewTransactions((txRes.data ?? []) as SalesTransaction[]);
       }
       setSalesLoading(false);
     }
@@ -197,7 +181,7 @@ export function WeeklySummary() {
 
   const GAUGE_KEYS = ["doors", "spoken", "presentations", "closes", "tablets", "sales"] as const;
   const GAUGE_LABELS: Record<string, string> = {
-    doors: "Doors", spoken: "Spoken", presentations: "Presentations",
+    doors: "Doors", spoken: "Spoken", presentations: "Pres",
     closes: "Closes", tablets: "Tablets", sales: "Sales",
   };
   function calcMeanGauges(entries: any[]) {
@@ -211,12 +195,10 @@ export function WeeklySummary() {
     return means;
   }
 
-  // Target gauge values for deviation analysis
   const TARGET_GAUGES: Record<string, number> = {
     doors: 120, spoken: 80, presentations: 30, closes: 25, tablets: 10, sales: 3,
   };
 
-  // Funnel conversion % between adjacent stages (excluding Doors→Spoken)
   const FUNNEL_PAIRS = [
     { from: "spoken", to: "presentations", label: "S→P" },
     { from: "presentations", to: "closes", label: "P→C" },
@@ -224,7 +206,6 @@ export function WeeklySummary() {
     { from: "tablets", to: "sales", label: "T→S" },
   ] as const;
 
-  // Target conversion benchmarks derived from TARGET_GAUGES
   const TARGET_CONVERSIONS = FUNNEL_PAIRS.map(({ from, to, label }) => ({
     from, to, label,
     pct: Math.round((TARGET_GAUGES[to] / TARGET_GAUGES[from]) * 100),
@@ -239,13 +220,10 @@ export function WeeklySummary() {
 
   function calcDeviations(actuals: ReturnType<typeof calcFunnelConversions>) {
     return actuals.map((a, i) => ({
-      ...a,
-      targetPct: TARGET_CONVERSIONS[i].pct,
-      gap: TARGET_CONVERSIONS[i].pct - a.pct,
+      ...a, targetPct: TARGET_CONVERSIONS[i].pct, gap: TARGET_CONVERSIONS[i].pct - a.pct,
     }));
   }
 
-  // Spoken priority: check if Spoken volume underperformance is worse than all conversion deviations
   type SimResult = {
     adjusted: Record<string, number>;
     isSpokenPriority: boolean;
@@ -260,19 +238,12 @@ export function WeeklySummary() {
     actuals: ReturnType<typeof calcFunnelConversions>
   ): SimResult | null {
     const funnel = ["doors", "spoken", "presentations", "closes", "tablets", "sales"];
-
-    // Step 1: Check Spoken volume vs target
     const spokenActualPct = TARGET_GAUGES.spoken > 0 ? Math.round((means.spoken / TARGET_GAUGES.spoken) * 100) : 100;
-    const spokenGap = 100 - spokenActualPct; // how far from 100% of target
-
-    // Find worst conversion deviation
+    const spokenGap = 100 - spokenActualPct;
     const worstConv = deviations.reduce((worst, d) => d.gap > worst.gap ? d : worst, deviations[0]);
-
     if (spokenGap > 0 && spokenGap > worstConv.gap) {
-      // Spoken volume is the primary weakness
       const adjusted = { ...means };
       adjusted.spoken = TARGET_GAUGES.spoken;
-      // Propagate downstream using actual conversion ratios
       for (let i = 1; i < funnel.length - 1; i++) {
         const actualConv = actuals.find(c => c.from === funnel[i] && c.to === funnel[i + 1]);
         const ratio = actualConv ? actualConv.pct / 100 : 0;
@@ -280,10 +251,7 @@ export function WeeklySummary() {
       }
       return { adjusted, isSpokenPriority: true, weakestDev: null, spokenTargetPct: 100, spokenActualPct };
     }
-
     if (worstConv.gap <= 0) return null;
-
-    // Step 2: Conversion stage is weakest
     const adjusted = { ...means };
     const weakIdx = funnel.indexOf(worstConv.to);
     adjusted[worstConv.to] = Math.round(adjusted[worstConv.from] * (worstConv.targetPct / 100));
@@ -314,7 +282,6 @@ export function WeeklySummary() {
     return calcSimulationWithPriority(crewMeans, crewDeviations, crewConversions);
   }, [crewMeans, crewDeviations, crewConversions]);
 
-  // Financial summaries from transactions
   const ownFinancials = useMemo(() => {
     return ownTransactions.reduce(
       (acc, t) => ({
@@ -330,30 +297,21 @@ export function WeeklySummary() {
   const crewFinancials = useMemo(() => {
     if (!userRole || userRole.role === "brand_ambassador") return null;
     const totals = crewTransactions.reduce(
-      (acc, t) => ({
-        totalWire: acc.totalWire + Number(t.total_wire),
-        count: acc.count + 1,
-      }),
+      (acc, t) => ({ totalWire: acc.totalWire + Number(t.total_wire), count: acc.count + 1 }),
       { totalWire: 0, count: 0 }
     );
-    // Count unique sellers
     const sellerIds = new Set(crewTransactions.map((t) => t.user_id));
-    const sellerCount = sellerIds.size;
     return {
       crewTotalWire: +totals.totalWire.toFixed(2),
-      crewAvgWire: sellerCount > 0 ? +(totals.totalWire / sellerCount).toFixed(2) : 0,
-      headcountSelling: sellerCount,
+      crewAvgWire: sellerIds.size > 0 ? +(totals.totalWire / sellerIds.size).toFixed(2) : 0,
+      headcountSelling: sellerIds.size,
     };
   }, [crewTransactions, userRole]);
 
-  // Profiles now provided by ProfilesContext - no duplicate fetch needed
-
   const thisWeek = useMemo(() => getWeekBounds(0), []);
 
-  // Use ownCandidates from useCandidates("own") instead of a separate fetch
   const allOwnCandidates = ownCandidates;
 
-  // SECTION 1: Recruitment KPIs
   const kpiStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash", "contact_before_start", "start", "solo", "promoted"];
   const thisWeekCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -363,13 +321,13 @@ export function WeeklySummary() {
 
   const conversions = useMemo(() => {
     const pairs: { from: PipelineStage; to: PipelineStage; label: string }[] = [
-      { from: "obs", to: "questionnaire", label: "Obs → Quest" },
-      { from: "questionnaire", to: "bottom_line", label: "Quest → BL" },
-      { from: "bottom_line", to: "final", label: "BL → Final" },
-      { from: "final", to: "rehash", label: "Final → Rehash" },
-      { from: "rehash", to: "contact_before_start", label: "Rehash → CBS" },
-      { from: "contact_before_start", to: "start", label: "CBS → Start" },
-      { from: "start", to: "solo", label: "Start → Solo" },
+      { from: "obs", to: "questionnaire", label: "Obs→Q" },
+      { from: "questionnaire", to: "bottom_line", label: "Q→BL" },
+      { from: "bottom_line", to: "final", label: "BL→F" },
+      { from: "final", to: "rehash", label: "F→R" },
+      { from: "rehash", to: "contact_before_start", label: "R→CBS" },
+      { from: "contact_before_start", to: "start", label: "CBS→S" },
+      { from: "start", to: "solo", label: "S→Solo" },
     ];
     return pairs.map(({ from, to, label }) => {
       const fromCount = thisWeekCounts[from] || 0;
@@ -379,166 +337,77 @@ export function WeeklySummary() {
     });
   }, [thisWeekCounts]);
 
-  // SECTION 2: LinkedIn Performance
   const linkedInThisWeek = useMemo(() => {
-    const freeAds = adUploads.filter((a) => {
-      const d = new Date(a.date);
-      return a.type === "free" && d >= thisWeek.start && d <= thisWeek.end;
-    }).length;
-    const paidAds = adUploads.filter((a) => {
-      const d = new Date(a.date);
-      return a.type === "paid" && d >= thisWeek.start && d <= thisWeek.end;
-    }).length;
-    const cvs = cvDownloads.filter((c) => {
-      const d = new Date(c.downloadDate);
-      return d >= thisWeek.start && d <= thisWeek.end;
-    }).reduce((sum, c) => sum + c.count, 0);
+    const freeAds = adUploads.filter((a) => { const d = new Date(a.date); return a.type === "free" && d >= thisWeek.start && d <= thisWeek.end; }).length;
+    const paidAds = adUploads.filter((a) => { const d = new Date(a.date); return a.type === "paid" && d >= thisWeek.start && d <= thisWeek.end; }).length;
+    const cvs = cvDownloads.filter((c) => { const d = new Date(c.downloadDate); return d >= thisWeek.start && d <= thisWeek.end; }).reduce((sum, c) => sum + c.count, 0);
     const linkedInObs = allOwnCandidates.filter((c) => {
       const created = new Date(c.createdAt);
       return c.source?.toLowerCase() === "linkedin" && created >= thisWeek.start && created <= thisWeek.end;
     }).length;
     return { freeAds, paidAds, cvs, linkedInObs };
-  }, [adUploads, cvDownloads, thisWeek, thisWeekCounts]);
+  }, [adUploads, cvDownloads, thisWeek, allOwnCandidates]);
 
-  // SECTION 3: Crew Summary (leaders + managers)
+  // Crew Summary
   const crewSummary = useMemo(() => {
     if ((!isLeader && !isManager) || !profile) return null;
-
-    // Helper: check if a candidate is NOT dropped
-    const isNotDropped = (c: Candidate) =>
-      c.status?.toLowerCase() !== "dropped" && !c.archivedAt && !c.dropOffDate;
-
-    // Recursive descendant profile IDs (inclusive of self)
+    const isNotDropped = (c: Candidate) => c.status?.toLowerCase() !== "dropped" && !c.archivedAt && !c.dropOffDate;
     const descendantIds = getDescendantProfileIds(profile.id, allProfiles);
-
-    // All subtree candidates: recruited by anyone in the subtree (including leader's own recruits)
-    const allSubtreeCandidates = allCandidates.filter(
-      (c) => c.recruitedBy && descendantIds.has(c.recruitedBy)
-    );
-
-    // 1. HEADCOUNT: candidates at start/solo/promoted, not dropped
-    const activeTeam = allSubtreeCandidates.filter(
-      (c) => ["start", "solo", "promoted"].includes(c.stage) && isNotDropped(c)
-    );
-    // Include the current user themselves (they are a leader, so they've reached start+)
-    // +1 for self
+    const allSubtreeCandidates = allCandidates.filter((c) => c.recruitedBy && descendantIds.has(c.recruitedBy));
+    const activeTeam = allSubtreeCandidates.filter((c) => ["start", "solo", "promoted"].includes(c.stage) && isNotDropped(c));
     const headCount = activeTeam.length + 1;
-
-    // 4. BRAND AMBASSADORS: active team at start or solo (self is leader, not BA)
     const brandAmbassadors = activeTeam.filter((c) => c.stage === "start" || c.stage === "solo").length;
-
-    // 5. LEADERS: active team at promoted + self (current user is a leader)
     const leaders = activeTeam.filter((c) => c.stage === "promoted").length + 1;
-
-    // 6. TEAM STARTS THIS WEEK: unique candidates with a history entry "to: start" this week
     const startsThisWeek = allSubtreeCandidates.filter((c) => {
       if (!isNotDropped(c)) return false;
-      return c.history.some((h) => {
-        const d = parseISO(h.date);
-        return h.to === "start" && d >= thisWeek.start && d <= thisWeek.end;
-      });
+      return c.history.some((h) => { const d = parseISO(h.date); return h.to === "start" && d >= thisWeek.start && d <= thisWeek.end; });
     }).length;
-
-    // 7. TEAM PROMOTIONS THIS WEEK: unique candidates with history entry "to: promoted" this week
     const promotionsThisWeek = allSubtreeCandidates.filter((c) => {
       if (!isNotDropped(c)) return false;
-      return c.history.some((h) => {
-        const d = parseISO(h.date);
-        return h.to === "promoted" && d >= thisWeek.start && d <= thisWeek.end;
-      });
+      return c.history.some((h) => { const d = parseISO(h.date); return h.to === "promoted" && d >= thisWeek.start && d <= thisWeek.end; });
     }).length;
-
-    // 2. HCS: crew members at solo+ with ≥1 sale this week
-    // Build candidate ID set for active candidates at solo+
-    const soloOrAboveCandidateIds = new Set(
-      activeTeam.filter((c) => ["solo", "promoted"].includes(c.stage)).map((c) => c.id)
-    );
-    // Get user_ids of crew members at solo+ by matching profile candidate_record_id
+    const soloOrAboveCandidateIds = new Set(activeTeam.filter((c) => ["solo", "promoted"].includes(c.stage)).map((c) => c.id));
     const soloUserIds = new Set(
-      allProfiles
-        .filter((p) => descendantIds.has(p.id) && p.candidate_record_id && soloOrAboveCandidateIds.has(p.candidate_record_id))
-        .map((p) => p.user_id)
+      allProfiles.filter((p) => descendantIds.has(p.id) && p.candidate_record_id && soloOrAboveCandidateIds.has(p.candidate_record_id)).map((p) => p.user_id)
     );
-    // Also include the current user (leader) — they are solo+ by definition
     if (user) soloUserIds.add(user.id);
-    // Count those with ≥1 sale this week
     const sellingUserIds = new Set<string>();
-    crewSalesEntries.forEach((entry: any) => {
-      if ((entry.sales || 0) >= 1) sellingUserIds.add(entry.user_id);
-    });
+    crewSalesEntries.forEach((entry: any) => { if ((entry.sales || 0) >= 1) sellingUserIds.add(entry.user_id); });
     const hcs = [...sellingUserIds].filter((uid) => soloUserIds.has(uid)).length;
-
-    // 3. POTENTIAL NEW STARTS: candidates in rehash or contact_before_start, not dropped
-    const potentialNewStarts = allSubtreeCandidates.filter(
-      (c) => (c.stage === "contact_before_start" || c.stage === "rehash") && isNotDropped(c)
-    ).length;
-
+    const potentialNewStarts = allSubtreeCandidates.filter((c) => (c.stage === "contact_before_start" || c.stage === "rehash") && isNotDropped(c)).length;
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
   }, [isLeader, isManager, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
 
-  // Reuse allCandidates from useCandidates("all") instead of a separate fetch
-  const treeCandidatesForBuild = useMemo(() => allCandidates.map((c) => ({
-    ...c,
-    recruitedBy: c.recruitedBy ?? undefined,
-  })), [allCandidates]);
-
+  // Crew Tree
+  const treeCandidatesForBuild = useMemo(() => allCandidates.map((c) => ({ ...c, recruitedBy: c.recruitedBy ?? undefined })), [allCandidates]);
   const subtreeTreeCandidates = useMemo(() => {
     if (!profile || allProfiles.length === 0) return treeCandidatesForBuild;
     const subtreeIds = getDescendantProfileIds(profile.id, allProfiles);
     return treeCandidatesForBuild.filter((c) => c.recruitedBy && subtreeIds.has(c.recruitedBy));
   }, [treeCandidatesForBuild, allProfiles, profile]);
-
   const crewTree = useMemo(() => {
     if (!profile || allProfiles.length === 0) return { id: "root", name: "You", isLeader: true, isPredicted: false, children: [] } as CrewNode;
     return buildRecursiveTree(profile.id, profile.full_name, allProfiles, subtreeTreeCandidates);
   }, [subtreeTreeCandidates, allProfiles, profile]);
-
   const crewSalesMap = useMemo(() => {
     const map = new Map<string, number>();
     crewSalesEntries.forEach((e: any) => { map.set(e.user_id, (map.get(e.user_id) || 0) + (e.sales || 0)); });
     return map;
   }, [crewSalesEntries]);
-
   const profileUserMap = useMemo(() => {
     const m = new Map<string, string>();
     allProfiles.forEach((p) => m.set(p.id, p.user_id));
     return m;
   }, [allProfiles]);
-
   const candidateStageMap = useMemo(() => {
     const m = new Map<string, string>();
     allCandidates.forEach((c) => m.set(c.id, c.stage));
     return m;
   }, [allCandidates]);
-
   const crewTreeNodeCount = useMemo(() => {
     function count(n: CrewNode): number { return 1 + n.children.reduce((s, c) => s + count(c), 0); }
     return count(crewTree);
   }, [crewTree]);
-
-  const personalBest = useMemo(() => {
-    const records: { metric: string; previousBest: number; current: number }[] = [];
-    const trackMetrics: { key: PipelineStage; label: string }[] = [
-      { key: "obs", label: "OBs" },
-      { key: "start", label: "Starts" },
-      { key: "promoted", label: "Promotions" },
-    ];
-
-    for (const { key, label } of trackMetrics) {
-      let historicalBest = 0;
-      for (let w = 1; w <= 52; w++) {
-        const bounds = getWeekBounds(w);
-        const count = countInRange(allOwnCandidates, key, bounds.start, bounds.end);
-        if (count > historicalBest) historicalBest = count;
-      }
-      const currentCount = thisWeekCounts[key] || 0;
-      if (currentCount > historicalBest && currentCount > 0) {
-        records.push({ metric: label, previousBest: historicalBest, current: currentCount });
-      }
-    }
-
-    return records;
-  }, [allOwnCandidates, thisWeekCounts]);
 
   // PDF Export
   const handleDownloadPDF = useCallback(async () => {
@@ -547,551 +416,372 @@ export function WeeklySummary() {
     try {
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
-
-      const element = summaryRef.current;
-      const canvas = await html2canvas(element, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
-
+      const canvas = await html2canvas(summaryRef.current, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
       let heightLeft = pdfHeight;
       let position = 0;
       const pageHeight = pdf.internal.pageSize.getHeight();
-
       pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
       heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
-      }
-
-      const startDate = format(thisWeek.start, "yyyy-MM-dd");
-      const endDate = format(thisWeek.end, "yyyy-MM-dd");
-      pdf.save(`Weekly_Summary_${startDate}to${endDate}.pdf`);
-    } catch (err) {
-      console.error("PDF export error:", err);
-    } finally {
-      setExporting(false);
-    }
+      while (heightLeft > 0) { position = heightLeft - pdfHeight; pdf.addPage(); pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight); heightLeft -= pageHeight; }
+      pdf.save(`Weekly_Summary_${format(thisWeek.start, "yyyy-MM-dd")}to${format(thisWeek.end, "yyyy-MM-dd")}.pdf`);
+    } catch (err) { console.error("PDF export error:", err); }
+    finally { setExporting(false); }
   }, [thisWeek]);
 
   const loading = candidatesLoading || linkedInLoading || allCandidatesLoading || profilesLoading || salesLoading;
 
   const crewName = profile ? (allProfiles.find(p => p.user_id === profile.user_id)?.crew_name || "") : "";
   const mondayLabel = format(thisWeek.start, "do MMMM yyyy");
-  const summaryTitle = crewName
-    ? `${crewName} – Week Commencing ${mondayLabel} Summary`
-    : `Week Commencing ${mondayLabel} Summary`;
-
-  const dateLabel = `${format(thisWeek.start, "do MMM")} – ${format(thisWeek.end, "do MMM yyyy")}`;
+  const summaryTitle = crewName ? `${crewName} – WC ${mondayLabel}` : `WC ${mondayLabel}`;
+  const dateLabel = `${format(thisWeek.start, "do MMM")} – ${format(thisWeek.end, "do MMM")}`;
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-64 bg-muted/30 rounded animate-pulse" />
-        <div className="grid grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-20 bg-muted/20 rounded-lg animate-pulse" />
-          ))}
-        </div>
-        <div className="h-40 bg-muted/20 rounded-lg animate-pulse" />
+      <div className="flex items-center justify-center h-full">
+        <div className="text-sm text-muted-foreground animate-pulse">Loading dashboard…</div>
       </div>
     );
   }
 
-  if (!salesLoading && ownSalesEntries.length === 0 && ownCandidates.length === 0) {
-    // Show empty state only if all data has loaded
+  // ── Improvement simulation tooltip content builder ──
+  function SimTooltipContent({ sim, means, entries }: { sim: SimResult; means: Record<string, number>; entries: any[] }) {
+    const daysLogged = entries.length;
+    const currentWeeklySales = means.sales * daysLogged;
+    const projectedWeeklySales = sim.adjusted.sales * daysLogged;
+    const delta = projectedWeeklySales - currentWeeklySales;
+    const deltaPerWeek = daysLogged > 0 ? delta / daysLogged * 7 : 0;
+    return (
+      <div className="space-y-1.5 max-w-xs">
+        <div className="flex items-center gap-1">
+          <TrendingUp className="w-3 h-3 text-primary" />
+          <span className="text-xs font-semibold">Improvement Simulation</span>
+        </div>
+        {sim.isSpokenPriority ? (
+          <p className="text-[11px] text-muted-foreground">Focus: <span className="font-medium text-foreground">Spoken</span> · {sim.spokenActualPct}% of target</p>
+        ) : sim.weakestDev && (
+          <p className="text-[11px] text-muted-foreground">Focus: <span className="font-medium text-foreground">{GAUGE_LABELS[sim.weakestDev.from]}→{GAUGE_LABELS[sim.weakestDev.to]}</span> · Target {sim.weakestDev.targetPct}% · Actual {sim.weakestDev.pct}%</p>
+        )}
+        <div className="flex flex-wrap gap-1 text-[10px]">
+          {GAUGE_KEYS.map((key) => {
+            const changed = sim.adjusted[key] !== means[key];
+            return (
+              <span key={key} className={`${changed ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                {GAUGE_LABELS[key]} {sim.adjusted[key]}
+              </span>
+            );
+          })}
+        </div>
+        {deltaPerWeek >= 0.5 && (
+          <p className={`text-[10px] ${deltaPerWeek > 1 ? "text-primary font-medium" : "text-muted-foreground"}`}>
+            +{deltaPerWeek.toFixed(1)} sales/week
+          </p>
+        )}
+      </div>
+    );
   }
 
+  // ── Compact sales gauge row ──
+  function SalesGaugeRow({ means, deviations, sim, label }: {
+    means: Record<string, number>;
+    deviations: ReturnType<typeof calcDeviations>;
+    sim: SimResult | null;
+    label: string;
+  }) {
+    const content = (
+      <div>
+        <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1">{label}</div>
+        <div className="grid grid-cols-6 gap-1">
+          {GAUGE_KEYS.map((key) => {
+            const isSpokenWeak = sim?.isSpokenPriority && key === "spoken";
+            return (
+              <div key={key} className="text-center">
+                <div className={`text-[8px] ${isSpokenWeak ? "text-destructive/70" : "text-muted-foreground"}`}>{GAUGE_LABELS[key]}</div>
+                <div className={`text-base font-bold tabular-nums ${isSpokenWeak ? "text-destructive" : "text-foreground"}`}>{means[key]}</div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Conversion row */}
+        <div className="flex justify-center gap-2 mt-0.5">
+          {deviations.map((d) => {
+            const isWeakest = sim && !sim.isSpokenPriority && sim.weakestDev?.from === d.from;
+            return (
+              <span key={d.label} className={`text-[9px] tabular-nums ${isWeakest ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                {d.label} {d.pct}%
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+    if (!sim) return content;
+
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="cursor-help">{content}</div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="bg-popover border-border p-3">
+            <SimTooltipContent sim={sim} means={means} entries={label.includes("Crew") ? crewSalesEntries : ownSalesEntries} />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  // ── RENDER ──
+
   return (
-    <div className="space-y-4">
-      {/* Title + Download Button */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-foreground">{summaryTitle}</h2>
-        <Button onClick={handleDownloadPDF} disabled={exporting} variant="outline" size="sm" className="gap-2">
-          <Download className="w-4 h-4" />
-          {exporting ? "Generating…" : "Download Weekly Summary (PDF)"}
-        </Button>
+    <div ref={summaryRef} className="h-full flex flex-col gap-2 lg:gap-1.5">
+      {/* Header row */}
+      <div className="flex items-center justify-between flex-shrink-0">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground leading-tight">{summaryTitle}</h2>
+          <span className="text-[10px] text-muted-foreground">{dateLabel}</span>
+        </div>
+        <button onClick={handleDownloadPDF} disabled={exporting} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+          <Download className="w-3 h-3" />
+          {exporting ? "…" : "PDF"}
+        </button>
       </div>
 
-
-      {/* PDF-capturable content */}
-      <div ref={summaryRef} className="space-y-4 pdf-content">
-        {/* SECTION 1: Recruitment KPIs */}
-        <Card className="border-border/50 bg-card/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              Recruitment KPIs
-              <span className="text-xs font-normal text-muted-foreground">({dateLabel})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {kpiStages.map((stage) => (
-                <div key={stage} className="bg-muted/30 rounded-lg p-3 text-center">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                    {STAGE_CONFIG[stage].label}
-                  </div>
-                  <div className="text-2xl font-bold text-foreground">{thisWeekCounts[stage] || 0}</div>
-                </div>
-              ))}
-            </div>
-            {/* Conversion percentages */}
-            <div className="mt-3 pt-3 border-t border-border/30 grid grid-cols-2 md:grid-cols-4 gap-3">
-              {conversions.map((c) => (
-                <div key={c.label} className="flex items-center justify-between bg-muted/20 rounded-md px-3 py-2">
-                  <span className="text-[11px] text-muted-foreground">{c.label}</span>
-                  <span className="text-xs font-semibold text-foreground">{c.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SECTION 2: LinkedIn Performance */}
-        <Card className="border-border/50 bg-card/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
-              LinkedIn Performance
-              <span className="text-xs font-normal text-muted-foreground">({dateLabel})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: "Free Ads Uploaded", value: linkedInThisWeek.freeAds },
-                { label: "Paid Ads Uploaded", value: linkedInThisWeek.paidAds },
-                { label: "CVs Downloaded", value: linkedInThisWeek.cvs },
-                { label: "LinkedIn OBs", value: linkedInThisWeek.linkedInObs },
-              ].map((item) => (
-                <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
-                  <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SECTION: Sales Performance — This Week */}
-        <Card className="border-[hsl(0_70%_50%/0.3)] bg-card/80">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Flame className="w-4 h-4" style={{ color: "hsl(0 70% 50%)" }} />
-              <span style={{ color: "hsl(0 70% 50%)" }}>Sales Performance — This Week</span>
-              <span className="text-xs font-normal text-muted-foreground">
-                ({format(thisWeek.start, "do MMM")} – {format(thisWeek.end, "do MMM yyyy")})
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* YOUR PERFORMANCE */}
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Performance</div>
-
-            {individualMeans && individualDeviations ? (
-              <>
-                {/* Conversion % row - only 4 values, positioned between gauges 2-3, 3-4, 4-5, 5-6 */}
-                <div className="relative">
-                  <div className="grid" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
-                    {individualDeviations.map((d, i) => {
-                      const isWeakest = individualSim && !individualSim.isSpokenPriority && individualSim.weakestDev?.from === d.from;
-                      return (
-                        <div key={d.label} className="text-center" style={{ gridColumn: `${(i + 1) * 2 + 2} / ${(i + 1) * 2 + 3}` }}>
-                          <span className={`text-[10px] font-semibold ${isWeakest ? "text-destructive" : "text-muted-foreground"}`}>
-                            {d.pct}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* SVG curved arrows */}
-                  <div className="grid" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
-                    {individualDeviations.map((d, i) => {
-                      const isWeakest = individualSim && !individualSim.isSpokenPriority && individualSim.weakestDev?.from === d.from;
-                      const color = isWeakest ? "hsl(0 70% 50%)" : "hsl(var(--muted-foreground) / 0.35)";
-                      return (
-                        <div key={d.label + "-arrow"} className="flex justify-center" style={{ gridColumn: `${(i + 1) * 2 + 2} / ${(i + 1) * 2 + 3}` }}>
-                          <svg width="32" height="16" viewBox="0 0 32 16">
-                            <path d="M8 2 Q16 14 16 14" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" style={{ filter: isWeakest ? "drop-shadow(0 0 2px hsl(0 70% 50% / 0.4))" : "none" }} />
-                            <path d="M24 2 Q16 14 16 14" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" style={{ filter: isWeakest ? "drop-shadow(0 0 2px hsl(0 70% 50% / 0.4))" : "none" }} />
-                          </svg>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Gauge row */}
-                  <div className="grid mt-0.5" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
-                    {GAUGE_KEYS.map((key, i) => {
-                      const isSpokenWeak = individualSim?.isSpokenPriority && key === "spoken";
-                      return (
-                        <div key={key} className="text-center" style={{ gridColumn: `${i * 2 + 1} / ${i * 2 + 2}` }}>
-                          <div className={`text-[9px] ${isSpokenWeak ? "text-destructive/70" : "text-muted-foreground"}`}>
-                            {GAUGE_LABELS[key]}
-                          </div>
-                          <div className={`text-sm font-bold ${isSpokenWeak ? "text-destructive" : "text-foreground"}`}>{individualMeans[key]}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Improvement Simulation */}
-                {individualSim && (
-                  <div className="rounded-md p-2.5 border border-border/30 bg-muted/10 space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-[11px] font-semibold text-foreground">Improvement Simulation</span>
-                    </div>
-                    {individualSim.isSpokenPriority ? (
-                      <>
-                        <p className="text-[11px] text-muted-foreground">
-                          Primary Focus: <span className="font-medium text-foreground">Spoken</span>
-                          {" · "}Current: {individualSim.spokenActualPct}% of target
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">If Spoken improved to target ({TARGET_GAUGES.spoken}):</p>
-                      </>
-                    ) : individualSim.weakestDev && (
-                      <>
-                        <p className="text-[11px] text-muted-foreground">
-                          Primary Focus: <span className="font-medium text-foreground">{GAUGE_LABELS[individualSim.weakestDev.from]} → {GAUGE_LABELS[individualSim.weakestDev.to]}</span>
-                          {" · "}Target: {individualSim.weakestDev.targetPct}% · Current: {individualSim.weakestDev.pct}%
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">If improved to target:</p>
-                      </>
-                    )}
-                    <div className="flex items-center gap-1 flex-wrap text-xs">
-                      {GAUGE_KEYS.map((key, i) => {
-                        const changed = individualSim.adjusted[key] !== individualMeans[key];
-                        return (
-                          <span key={key} className="inline-flex items-center gap-0.5">
-                            <span className="text-muted-foreground">{GAUGE_LABELS[key]}</span>
-                            <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{individualSim.adjusted[key]}</span>
-                            {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {(() => {
-                      const daysLogged = ownSalesEntries.length;
-                      const currentWeeklySales = individualMeans.sales * daysLogged;
-                      const projectedWeeklySales = individualSim.adjusted.sales * daysLogged;
-                      const delta = projectedWeeklySales - currentWeeklySales;
-                      const deltaPerWeek = daysLogged > 0 ? delta / daysLogged * 7 : 0;
-                      if (deltaPerWeek < 0.5) {
-                        return <p className="text-[10px] text-muted-foreground/70 mt-1">Impact minimal. Focus on activity volume.</p>;
-                      } else if (deltaPerWeek > 1) {
-                        return <p className="text-[10px] text-primary/80 mt-1 font-medium">High leverage improvement. Estimated +{deltaPerWeek.toFixed(1)} sales/week.</p>;
-                      } else {
-                        return <p className="text-[10px] text-muted-foreground mt-1">Estimated improvement: +{deltaPerWeek.toFixed(1)} sales/week.</p>;
-                      }
-                    })()}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground py-3 text-center">No sales data logged this week.</div>
-            )}
-
-        {/* Your Commission Summary */}
-            {ownTransactions.length > 0 && (
-              <div className="border-t border-border/30 pt-3 space-y-2">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Your Commission</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">Rep Profit</div>
-                    <div className="text-sm font-bold text-foreground">£{ownFinancials.repProfit.toFixed(2)}</div>
-                  </div>
-                  <div className="bg-muted/20 rounded-md p-2 text-center opacity-60">
-                    <div className="text-[9px] uppercase text-muted-foreground">Quality (30%)</div>
-                    <div className="text-sm font-bold text-muted-foreground">£{ownFinancials.qualityPending.toFixed(2)}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* CREW PERFORMANCE (Leader + Manager only) */}
-            {crewMeans && crewDeviations && (
-              <div className="border-t border-border/30 pt-3 space-y-3">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Crew Performance</div>
-
-                <div className="relative">
-                  <div className="grid" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
-                    {crewDeviations.map((d, i) => {
-                      const isWeakest = crewSim && !crewSim.isSpokenPriority && crewSim.weakestDev?.from === d.from;
-                      return (
-                        <div key={d.label} className="text-center" style={{ gridColumn: `${(i + 1) * 2 + 2} / ${(i + 1) * 2 + 3}` }}>
-                          <span className={`text-[10px] font-semibold ${isWeakest ? "text-destructive" : "text-muted-foreground"}`}>
-                            {d.pct}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="grid" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
-                    {crewDeviations.map((d, i) => {
-                      const isWeakest = crewSim && !crewSim.isSpokenPriority && crewSim.weakestDev?.from === d.from;
-                      const color = isWeakest ? "hsl(0 70% 50%)" : "hsl(var(--muted-foreground) / 0.35)";
-                      return (
-                        <div key={d.label + "-arrow"} className="flex justify-center" style={{ gridColumn: `${(i + 1) * 2 + 2} / ${(i + 1) * 2 + 3}` }}>
-                          <svg width="32" height="16" viewBox="0 0 32 16">
-                            <path d="M8 2 Q16 14 16 14" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" style={{ filter: isWeakest ? "drop-shadow(0 0 2px hsl(0 70% 50% / 0.4))" : "none" }} />
-                            <path d="M24 2 Q16 14 16 14" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" style={{ filter: isWeakest ? "drop-shadow(0 0 2px hsl(0 70% 50% / 0.4))" : "none" }} />
-                          </svg>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="grid mt-0.5" style={{ gridTemplateColumns: `repeat(11, 1fr)` }}>
-                    {GAUGE_KEYS.map((key, i) => {
-                      const isSpokenWeak = crewSim?.isSpokenPriority && key === "spoken";
-                      return (
-                        <div key={key} className="text-center" style={{ gridColumn: `${i * 2 + 1} / ${i * 2 + 2}` }}>
-                          <div className={`text-[9px] ${isSpokenWeak ? "text-destructive/70" : "text-muted-foreground"}`}>
-                            {GAUGE_LABELS[key]}
-                          </div>
-                          <div className={`text-sm font-bold ${isSpokenWeak ? "text-destructive" : "text-foreground"}`}>{crewMeans[key]}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {crewSim && (
-                  <div className="rounded-md p-2.5 border border-border/30 bg-muted/10 space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-[11px] font-semibold text-foreground">Improvement Simulation</span>
-                    </div>
-                    {crewSim.isSpokenPriority ? (
-                      <>
-                        <p className="text-[11px] text-muted-foreground">
-                          Primary Focus: <span className="font-medium text-foreground">Spoken</span>
-                          {" · "}Current: {crewSim.spokenActualPct}% of target
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">If Spoken improved to target ({TARGET_GAUGES.spoken}):</p>
-                      </>
-                    ) : crewSim.weakestDev && (
-                      <>
-                        <p className="text-[11px] text-muted-foreground">
-                          Primary Focus: <span className="font-medium text-foreground">{GAUGE_LABELS[crewSim.weakestDev.from]} → {GAUGE_LABELS[crewSim.weakestDev.to]}</span>
-                          {" · "}Target: {crewSim.weakestDev.targetPct}% · Current: {crewSim.weakestDev.pct}%
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">If improved to target:</p>
-                      </>
-                    )}
-                    <div className="flex items-center gap-1 flex-wrap text-xs">
-                      {GAUGE_KEYS.map((key, i) => {
-                        const changed = crewSim.adjusted[key] !== crewMeans[key];
-                        return (
-                          <span key={key} className="inline-flex items-center gap-0.5">
-                            <span className="text-muted-foreground">{GAUGE_LABELS[key]}</span>
-                            <span className={`font-semibold ${changed ? "text-primary" : "text-foreground"}`}>{crewSim.adjusted[key]}</span>
-                            {i < GAUGE_KEYS.length - 1 && <span className="text-border mx-1">|</span>}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {(() => {
-                      const crewDaysLogged = crewSalesEntries.length;
-                      const currentWeeklySales = crewMeans.sales * crewDaysLogged;
-                      const projectedWeeklySales = crewSim.adjusted.sales * crewDaysLogged;
-                      const delta = projectedWeeklySales - currentWeeklySales;
-                      const deltaPerWeek = crewDaysLogged > 0 ? delta / crewDaysLogged * 7 : 0;
-                      if (deltaPerWeek < 0.5) {
-                        return <p className="text-[10px] text-muted-foreground/70 mt-1">Impact minimal. Focus on activity volume.</p>;
-                      } else if (deltaPerWeek > 1) {
-                        return <p className="text-[10px] text-primary/80 mt-1 font-medium">High leverage improvement. Estimated +{deltaPerWeek.toFixed(1)} sales/week.</p>;
-                      } else {
-                        return <p className="text-[10px] text-muted-foreground mt-1">Estimated improvement: +{deltaPerWeek.toFixed(1)} sales/week.</p>;
-                      }
-                    })()}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Crew Commission Summary */}
-            {crewFinancials && crewFinancials.crewTotalWire > 0 && (
-              <div className="border-t border-border/30 pt-3 space-y-2">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Crew Commission</div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-[hsl(0_70%_50%/0.1)] rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">Crew Total Wire</div>
-                    <div className="text-sm font-bold" style={{ color: "hsl(0 70% 50%)" }}>£{crewFinancials.crewTotalWire.toFixed(2)}</div>
-                  </div>
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">Avg Wire / Seller</div>
-                    <div className="text-sm font-bold text-foreground">£{crewFinancials.crewAvgWire.toFixed(2)}</div>
-                  </div>
-                  <div className="bg-muted/30 rounded-md p-2 text-center">
-                    <div className="text-[9px] uppercase text-muted-foreground">Headcount Selling</div>
-                    <div className="text-sm font-bold text-foreground">{crewFinancials.headcountSelling}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bell Streak — under Sales section */}
-        <BellStreakCard />
-
-        {(isLeader || isManager) && crewSummary ? (
-          <Card className="border-border/50 bg-card/80">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                Crew Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                {[
-                  { label: "Head Count", value: crewSummary.headCount },
-                  { label: "Head Count Selling", value: crewSummary.hcs },
-                  { label: "Potential New Starts", value: crewSummary.potentialNewStarts },
-                ].map((item) => (
-                  <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
-                    <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: "Brand Ambassadors", value: crewSummary.brandAmbassadors },
-                  { label: "Leaders", value: crewSummary.leaders },
-                  { label: "Team Starts This Week", value: crewSummary.startsThisWeek },
-                  { label: "Team Promotions This Week", value: crewSummary.promotionsThisWeek },
-                ].map((item) => (
-                  <div key={item.label} className="bg-muted/30 rounded-lg p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{item.label}</div>
-                    <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : !isManager && (
-          <Card className="border-border/50 bg-card/80 relative overflow-hidden">
-            <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2">
-              <Lock className="w-5 h-5 text-muted-foreground/60" />
-              <p className="text-xs text-muted-foreground font-medium">Unlocked when promoted to Leader</p>
-            </div>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 opacity-40">
-                <Users className="w-4 h-4" />
-                Crew Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="opacity-30">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                {["Head Count", "Head Count Selling", "Potential New Starts"].map((label) => (
-                  <div key={label} className="bg-muted/30 rounded-lg p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
-                    <div className="text-2xl font-bold text-muted-foreground">—</div>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {["Brand Ambassadors", "Leaders", "Team Starts", "Team Promotions"].map((label) => (
-                  <div key={label} className="bg-muted/30 rounded-lg p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
-                    <div className="text-2xl font-bold text-muted-foreground">—</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      {/* ═══ MOBILE: Vertical stack ═══ */}
+      <div className="lg:hidden flex-1 overflow-y-auto space-y-3 pb-4">
+        {/* Sales */}
+        {individualMeans && individualDeviations && (
+          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+            <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Your Sales" />
+          </div>
         )}
+        {crewMeans && crewDeviations && (
+          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+            <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Sales" />
+          </div>
+        )}
+        {/* Bell Streak */}
+        <BellStreakCard />
+        {/* Commission */}
+        {ownTransactions.length > 0 && (
+          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+            <SectionLabel icon={Flame} label="Commission" color="hsl(0 70% 50%)" />
+            <div className="grid grid-cols-2 gap-2">
+              <StatBox label="Rep Profit" value={`£${ownFinancials.repProfit.toFixed(0)}`} />
+              <StatBox label="Quality (30%)" value={`£${ownFinancials.qualityPending.toFixed(0)}`} className="opacity-60" />
+            </div>
+          </div>
+        )}
+        {/* Recruitment KPIs */}
+        <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+          <SectionLabel icon={Target} label="Recruitment KPIs" />
+          <div className="grid grid-cols-3 gap-1.5">
+            {kpiStages.map((s) => <StatBox key={s} label={STAGE_CONFIG[s].label} value={thisWeekCounts[s] || 0} small />)}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-1">
+            {conversions.map((c) => (
+              <div key={c.label} className="flex justify-between text-[10px] px-1.5 py-0.5 bg-muted/20 rounded">
+                <span className="text-muted-foreground">{c.label}</span>
+                <span className="font-semibold text-foreground">{c.pct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* LinkedIn */}
+        <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+          <SectionLabel icon={Target} label="LinkedIn" />
+          <div className="grid grid-cols-2 gap-1.5">
+            <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
+            <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
+            <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
+            <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
+          </div>
+        </div>
+        {/* Crew Summary */}
+        {showCrewColumns && crewSummary && (
+          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+            <SectionLabel icon={Users} label="Crew Summary" />
+            <div className="grid grid-cols-2 gap-1.5">
+              <StatBox label="Headcount" value={crewSummary.headCount} small />
+              <StatBox label="HCS" value={crewSummary.hcs} small />
+              <StatBox label="BAs" value={crewSummary.brandAmbassadors} small />
+              <StatBox label="Leaders" value={crewSummary.leaders} small />
+              <StatBox label="Starts" value={crewSummary.startsThisWeek} small />
+              <StatBox label="Promos" value={crewSummary.promotionsThisWeek} small />
+            </div>
+          </div>
+        )}
+        {/* Crew Tree */}
+        {!isManager && isLeader && (
+          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+            <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
+            <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
+          </div>
+        )}
+      </div>
 
-        {/* SECTION: Crew Bubble with Role Labels & Weekly Sales */}
-        {!isManager && (isLeader ? (
-          <Card className="border-border/50 bg-card/80">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-primary" />
-                Crew Bubble
-                {crewTreeNodeCount > 1 && (
-                  <span className="text-xs font-normal text-muted-foreground">{crewTreeNodeCount} members</span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CrewTree
-                tree={crewTree}
-                showSales
-                salesMap={crewSalesMap}
-                profileUserMap={profileUserMap}
-                candidateStageMap={candidateStageMap}
-              />
-              {crewTreeNodeCount > 1 && (
-                <div className="flex items-center gap-6 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/30">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-4 rounded border-[1.5px] border-primary bg-primary/10" />
-                    <span>Leader</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-4 rounded border border-border/50 bg-muted/15" />
-                    <span>Brand Ambassador</span>
-                  </div>
+      {/* ═══ DESKTOP: 3-column (or 2-column for BA) ═══ */}
+      <div className="hidden lg:grid flex-1 min-h-0 gap-2" style={{ gridTemplateColumns: showCrewColumns ? "1fr 1.4fr 1fr" : "1fr 1.6fr" }}>
+
+        {/* ── LEFT COLUMN ── */}
+        <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pr-1">
+          {/* Recruitment KPIs */}
+          <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+            <SectionLabel icon={Target} label="Recruitment KPIs" />
+            <div className="grid grid-cols-3 gap-1">
+              {kpiStages.map((s) => <StatBox key={s} label={STAGE_CONFIG[s].label} value={thisWeekCounts[s] || 0} small />)}
+            </div>
+          </div>
+
+          {/* Conversion Rates */}
+          <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Conversion Rates</div>
+            <div className="space-y-0.5">
+              {conversions.map((c) => (
+                <div key={c.label} className="flex justify-between text-[10px] px-1.5 py-0.5 bg-muted/20 rounded">
+                  <span className="text-muted-foreground">{c.label}</span>
+                  <span className="font-semibold text-foreground">{c.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Commission */}
+          {ownTransactions.length > 0 && (
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+              <SectionLabel icon={Flame} label="Commission" color="hsl(0 70% 50%)" />
+              <div className="grid grid-cols-2 gap-1">
+                <StatBox label="Rep Profit" value={`£${ownFinancials.repProfit.toFixed(0)}`} small />
+                <StatBox label="Quality" value={`£${ownFinancials.qualityPending.toFixed(0)}`} small className="opacity-60" />
+              </div>
+              {crewFinancials && crewFinancials.crewTotalWire > 0 && (
+                <div className="mt-1.5 grid grid-cols-3 gap-1">
+                  <StatBox label="Crew Wire" value={`£${crewFinancials.crewTotalWire.toFixed(0)}`} small />
+                  <StatBox label="Avg/Seller" value={`£${crewFinancials.crewAvgWire.toFixed(0)}`} small />
+                  <StatBox label="HCS" value={crewFinancials.headcountSelling} small />
                 </div>
               )}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-border/50 bg-card/80 relative overflow-hidden">
-            <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2">
-              <Lock className="w-5 h-5 text-muted-foreground/60" />
-              <p className="text-xs text-muted-foreground font-medium">Unlocked when promoted to Leader</p>
             </div>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 opacity-40">
-                <GitBranch className="w-4 h-4" />
-                Crew Bubble
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="opacity-30">
-              <div className="h-24" />
-            </CardContent>
-          </Card>
-        ))}
+          )}
 
-        {/* SECTION 4: Personal Best (only if records achieved) */}
-        {personalBest.length > 0 && (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-primary" />
-                Personal Best
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {personalBest.map((record) => (
-                  <div key={record.metric} className="flex items-center gap-3 bg-primary/10 rounded-lg p-3">
-                    <span className="text-lg">🏆</span>
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">
-                        New Personal Best – {record.metric}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Previous Best: {record.previousBest}
-                      </div>
-                    </div>
-                    <div className="ml-auto text-2xl font-bold text-primary">{record.current}</div>
+          {/* BA locked crew placeholder */}
+          {!showCrewColumns && (
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 relative overflow-hidden flex-1">
+              <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-1">
+                <Lock className="w-4 h-4 text-muted-foreground/50" />
+                <p className="text-[10px] text-muted-foreground">Unlocked at Leader</p>
+              </div>
+              <SectionLabel icon={Users} label="Crew Summary" />
+              <div className="grid grid-cols-2 gap-1 opacity-30">
+                {["HC", "HCS", "BAs", "Leaders"].map((l) => <StatBox key={l} label={l} value="—" small />)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── CENTER COLUMN ── */}
+        <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto px-1">
+          {/* Sales Performance */}
+          <div className="bg-card/80 border border-[hsl(0_70%_50%/0.3)] rounded-lg p-2.5 flex-shrink-0">
+            <SectionLabel icon={Flame} label="Sales Performance — This Week" color="hsl(0 70% 50%)" />
+            {individualMeans && individualDeviations ? (
+              <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Your Performance" />
+            ) : (
+              <div className="text-[11px] text-muted-foreground text-center py-2">No sales data this week</div>
+            )}
+          </div>
+
+          {/* Crew Performance (Leaders/Managers) */}
+          {showCrewColumns && crewMeans && crewDeviations && (
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-shrink-0">
+              <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Performance" />
+            </div>
+          )}
+
+          {/* Bell Streak */}
+          <div className="flex-shrink-0">
+            <BellStreakCard />
+          </div>
+
+          {/* Personal Best (if any) */}
+          {(() => {
+            const trackMetrics: { key: PipelineStage; label: string }[] = [
+              { key: "obs", label: "OBs" }, { key: "start", label: "Starts" }, { key: "promoted", label: "Promotions" },
+            ];
+            const records: { metric: string; previousBest: number; current: number }[] = [];
+            for (const { key, label } of trackMetrics) {
+              let historicalBest = 0;
+              for (let w = 1; w <= 52; w++) {
+                const bounds = getWeekBounds(w);
+                const count = countInRange(allOwnCandidates, key, bounds.start, bounds.end);
+                if (count > historicalBest) historicalBest = count;
+              }
+              const currentCount = thisWeekCounts[key] || 0;
+              if (currentCount > historicalBest && currentCount > 0) {
+                records.push({ metric: label, previousBest: historicalBest, current: currentCount });
+              }
+            }
+            if (records.length === 0) return null;
+            return (
+              <div className="bg-primary/5 border border-primary/30 rounded-lg p-2.5 flex-shrink-0">
+                <SectionLabel icon={Trophy} label="Personal Best" />
+                {records.map((r) => (
+                  <div key={r.metric} className="flex items-center gap-2 text-xs">
+                    <span>🏆</span>
+                    <span className="text-foreground font-medium">{r.metric}</span>
+                    <span className="text-muted-foreground">prev {r.previousBest}</span>
+                    <span className="ml-auto text-primary font-bold text-base">{r.current}</span>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            );
+          })()}
+        </div>
+
+        {/* ── RIGHT COLUMN (Leaders/Managers only) ── */}
+        {showCrewColumns && (
+          <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pl-1">
+            {/* LinkedIn */}
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+              <SectionLabel icon={Target} label="LinkedIn" />
+              <div className="grid grid-cols-2 gap-1">
+                <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
+                <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
+                <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
+                <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
+              </div>
+            </div>
+
+            {/* Crew Summary */}
+            {crewSummary && (
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+                <SectionLabel icon={Users} label="Crew Summary" />
+                <div className="grid grid-cols-2 gap-1">
+                  <StatBox label="Headcount" value={crewSummary.headCount} small />
+                  <StatBox label="HCS" value={crewSummary.hcs} small />
+                  <StatBox label="BAs" value={crewSummary.brandAmbassadors} small />
+                  <StatBox label="Leaders" value={crewSummary.leaders} small />
+                  <StatBox label="Starts" value={crewSummary.startsThisWeek} small />
+                  <StatBox label="Promos" value={crewSummary.promotionsThisWeek} small />
+                  <StatBox label="Pipeline" value={crewSummary.potentialNewStarts} small className="col-span-2" />
+                </div>
+              </div>
+            )}
+
+            {/* Crew Tree */}
+            {!isManager && isLeader && (
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-1 min-h-0 overflow-y-auto">
+                <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
+                <div className="overflow-auto max-h-full">
+                  <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
