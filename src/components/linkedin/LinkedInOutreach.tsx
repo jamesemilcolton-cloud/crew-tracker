@@ -359,15 +359,28 @@ export function LinkedInOutreach() {
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `hsl(${card.color} / 0.15)` }}>
                     <card.icon className="w-5 h-5" style={{ color: `hsl(${card.color})` }} />
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => increment(card.incrementType)}
-                    disabled={mutation.isPending}
-                    className="text-xs font-bold h-9 px-4 rounded-lg border-0"
-                    style={{ background: `hsl(${card.color})`, color: "#fff" }}
-                  >
-                    +1
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    {card.value > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => decrement(card.incrementType)}
+                        disabled={mutation.isPending}
+                        className="text-xs font-bold h-9 w-9 p-0 rounded-lg"
+                      >
+                        <Undo2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => increment(card.incrementType)}
+                      disabled={mutation.isPending}
+                      className="text-xs font-bold h-9 px-4 rounded-lg border-0"
+                      style={{ background: `hsl(${card.color})`, color: "#fff" }}
+                    >
+                      +1
+                    </Button>
+                  </div>
                 </div>
                 <div className="text-4xl font-bold tracking-tight text-foreground">{card.value}</div>
                 <div className="text-sm font-semibold mt-1" style={{ color: `hsl(${card.color})` }}>{card.label}</div>
