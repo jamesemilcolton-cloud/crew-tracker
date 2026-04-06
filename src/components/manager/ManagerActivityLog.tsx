@@ -206,7 +206,6 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
 
   const handleSelectUser = (userId: string) => {
     setSelectedUser(userId);
-    fetchUserAllEntries(userId);
   };
 
   if (selectedUser) {
