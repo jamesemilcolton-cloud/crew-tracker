@@ -6,7 +6,7 @@ import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
 import { OfficeStarts } from "@/components/pipeline/OfficeStarts";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, GitBranch, ChevronDown, ArrowLeft } from "lucide-react";
+import { Users, GitBranch, ChevronDown, ArrowLeft, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
