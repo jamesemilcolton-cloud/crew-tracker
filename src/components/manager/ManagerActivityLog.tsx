@@ -122,6 +122,12 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
   useEffect(() => {
     if (selectedUser) {
       fetchUserAllEntries(selectedUser);
+      // Fetch profile name for display
+      supabase.from("profiles").select("full_name").eq("user_id", selectedUser).single().then(({ data }) => {
+        setSelectedUserProfileName(data?.full_name ?? null);
+      });
+    } else {
+      setSelectedUserProfileName(null);
     }
   }, [selectedUser]);
 
