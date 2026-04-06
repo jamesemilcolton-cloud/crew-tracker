@@ -7,7 +7,7 @@ import { SalesTransaction } from "@/hooks/useSalesTransactions";
 import { Candidate, STAGES_ORDER, STAGE_CONFIG, PipelineStage } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { useLinkedIn } from "@/hooks/useLinkedIn";
-import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target, Lock } from "lucide-react";
+import { Download, Trophy, Users, GitBranch, Flame, TrendingUp, Target, Lock, ChevronDown } from "lucide-react";
 import {
   getDescendantProfileIds,
   buildRecursiveTree,
@@ -319,21 +319,23 @@ export function WeeklySummary() {
     return counts;
   }, [allOwnCandidates, thisWeek]);
 
-  const conversions = useMemo(() => {
+  // Recruitment conversion pairs for inline display
+  const conversionPairs = useMemo(() => {
     const pairs: { from: PipelineStage; to: PipelineStage; label: string }[] = [
-      { from: "obs", to: "questionnaire", label: "Obs→Q" },
-      { from: "questionnaire", to: "bottom_line", label: "Q→BL" },
-      { from: "bottom_line", to: "final", label: "BL→F" },
-      { from: "final", to: "rehash", label: "F→R" },
-      { from: "rehash", to: "contact_before_start", label: "R→CBS" },
-      { from: "contact_before_start", to: "start", label: "CBS→S" },
-      { from: "start", to: "solo", label: "S→Solo" },
+      { from: "obs", to: "questionnaire", label: "→" },
+      { from: "questionnaire", to: "bottom_line", label: "→" },
+      { from: "bottom_line", to: "final", label: "→" },
+      { from: "final", to: "rehash", label: "→" },
+      { from: "rehash", to: "contact_before_start", label: "→" },
+      { from: "contact_before_start", to: "start", label: "→" },
+      { from: "start", to: "solo", label: "→" },
+      { from: "solo", to: "promoted", label: "→" },
     ];
     return pairs.map(({ from, to, label }) => {
       const fromCount = thisWeekCounts[from] || 0;
       const toCount = thisWeekCounts[to] || 0;
       const pct = fromCount > 0 ? Math.round((toCount / fromCount) * 100) : 0;
-      return { label, pct };
+      return { from, to, label, pct };
     });
   }, [thisWeekCounts]);
 
@@ -377,6 +379,30 @@ export function WeeklySummary() {
     const potentialNewStarts = allSubtreeCandidates.filter((c) => (c.stage === "contact_before_start" || c.stage === "rehash") && isNotDropped(c)).length;
     return { headCount, brandAmbassadors, leaders, startsThisWeek, promotionsThisWeek, hcs, potentialNewStarts };
   }, [isLeader, isManager, profile, allCandidates, allProfiles, thisWeek, crewSalesEntries]);
+
+  // Per-crew-member individual average gauges
+  const crewMemberGauges = useMemo(() => {
+    if (!showCrewColumns || !profile) return [];
+    const descendantIds = getDescendantProfileIds(profile.id, allProfiles);
+    const byUser = new Map<string, any[]>();
+    crewSalesEntries.forEach((e: any) => {
+      if (e.user_id === user?.id) return;
+      if (!byUser.has(e.user_id)) byUser.set(e.user_id, []);
+      byUser.get(e.user_id)!.push(e);
+    });
+    const members: { userId: string; name: string; means: Record<string, number> }[] = [];
+    byUser.forEach((entries, userId) => {
+      const prof = allProfiles.find(p => p.user_id === userId);
+      if (!prof) return;
+      if (!descendantIds.has(prof.id)) return;
+      const means = calcMeanGauges(entries);
+      if (means) {
+        members.push({ userId, name: prof.full_name, means });
+      }
+    });
+    members.sort((a, b) => (b.means.sales || 0) - (a.means.sales || 0));
+    return members;
+  }, [showCrewColumns, profile, allProfiles, crewSalesEntries, user]);
 
   // Crew Tree
   const treeCandidatesForBuild = useMemo(() => allCandidates.map((c) => ({ ...c, recruitedBy: c.recruitedBy ?? undefined })), [allCandidates]);
@@ -535,6 +561,70 @@ export function WeeklySummary() {
     );
   }
 
+  // ── Inline KPI with conversion arrows between stages ──
+  function RecruitmentKPIsInline() {
+    return (
+      <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+        <SectionLabel icon={Target} label="Recruitment KPIs" />
+        <div className="space-y-0.5">
+          {kpiStages.map((stage, i) => {
+            const count = thisWeekCounts[stage] || 0;
+            const conv = i > 0 ? conversionPairs[i - 1] : null;
+            return (
+              <div key={stage}>
+                {conv && (
+                  <div className="flex items-center justify-center py-0.5">
+                    <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/50" />
+                    <span className={`text-[9px] tabular-nums ml-1 ${conv.pct === 0 ? "text-muted-foreground/40" : conv.pct >= 80 ? "text-primary" : conv.pct >= 50 ? "text-foreground" : "text-destructive"}`}>
+                      {conv.pct}%
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between bg-muted/20 rounded px-2 py-1">
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{STAGE_CONFIG[stage].label}</span>
+                  <span className="text-sm font-bold text-foreground tabular-nums">{count}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Compact crew member gauges list ──
+  function CrewMemberGaugesList() {
+    if (!showCrewColumns) return null;
+    if (crewMemberGauges.length === 0) {
+      return (
+        <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+          <SectionLabel icon={Users} label="Crew Individual Averages" />
+          <p className="text-[10px] text-muted-foreground text-center py-2">No crew members with data this week</p>
+        </div>
+      );
+    }
+    return (
+      <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-1 min-h-0 overflow-y-auto">
+        <SectionLabel icon={Users} label="Crew Individual Averages" />
+        <div className="space-y-1.5">
+          {crewMemberGauges.map((member) => (
+            <div key={member.userId} className="bg-muted/20 rounded-md px-2 py-1.5">
+              <div className="text-[9px] font-medium text-foreground mb-0.5 truncate">{member.name}</div>
+              <div className="grid grid-cols-6 gap-0.5">
+                {GAUGE_KEYS.map((key) => (
+                  <div key={key} className="text-center">
+                    <div className="text-[7px] text-muted-foreground">{GAUGE_LABELS[key]}</div>
+                    <div className="text-xs font-bold tabular-nums text-foreground">{member.means[key]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // ── RENDER ──
 
   return (
@@ -556,16 +646,24 @@ export function WeeklySummary() {
         {/* Sales */}
         {individualMeans && individualDeviations && (
           <div className="bg-card/80 border border-border/50 rounded-lg p-3">
-            <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Your Sales" />
+            <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="My Sales Performance" />
           </div>
         )}
+        <BellStreakCard />
         {crewMeans && crewDeviations && (
           <div className="bg-card/80 border border-border/50 rounded-lg p-3">
             <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Sales" />
           </div>
         )}
-        {/* Bell Streak */}
-        <BellStreakCard />
+        {/* Crew Tree */}
+        {showCrewColumns && !isManager && isLeader && (
+          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
+            <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
+            <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
+          </div>
+        )}
+        {/* Crew Member Gauges */}
+        <CrewMemberGaugesList />
         {/* Commission */}
         {ownTransactions.length > 0 && (
           <div className="bg-card/80 border border-border/50 rounded-lg p-3">
@@ -577,20 +675,7 @@ export function WeeklySummary() {
           </div>
         )}
         {/* Recruitment KPIs */}
-        <div className="bg-card/80 border border-border/50 rounded-lg p-3">
-          <SectionLabel icon={Target} label="Recruitment KPIs" />
-          <div className="grid grid-cols-3 gap-1.5">
-            {kpiStages.map((s) => <StatBox key={s} label={STAGE_CONFIG[s].label} value={thisWeekCounts[s] || 0} small />)}
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-1">
-            {conversions.map((c) => (
-              <div key={c.label} className="flex justify-between text-[10px] px-1.5 py-0.5 bg-muted/20 rounded">
-                <span className="text-muted-foreground">{c.label}</span>
-                <span className="font-semibold text-foreground">{c.pct}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RecruitmentKPIsInline />
         {/* LinkedIn */}
         <div className="bg-card/80 border border-border/50 rounded-lg p-3">
           <SectionLabel icon={Target} label="LinkedIn" />
@@ -615,39 +700,26 @@ export function WeeklySummary() {
             </div>
           </div>
         )}
-        {/* Crew Tree */}
-        {!isManager && isLeader && (
-          <div className="bg-card/80 border border-border/50 rounded-lg p-3">
-            <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
-            <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
-          </div>
-        )}
       </div>
 
-      {/* ═══ DESKTOP: 3-column (or 2-column for BA) ═══ */}
-      <div className="hidden lg:grid flex-1 min-h-0 gap-2" style={{ gridTemplateColumns: showCrewColumns ? "1fr 1.4fr 1fr" : "1fr 1.6fr" }}>
+      {/* ═══ DESKTOP: 3-column (Leaders/Managers) or 2-column (BA) ═══ */}
+      <div className="hidden lg:grid flex-1 min-h-0 gap-2" style={{ gridTemplateColumns: showCrewColumns ? "1fr 1.4fr 1fr" : "1fr 1fr" }}>
 
         {/* ── LEFT COLUMN ── */}
         <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pr-1">
-          {/* Recruitment KPIs */}
-          <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-            <SectionLabel icon={Target} label="Recruitment KPIs" />
-            <div className="grid grid-cols-3 gap-1">
-              {kpiStages.map((s) => <StatBox key={s} label={STAGE_CONFIG[s].label} value={thisWeekCounts[s] || 0} small />)}
-            </div>
+          {/* My Sales Performance This Week */}
+          <div className="bg-card/80 border border-[hsl(0_70%_50%/0.3)] rounded-lg p-2.5 flex-shrink-0">
+            <SectionLabel icon={Flame} label="My Sales Performance — This Week" color="hsl(0 70% 50%)" />
+            {individualMeans && individualDeviations ? (
+              <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Daily Average" />
+            ) : (
+              <div className="text-[11px] text-muted-foreground text-center py-2">No sales data this week</div>
+            )}
           </div>
 
-          {/* Conversion Rates */}
-          <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Conversion Rates</div>
-            <div className="space-y-0.5">
-              {conversions.map((c) => (
-                <div key={c.label} className="flex justify-between text-[10px] px-1.5 py-0.5 bg-muted/20 rounded">
-                  <span className="text-muted-foreground">{c.label}</span>
-                  <span className="font-semibold text-foreground">{c.pct}%</span>
-                </div>
-              ))}
-            </div>
+          {/* Bell Streak */}
+          <div className="flex-shrink-0">
+            <BellStreakCard />
           </div>
 
           {/* Commission */}
@@ -668,46 +740,7 @@ export function WeeklySummary() {
             </div>
           )}
 
-          {/* BA locked crew placeholder */}
-          {!showCrewColumns && (
-            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 relative overflow-hidden flex-1">
-              <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-1">
-                <Lock className="w-4 h-4 text-muted-foreground/50" />
-                <p className="text-[10px] text-muted-foreground">Unlocked at Leader</p>
-              </div>
-              <SectionLabel icon={Users} label="Crew Summary" />
-              <div className="grid grid-cols-2 gap-1 opacity-30">
-                {["HC", "HCS", "BAs", "Leaders"].map((l) => <StatBox key={l} label={l} value="—" small />)}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── CENTER COLUMN ── */}
-        <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto px-1">
-          {/* Sales Performance */}
-          <div className="bg-card/80 border border-[hsl(0_70%_50%/0.3)] rounded-lg p-2.5 flex-shrink-0">
-            <SectionLabel icon={Flame} label="Sales Performance — This Week" color="hsl(0 70% 50%)" />
-            {individualMeans && individualDeviations ? (
-              <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Your Performance" />
-            ) : (
-              <div className="text-[11px] text-muted-foreground text-center py-2">No sales data this week</div>
-            )}
-          </div>
-
-          {/* Crew Performance (Leaders/Managers) */}
-          {showCrewColumns && crewMeans && crewDeviations && (
-            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-shrink-0">
-              <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Performance" />
-            </div>
-          )}
-
-          {/* Bell Streak */}
-          <div className="flex-shrink-0">
-            <BellStreakCard />
-          </div>
-
-          {/* Personal Best (if any) */}
+          {/* Personal Best */}
           {(() => {
             const trackMetrics: { key: PipelineStage; label: string }[] = [
               { key: "obs", label: "OBs" }, { key: "start", label: "Starts" }, { key: "promoted", label: "Promotions" },
@@ -740,12 +773,56 @@ export function WeeklySummary() {
               </div>
             );
           })()}
+
+          {/* For BAs: extra sections that would be in right col for leaders */}
+          {!showCrewColumns && (
+            <>
+              <RecruitmentKPIsInline />
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+                <SectionLabel icon={Target} label="LinkedIn" />
+                <div className="grid grid-cols-2 gap-1">
+                  <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
+                  <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
+                  <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
+                  <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* ── RIGHT COLUMN (Leaders/Managers only) ── */}
+        {/* ── CENTER COLUMN (Leaders/Managers: Crew Tree + Crew Perf + Member Gauges) ── */}
         {showCrewColumns && (
-          <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pl-1">
-            {/* LinkedIn */}
+          <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto px-1">
+            {/* Crew Tree */}
+            {!isManager && isLeader && (
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-shrink-0">
+                <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
+                <div className="overflow-auto max-h-[200px]">
+                  <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
+                </div>
+              </div>
+            )}
+
+            {/* Crew Performance */}
+            {crewMeans && crewDeviations && (
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-shrink-0">
+                <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Performance" />
+              </div>
+            )}
+
+            {/* Crew Member Individual Averages */}
+            <CrewMemberGaugesList />
+          </div>
+        )}
+
+        {/* ── RIGHT COLUMN (for BA this is the second col; for Leaders/Managers it's the third) ── */}
+        <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pl-1">
+          {/* Recruitment KPIs with inline conversions */}
+          {showCrewColumns && <RecruitmentKPIsInline />}
+
+          {/* LinkedIn */}
+          {showCrewColumns && (
             <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
               <SectionLabel icon={Target} label="LinkedIn" />
               <div className="grid grid-cols-2 gap-1">
@@ -755,34 +832,40 @@ export function WeeklySummary() {
                 <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
               </div>
             </div>
+          )}
 
-            {/* Crew Summary */}
-            {crewSummary && (
+          {/* Crew Summary */}
+          {showCrewColumns && crewSummary && (
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+              <SectionLabel icon={Users} label="Crew Summary" />
+              <div className="grid grid-cols-2 gap-1">
+                <StatBox label="Headcount" value={crewSummary.headCount} small />
+                <StatBox label="HCS" value={crewSummary.hcs} small />
+                <StatBox label="BAs" value={crewSummary.brandAmbassadors} small />
+                <StatBox label="Leaders" value={crewSummary.leaders} small />
+                <StatBox label="Starts" value={crewSummary.startsThisWeek} small />
+                <StatBox label="Promos" value={crewSummary.promotionsThisWeek} small />
+                <StatBox label="Pipeline" value={crewSummary.potentialNewStarts} small className="col-span-2" />
+              </div>
+            </div>
+          )}
+
+          {/* For BAs: Recruitment KPIs + LinkedIn go in the right/second column */}
+          {!showCrewColumns && (
+            <>
+              <RecruitmentKPIsInline />
               <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-                <SectionLabel icon={Users} label="Crew Summary" />
+                <SectionLabel icon={Target} label="LinkedIn" />
                 <div className="grid grid-cols-2 gap-1">
-                  <StatBox label="Headcount" value={crewSummary.headCount} small />
-                  <StatBox label="HCS" value={crewSummary.hcs} small />
-                  <StatBox label="BAs" value={crewSummary.brandAmbassadors} small />
-                  <StatBox label="Leaders" value={crewSummary.leaders} small />
-                  <StatBox label="Starts" value={crewSummary.startsThisWeek} small />
-                  <StatBox label="Promos" value={crewSummary.promotionsThisWeek} small />
-                  <StatBox label="Pipeline" value={crewSummary.potentialNewStarts} small className="col-span-2" />
+                  <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
+                  <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
+                  <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
+                  <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
                 </div>
               </div>
-            )}
-
-            {/* Crew Tree */}
-            {!isManager && isLeader && (
-              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-1 min-h-0 overflow-y-auto">
-                <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
-                <div className="overflow-auto max-h-full">
-                  <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
