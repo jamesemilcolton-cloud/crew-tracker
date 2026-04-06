@@ -133,9 +133,9 @@ export function Leaderboard() {
 
       const result: LeaderboardEntry[] = nonManagerProfiles.map((p) => {
         const userCandidates = candidates.filter((c) => c.user_id === p.user_id);
-        const userActivities = activities.filter((a) => a.user_id === p.user_id);
-        const userAds = ads.filter((a) => a.user_id === p.user_id);
-        const userCvs = cvs.filter((c) => c.user_id === p.user_id);
+        const userActivities = activities.filter((a) => a.user_id === p.user_id && a.activity_date >= wsStr && a.activity_date <= weStr);
+        const userAds = ads.filter((a) => a.user_id === p.user_id && a.upload_date >= wsStr && a.upload_date <= weStr);
+        const userCvs = cvs.filter((c) => c.user_id === p.user_id && c.download_date >= wsStr && c.download_date <= weStr);
 
         const totalInterviews = userCandidates.length;
         const starts = userCandidates.filter((c) => START_FORWARD.includes(c.stage)).length;
@@ -165,7 +165,7 @@ export function Leaderboard() {
       setDataLoaded(true);
     }
     if (sharedProfiles.length > 0) fetchData();
-  }, [sharedProfiles]);
+  }, [sharedProfiles, wsStr, weStr]);
 
   // Fetch profit leaderboard data from sales_transactions
   useEffect(() => {
