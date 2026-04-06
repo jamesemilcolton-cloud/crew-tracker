@@ -207,7 +207,7 @@ export default function Sales() {
   const weekTotals = getWeekTotals(currentWeekEntries);
   const prevTotals = getPrevWeekTotals();
   const loaData = getWeeklyLOAData();
-  const personalBest = getPersonalBestSales();
+  const personalBestDay = getPersonalBestDay();
   const weekFinancials = getWeekFinancials();
 
   useEffect(() => {
