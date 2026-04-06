@@ -561,32 +561,48 @@ export function WeeklySummary() {
     );
   }
 
-  // ── Inline KPI with conversion arrows between stages ──
-  function RecruitmentKPIsInline() {
-    return (
-      <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-        <SectionLabel icon={Target} label="Recruitment KPIs" />
-        <div className="space-y-0.5">
-          {kpiStages.map((stage, i) => {
+  // ── Compact 2-column KPI funnel ──
+  function RecruitmentKPIsCompact() {
+    const leftStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash"];
+    const rightStages: PipelineStage[] = ["contact_before_start", "start", "solo", "promoted"];
+    
+    function StageBlock({ stages, startConvIdx }: { stages: PipelineStage[]; startConvIdx: number }) {
+      return (
+        <div className="space-y-0">
+          {stages.map((stage, i) => {
             const count = thisWeekCounts[stage] || 0;
-            const conv = i > 0 ? conversionPairs[i - 1] : null;
+            const convIdx = startConvIdx + i;
+            const conv = convIdx > 0 && convIdx <= conversionPairs.length ? conversionPairs[convIdx - 1] : null;
+            // For right column, first item needs the bridging conversion from rehash→cbs
+            const bridgeConv = startConvIdx > 0 && i === 0 ? conversionPairs[startConvIdx - 1] : null;
+            const showConv = i > 0 ? conversionPairs[startConvIdx + i - 1] : bridgeConv;
             return (
               <div key={stage}>
-                {conv && (
-                  <div className="flex items-center justify-center py-0.5">
-                    <ChevronDown className="w-2.5 h-2.5 text-muted-foreground/50" />
-                    <span className={`text-[9px] tabular-nums ml-1 ${conv.pct === 0 ? "text-muted-foreground/40" : conv.pct >= 80 ? "text-primary" : conv.pct >= 50 ? "text-foreground" : "text-destructive"}`}>
-                      {conv.pct}%
+                {showConv && (
+                  <div className="flex items-center justify-center py-px">
+                    <ChevronDown className="w-2 h-2 text-muted-foreground/40" />
+                    <span className={`text-[8px] tabular-nums ml-0.5 ${showConv.pct === 0 ? "text-muted-foreground/40" : showConv.pct >= 80 ? "text-primary" : showConv.pct >= 50 ? "text-foreground" : "text-destructive"}`}>
+                      {showConv.pct}%
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-between bg-muted/20 rounded px-2 py-1">
-                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{STAGE_CONFIG[stage].label}</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums">{count}</span>
+                <div className="flex items-center justify-between bg-muted/20 rounded px-1.5 py-0.5">
+                  <span className="text-[8px] uppercase tracking-wider text-muted-foreground">{STAGE_CONFIG[stage].label}</span>
+                  <span className="text-xs font-bold text-foreground tabular-nums">{count}</span>
                 </div>
               </div>
             );
           })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-card/80 border border-border/50 rounded-lg p-2">
+        <SectionLabel icon={Target} label="Recruitment KPIs" />
+        <div className="grid grid-cols-2 gap-1.5">
+          <StageBlock stages={leftStages} startConvIdx={0} />
+          <StageBlock stages={rightStages} startConvIdx={5} />
         </div>
       </div>
     );
@@ -675,7 +691,7 @@ export function WeeklySummary() {
           </div>
         )}
         {/* Recruitment KPIs */}
-        <RecruitmentKPIsInline />
+        <RecruitmentKPIsCompact />
         {/* LinkedIn */}
         <div className="bg-card/80 border border-border/50 rounded-lg p-3">
           <SectionLabel icon={Target} label="LinkedIn" />
@@ -702,169 +718,153 @@ export function WeeklySummary() {
         )}
       </div>
 
-      {/* ═══ DESKTOP: 3-column (Leaders/Managers) or 2-column (BA) ═══ */}
-      <div className="hidden lg:grid flex-1 min-h-0 gap-2" style={{ gridTemplateColumns: showCrewColumns ? "1fr 1.4fr 1fr" : "1fr 1fr" }}>
+      {/* ═══ DESKTOP: 2-row layout — top panels + bottom panels ═══ */}
+      <div className="hidden lg:flex flex-col flex-1 min-h-0 gap-1.5">
 
-        {/* ── LEFT COLUMN ── */}
-        <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pr-1">
-          {/* My Sales Performance This Week */}
-          <div className="bg-card/80 border border-[hsl(0_70%_50%/0.3)] rounded-lg p-2.5 flex-shrink-0">
-            <SectionLabel icon={Flame} label="My Sales Performance — This Week" color="hsl(0 70% 50%)" />
-            {individualMeans && individualDeviations ? (
-              <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Daily Average" />
-            ) : (
-              <div className="text-[11px] text-muted-foreground text-center py-2">No sales data this week</div>
-            )}
-          </div>
+        {/* ── TOP ROW: 3 panels (or 2 for BAs) ── */}
+        <div className="grid gap-1.5 flex-shrink-0" style={{ gridTemplateColumns: showCrewColumns ? "1fr 1.2fr 1fr" : "1fr 1fr", height: "45%" }}>
 
-          {/* Bell Streak */}
-          <div className="flex-shrink-0">
-            <BellStreakCard />
-          </div>
-
-          {/* Commission */}
-          {ownTransactions.length > 0 && (
-            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-              <SectionLabel icon={Flame} label="Commission" color="hsl(0 70% 50%)" />
-              <div className="grid grid-cols-2 gap-1">
-                <StatBox label="Rep Profit" value={`£${ownFinancials.repProfit.toFixed(0)}`} small />
-                <StatBox label="Quality" value={`£${ownFinancials.qualityPending.toFixed(0)}`} small className="opacity-60" />
-              </div>
-              {crewFinancials && crewFinancials.crewTotalWire > 0 && (
-                <div className="mt-1.5 grid grid-cols-3 gap-1">
-                  <StatBox label="Crew Wire" value={`£${crewFinancials.crewTotalWire.toFixed(0)}`} small />
-                  <StatBox label="Avg/Seller" value={`£${crewFinancials.crewAvgWire.toFixed(0)}`} small />
-                  <StatBox label="HCS" value={crewFinancials.headcountSelling} small />
-                </div>
+          {/* Panel 1: My Sales Performance + Bell Streak */}
+          <div className="flex flex-col gap-1.5 min-h-0">
+            <div className="bg-card/80 border border-[hsl(0_70%_50%/0.3)] rounded-lg p-2 flex-shrink-0">
+              <SectionLabel icon={Flame} label="My Sales Performance — This Week" color="hsl(0 70% 50%)" />
+              {individualMeans && individualDeviations ? (
+                <SalesGaugeRow means={individualMeans} deviations={individualDeviations} sim={individualSim} label="Daily Average" />
+              ) : (
+                <div className="text-[10px] text-muted-foreground text-center py-1">No sales data this week</div>
               )}
+            </div>
+            <div className="flex-shrink-0">
+              <BellStreakCard />
+            </div>
+          </div>
+
+          {/* Panel 2 (Leaders/Managers): Crew Tree */}
+          {showCrewColumns && (
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2 min-h-0 flex flex-col">
+              <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
+              <div className="flex-1 min-h-0 overflow-auto">
+                {!isManager && isLeader && (
+                  <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
+                )}
+              </div>
             </div>
           )}
 
-          {/* Personal Best */}
-          {(() => {
-            const trackMetrics: { key: PipelineStage; label: string }[] = [
-              { key: "obs", label: "OBs" }, { key: "start", label: "Starts" }, { key: "promoted", label: "Promotions" },
-            ];
-            const records: { metric: string; previousBest: number; current: number }[] = [];
-            for (const { key, label } of trackMetrics) {
-              let historicalBest = 0;
-              for (let w = 1; w <= 52; w++) {
-                const bounds = getWeekBounds(w);
-                const count = countInRange(allOwnCandidates, key, bounds.start, bounds.end);
-                if (count > historicalBest) historicalBest = count;
-              }
-              const currentCount = thisWeekCounts[key] || 0;
-              if (currentCount > historicalBest && currentCount > 0) {
-                records.push({ metric: label, previousBest: historicalBest, current: currentCount });
-              }
-            }
-            if (records.length === 0) return null;
-            return (
-              <div className="bg-primary/5 border border-primary/30 rounded-lg p-2.5 flex-shrink-0">
-                <SectionLabel icon={Trophy} label="Personal Best" />
-                {records.map((r) => (
-                  <div key={r.metric} className="flex items-center gap-2 text-xs">
-                    <span>🏆</span>
-                    <span className="text-foreground font-medium">{r.metric}</span>
-                    <span className="text-muted-foreground">prev {r.previousBest}</span>
-                    <span className="ml-auto text-primary font-bold text-base">{r.current}</span>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* For BAs: extra sections that would be in right col for leaders */}
-          {!showCrewColumns && (
-            <>
-              <RecruitmentKPIsInline />
-              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-                <SectionLabel icon={Target} label="LinkedIn" />
-                <div className="grid grid-cols-2 gap-1">
-                  <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
-                  <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
-                  <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
-                  <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── CENTER COLUMN (Leaders/Managers: Crew Tree + Crew Perf + Member Gauges) ── */}
-        {showCrewColumns && (
-          <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto px-1">
-            {/* Crew Tree */}
-            {!isManager && isLeader && (
-              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-shrink-0">
-                <SectionLabel icon={GitBranch} label={`Crew Tree (${crewTreeNodeCount})`} />
-                <div className="overflow-auto max-h-[200px]">
-                  <CrewTree tree={crewTree} showSales salesMap={crewSalesMap} profileUserMap={profileUserMap} candidateStageMap={candidateStageMap} />
-                </div>
-              </div>
-            )}
-
-            {/* Crew Performance */}
-            {crewMeans && crewDeviations && (
-              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5 flex-shrink-0">
-                <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Performance" />
-              </div>
-            )}
-
-            {/* Crew Member Individual Averages */}
-            <CrewMemberGaugesList />
-          </div>
-        )}
-
-        {/* ── RIGHT COLUMN (for BA this is the second col; for Leaders/Managers it's the third) ── */}
-        <div className="flex flex-col gap-1.5 min-h-0 overflow-y-auto pl-1">
-          {/* Recruitment KPIs with inline conversions */}
-          {showCrewColumns && <RecruitmentKPIsInline />}
-
-          {/* LinkedIn */}
-          {showCrewColumns && (
-            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
+          {/* Panel 3: Recruitment KPIs (compact 2-col) + LinkedIn inline */}
+          <div className="flex flex-col gap-1.5 min-h-0">
+            <RecruitmentKPIsCompact />
+            <div className="bg-card/80 border border-border/50 rounded-lg p-2 flex-shrink-0">
               <SectionLabel icon={Target} label="LinkedIn" />
-              <div className="grid grid-cols-2 gap-1">
-                <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
-                <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
+              <div className="grid grid-cols-4 gap-1">
+                <StatBox label="Free" value={linkedInThisWeek.freeAds} small />
+                <StatBox label="Paid" value={linkedInThisWeek.paidAds} small />
                 <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
                 <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Crew Summary */}
-          {showCrewColumns && crewSummary && (
-            <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-              <SectionLabel icon={Users} label="Crew Summary" />
-              <div className="grid grid-cols-2 gap-1">
-                <StatBox label="Headcount" value={crewSummary.headCount} small />
-                <StatBox label="HCS" value={crewSummary.hcs} small />
-                <StatBox label="BAs" value={crewSummary.brandAmbassadors} small />
-                <StatBox label="Leaders" value={crewSummary.leaders} small />
-                <StatBox label="Starts" value={crewSummary.startsThisWeek} small />
-                <StatBox label="Promos" value={crewSummary.promotionsThisWeek} small />
-                <StatBox label="Pipeline" value={crewSummary.potentialNewStarts} small className="col-span-2" />
+        {/* ── BOTTOM ROW: 3 panels (or 2 for BAs) ── */}
+        <div className="grid gap-1.5 flex-1 min-h-0" style={{ gridTemplateColumns: showCrewColumns ? "1fr 1.2fr 1fr" : "1fr 1fr" }}>
+
+          {/* Bottom Left: Commission + Personal Best */}
+          <div className="flex flex-col gap-1.5 min-h-0">
+            {ownTransactions.length > 0 && (
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2 flex-shrink-0">
+                <SectionLabel icon={Flame} label="Commission" color="hsl(0 70% 50%)" />
+                <div className="grid grid-cols-2 gap-1">
+                  <StatBox label="Rep Profit" value={`£${ownFinancials.repProfit.toFixed(0)}`} small />
+                  <StatBox label="Quality" value={`£${ownFinancials.qualityPending.toFixed(0)}`} small className="opacity-60" />
+                </div>
+                {crewFinancials && crewFinancials.crewTotalWire > 0 && (
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    <StatBox label="Crew Wire" value={`£${crewFinancials.crewTotalWire.toFixed(0)}`} small />
+                    <StatBox label="Avg/Seller" value={`£${crewFinancials.crewAvgWire.toFixed(0)}`} small />
+                    <StatBox label="HCS" value={crewFinancials.headcountSelling} small />
+                  </div>
+                )}
               </div>
+            )}
+            {/* Personal Best */}
+            {(() => {
+              const trackMetrics: { key: PipelineStage; label: string }[] = [
+                { key: "obs", label: "OBs" }, { key: "start", label: "Starts" }, { key: "promoted", label: "Promotions" },
+              ];
+              const records: { metric: string; previousBest: number; current: number }[] = [];
+              for (const { key, label } of trackMetrics) {
+                let historicalBest = 0;
+                for (let w = 1; w <= 52; w++) {
+                  const bounds = getWeekBounds(w);
+                  const count = countInRange(allOwnCandidates, key, bounds.start, bounds.end);
+                  if (count > historicalBest) historicalBest = count;
+                }
+                const currentCount = thisWeekCounts[key] || 0;
+                if (currentCount > historicalBest && currentCount > 0) {
+                  records.push({ metric: label, previousBest: historicalBest, current: currentCount });
+                }
+              }
+              if (records.length === 0) return null;
+              return (
+                <div className="bg-primary/5 border border-primary/30 rounded-lg p-2 flex-shrink-0">
+                  <SectionLabel icon={Trophy} label="Personal Best" />
+                  {records.map((r) => (
+                    <div key={r.metric} className="flex items-center gap-2 text-xs">
+                      <span>🏆</span>
+                      <span className="text-foreground font-medium">{r.metric}</span>
+                      <span className="text-muted-foreground">prev {r.previousBest}</span>
+                      <span className="ml-auto text-primary font-bold text-sm">{r.current}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Bottom Center (Leaders/Managers): Crew Performance + Crew Member Averages */}
+          {showCrewColumns && (
+            <div className="flex flex-col gap-1.5 min-h-0">
+              {crewMeans && crewDeviations && (
+                <div className="bg-card/80 border border-border/50 rounded-lg p-2 flex-shrink-0">
+                  <SalesGaugeRow means={crewMeans} deviations={crewDeviations} sim={crewSim} label="Crew Performance" />
+                </div>
+              )}
+              <CrewMemberGaugesList />
             </div>
           )}
 
-          {/* For BAs: Recruitment KPIs + LinkedIn go in the right/second column */}
-          {!showCrewColumns && (
-            <>
-              <RecruitmentKPIsInline />
-              <div className="bg-card/80 border border-border/50 rounded-lg p-2.5">
-                <SectionLabel icon={Target} label="LinkedIn" />
-                <div className="grid grid-cols-2 gap-1">
-                  <StatBox label="Free Ads" value={linkedInThisWeek.freeAds} small />
-                  <StatBox label="Paid Ads" value={linkedInThisWeek.paidAds} small />
-                  <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
-                  <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
+          {/* Bottom Right: Crew Summary (or BA extras) */}
+          <div className="flex flex-col gap-1.5 min-h-0">
+            {showCrewColumns && crewSummary && (
+              <div className="bg-card/80 border border-border/50 rounded-lg p-2">
+                <SectionLabel icon={Users} label="Crew Summary" />
+                <div className="grid grid-cols-3 gap-1">
+                  <StatBox label="Headcount" value={crewSummary.headCount} small />
+                  <StatBox label="HCS" value={crewSummary.hcs} small />
+                  <StatBox label="BAs" value={crewSummary.brandAmbassadors} small />
+                  <StatBox label="Leaders" value={crewSummary.leaders} small />
+                  <StatBox label="Starts" value={crewSummary.startsThisWeek} small />
+                  <StatBox label="Promos" value={crewSummary.promotionsThisWeek} small />
+                  <StatBox label="Pipeline" value={crewSummary.potentialNewStarts} small className="col-span-3" />
                 </div>
               </div>
-            </>
-          )}
+            )}
+            {!showCrewColumns && (
+              <>
+                <RecruitmentKPIsCompact />
+                <div className="bg-card/80 border border-border/50 rounded-lg p-2">
+                  <SectionLabel icon={Target} label="LinkedIn" />
+                  <div className="grid grid-cols-4 gap-1">
+                    <StatBox label="Free" value={linkedInThisWeek.freeAds} small />
+                    <StatBox label="Paid" value={linkedInThisWeek.paidAds} small />
+                    <StatBox label="CVs" value={linkedInThisWeek.cvs} small />
+                    <StatBox label="LI OBs" value={linkedInThisWeek.linkedInObs} small />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
