@@ -237,7 +237,6 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
     </div>
   );
 }
-export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday, totalCvsThisWeek, onNavigate }: ManagerHomeProps) {
   const [newActivityCount, setNewActivityCount] = useState(0);
   const [noSalesUsers, setNoSalesUsers] = useState<AttentionUser[]>([]);
   const [noAdsUsers, setNoAdsUsers] = useState<AttentionUser[]>([]);
