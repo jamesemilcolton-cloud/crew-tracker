@@ -78,6 +78,8 @@ export function useSalesTransactions(weekStart: string, weekEnd: string) {
         quality_pending: tx.qualityPending,
       });
       if (error) throw error;
+      // Log activity
+      import("@/lib/activityLogger").then(m => m.logActivity("sales", "sale_transaction"));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-transactions"] });

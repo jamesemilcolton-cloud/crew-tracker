@@ -110,6 +110,8 @@ export function useCandidates(scope: "own" | "all" = "own") {
 
     if (data) {
       setCandidates((prev) => [...prev, rowToCandidate(data, [])]);
+      // Log activity
+      import("@/lib/activityLogger").then(m => m.logActivity("recruitment", "candidate_added"));
 
       // If source is "LinkedIn Messages", increment interviews on today's outreach record
       if (candidate.source === "LinkedIn Messages") {
