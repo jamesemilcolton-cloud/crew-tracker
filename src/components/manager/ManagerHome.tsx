@@ -1,5 +1,8 @@
-import { Crown, Star, Trophy, Linkedin, Activity, Users, ClipboardCheck, ScrollText, FileBarChart } from "lucide-react";
+import { Trophy, Linkedin, Users, ClipboardCheck, ScrollText, Bell, AlertTriangle, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 interface ManagerHomeProps {
   promotionCount: number;
@@ -10,6 +13,27 @@ interface ManagerHomeProps {
 }
 
 export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday, totalCvsThisWeek, onNavigate }: ManagerHomeProps) {
+  const [newActivityCount, setNewActivityCount] = useState(0);
+
+  useEffect(() => {
+    const fetchTodayActivity = async () => {
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+      const { count } = await supabase
+        .from("activity_log")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", `${todayStr}T00:00:00`)
+        .lte("created_at", `${todayStr}T23:59:59`);
+      setNewActivityCount(count ?? 0);
+    };
+    fetchTodayActivity();
+  }, []);
+
+  const notifications = [
+    ...(promotionCount > 0 ? [{ label: `${promotionCount} Promotion${promotionCount > 1 ? "s" : ""} Pending`, icon: AlertTriangle, color: "text-amber-500", target: "approvals" }] : []),
+    ...(personalBestCount > 0 ? [{ label: `${personalBestCount} New Personal Best${personalBestCount > 1 ? "s" : ""}`, icon: Zap, color: "text-orange-500", target: "approvals" }] : []),
+    ...(newActivityCount > 0 ? [{ label: `${newActivityCount} New Activities Logged Today`, icon: Bell, color: "text-blue-500", target: "activity" }] : []),
+  ];
+
   const statusCards = [
     { label: "Promotions Pending", value: promotionCount, color: "text-amber-500" },
     ...(personalBestCount > 0 ? [{ label: "Personal Bests", value: personalBestCount, color: "text-orange-500" }] : []),
@@ -27,6 +51,22 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
 
   return (
     <div className="space-y-6">
+      {/* Notification Bar */}
+      {notifications.length > 0 && (
+        <div className="space-y-2">
+          {notifications.map((n, i) => (
+            <button
+              key={i}
+              onClick={() => onNavigate(n.target)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/30 hover:border-primary/30 transition-all text-left group"
+            >
+              <n.icon className={`w-4 h-4 ${n.color} shrink-0`} />
+              <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{n.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Quick Status */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {statusCards.map((s) => (
