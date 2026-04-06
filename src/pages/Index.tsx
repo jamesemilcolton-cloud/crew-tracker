@@ -4,8 +4,9 @@ import { Candidate } from "@/lib/types";
 import { useCandidates } from "@/hooks/useCandidates";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { CrewBubbleForecast } from "@/components/crew/CrewBubbleForecast";
+import { OfficeStarts } from "@/components/pipeline/OfficeStarts";
 import { TrendRange, TREND_OPTIONS } from "@/components/pipeline/PipelineAnalytics";
-import { Users, GitBranch, ChevronDown, ArrowLeft } from "lucide-react";
+import { Users, GitBranch, ChevronDown, ArrowLeft, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProfileDropdown } from "@/components/ProfileDropdown";
@@ -16,11 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "pipeline" | "crew";
+type Tab = "pipeline" | "crew" | "office-starts";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
+  { id: "office-starts", label: "Office Starts", icon: <CalendarCheck className="w-4 h-4" /> },
 ];
 
 const Index = () => {
@@ -189,7 +191,7 @@ const Index = () => {
           />
         )}
         {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
-        
+        {activeTab === "office-starts" && <OfficeStarts />}
       </main>
     </div>
   );
