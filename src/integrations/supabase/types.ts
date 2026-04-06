@@ -382,6 +382,48 @@ export type Database = {
         }
         Relationships: []
       }
+      office_starts_read: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          profile_id: string
+          reader_name: string
+          user_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          reader_name?: string
+          user_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          reader_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_starts_read_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_starts_read_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       password_reset_tokens: {
         Row: {
           created_at: string
