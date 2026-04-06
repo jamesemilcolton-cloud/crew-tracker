@@ -138,6 +138,33 @@ export function useCandidates(scope: "own" | "all" = "own") {
             ...(existing ? { id: existing.id } : {}),
           } as any, { onConflict: "user_id,activity_date" });
       }
+
+      // If source is "LinkedIn Ads", increment candidates_attending_2nd_round on today's linkedin_activity
+      if (candidate.source === "LinkedIn Ads") {
+        const today = format(new Date(), "yyyy-MM-dd");
+        const { data: existing } = await supabase
+          .from("linkedin_activity")
+          .select("id, candidates_attending_2nd_round")
+          .eq("user_id", user.id)
+          .eq("activity_date", today)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("linkedin_activity")
+            .update({ candidates_attending_2nd_round: existing.candidates_attending_2nd_round + 1 })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("linkedin_activity").insert({
+            user_id: user.id,
+            activity_date: today,
+            free_ads_uploaded: 0,
+            paid_ads_uploaded: 0,
+            cvs_downloaded: 0,
+            candidates_attending_2nd_round: 1,
+          });
+        }
+      }
     }
     return { data, error };
   }, [user]);
