@@ -241,7 +241,7 @@ export default function SalesCrewTree({
       name: c.name,
       phone: "",
       notes: c.notes,
-      source: c.source as "LinkedIn" | "Office",
+      source: c.source as any,
       stage: c.stage as any,
       status: c.status as any,
       potentialStartDate: c.potential_start_date ?? undefined,

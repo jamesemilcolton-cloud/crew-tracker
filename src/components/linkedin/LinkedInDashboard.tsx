@@ -225,7 +225,6 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
     cvs: totalAttributedCVs,
     attending: filteredActivities.reduce((s, a) => s + a.candidatesAttending2ndRound, 0),
   }), [filteredActivities, totalAttributedCVs]);
-
   const activeAds = useMemo(() => adUploads.filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)), [adUploads]);
   const availableAds = useMemo(() => {
     const now = new Date();
@@ -258,9 +257,6 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       setAdAdNumber("1");
       setAdDateModalOpen(true);
       return;
-    }
-    if (type === "attend") {
-      await logActivity("attend");
     }
   };
 
@@ -357,7 +353,6 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
             { type: "free", label: "Free Ad Uploaded", icon: "📢" },
             { type: "paid", label: "Paid Ad Uploaded", icon: "💰" },
             { type: "cv", label: "CV Downloaded", icon: "📄" },
-            { type: "attend", label: "2nd Round from LinkedIn", icon: "👤" },
           ].map(({ type, label, icon }) => (
             <button key={type} onClick={() => handleQuickAdd(type)} className="flex items-center gap-2 p-3 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors text-left min-w-0">
               <span className="text-lg">{icon}</span>

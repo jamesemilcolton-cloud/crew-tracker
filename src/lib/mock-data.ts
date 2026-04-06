@@ -3,7 +3,7 @@ import { Candidate, LinkedInActivity, KPITarget, AdUpload, CVDownloadEntry } fro
 export const mockCandidates: Candidate[] = [
   {
     id: "c1", name: "Sarah Mitchell", notes: "Strong communicator, sales background. Very enthusiastic about the role.",
-    source: "LinkedIn", stage: "obs", potentialStartDate: "2026-03-10",
+    source: "LinkedIn Ads", stage: "obs", potentialStartDate: "2026-03-10",
     hasSalesPitchAccess: false, hasEvoAppAccess: false, history: [], createdAt: "2026-02-01",
   },
   {
@@ -13,7 +13,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c3", name: "Priya Sharma", notes: "Great energy, needs some coaching on objection handling.",
-    source: "LinkedIn", stage: "final",
+    source: "LinkedIn Ads", stage: "final",
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-02-06" },
@@ -35,7 +35,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c5", name: "Emily Chen", notes: "Unsure about hours. Needs follow-up call.",
-    source: "LinkedIn", stage: "contact_before_start",
+    source: "LinkedIn Ads", stage: "contact_before_start",
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-01-16" },
@@ -61,7 +61,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c7", name: "Olivia Brown", notes: "Started last week. Performing well in training.",
-    source: "LinkedIn", stage: "start", potentialStartDate: "2026-02-10",
+    source: "LinkedIn Ads", stage: "start", potentialStartDate: "2026-02-10",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c9",
     history: [
@@ -91,7 +91,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c9", name: "Rachel Adams", notes: "Promoted to leader. Building her own team now.",
-    source: "LinkedIn", stage: "promoted",
+    source: "LinkedIn Ads", stage: "promoted",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-10-05" },
@@ -122,7 +122,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c13", name: "Lisa Morgan", notes: "Waiting to hear back after final round.",
-    source: "LinkedIn", stage: "final", status: "Offered", potentialStartDate: "2026-03-20",
+    source: "LinkedIn Ads", stage: "final", status: "Offered", potentialStartDate: "2026-03-20",
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-02-08" },
@@ -133,12 +133,12 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c14", name: "Kevin Park", notes: "Very interested. Following up Monday.",
-    source: "LinkedIn", stage: "obs", potentialStartDate: "2026-04-01",
+    source: "LinkedIn Ads", stage: "obs", potentialStartDate: "2026-04-01",
     hasSalesPitchAccess: false, hasEvoAppAccess: false, history: [], createdAt: "2026-02-16",
   },
   {
     id: "c15", name: "Sophie Turner", notes: "Came through LinkedIn ad campaign. Solid interview.",
-    source: "LinkedIn", stage: "start", potentialStartDate: "2026-01-06",
+    source: "LinkedIn Ads", stage: "start", potentialStartDate: "2026-01-06",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c19",
     history: [
@@ -153,7 +153,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c17", name: "Hannah Clarke", notes: "Fast-tracked through. Working solo in 3 weeks.",
-    source: "LinkedIn", stage: "solo",
+    source: "LinkedIn Ads", stage: "solo",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-12-02" },
@@ -181,7 +181,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c19", name: "Megan Scott", notes: "Promoted fast. Now leading a small team.",
-    source: "LinkedIn", stage: "promoted",
+    source: "LinkedIn Ads", stage: "promoted",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-11-02" },
@@ -197,7 +197,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c21", name: "Zara Hussain", notes: "LinkedIn outreach. Strong closer.",
-    source: "LinkedIn", stage: "start", potentialStartDate: "2025-12-02",
+    source: "LinkedIn Ads", stage: "start", potentialStartDate: "2025-12-02",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c23",
     history: [
@@ -228,7 +228,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c23", name: "Chloe Evans", notes: "One of the first recruits. Now a top performer.",
-    source: "LinkedIn", stage: "promoted",
+    source: "LinkedIn Ads", stage: "promoted",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-09-05" },
@@ -244,7 +244,7 @@ export const mockCandidates: Candidate[] = [
   },
   {
     id: "c25", name: "Ella Nguyen", notes: "Strong LinkedIn prospect. Great numbers.",
-    source: "LinkedIn", stage: "solo",
+    source: "LinkedIn Ads", stage: "solo",
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     recruitedBy: "c23",
     history: [
