@@ -315,7 +315,7 @@ export default function Manager() {
       case "team":
         return <ManagerTeam users={users} loading={loading} currentUserId={user?.id} actionLoading={actionLoading} onPromote={handlePromoteClick} onDemote={handleDemoteClick} onResetPassword={handleResetPassword} onDisable={setDeleteTarget} />;
       case "activity":
-        return <ManagerActivityLog />;
+        return <ManagerActivityLog initialUserId={activityUserId} onUserViewed={() => setActivityUserId(null)} />;
       default:
         return null;
     }
