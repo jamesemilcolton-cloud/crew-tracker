@@ -82,6 +82,7 @@ export default function Manager() {
   const navigate = useNavigate();
   const { user, userRole, session } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [activityUserId, setActivityUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null);
