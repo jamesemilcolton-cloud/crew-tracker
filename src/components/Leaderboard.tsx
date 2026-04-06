@@ -165,7 +165,7 @@ export function Leaderboard() {
       setDataLoaded(true);
     }
     if (sharedProfiles.length > 0) fetchData();
-  }, [sharedProfiles]);
+  }, [sharedProfiles, wsStr, weStr]);
 
   // Fetch profit leaderboard data from sales_transactions
   useEffect(() => {
