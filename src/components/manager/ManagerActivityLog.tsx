@@ -117,6 +117,13 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
     }
   }, [initialUserId]);
 
+  // Fetch user entries when selectedUser is set (including from initialUserId)
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserAllEntries(selectedUser);
+    }
+  }, [selectedUser]);
+
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     let query = supabase
