@@ -202,6 +202,20 @@ export function LinkedInOutreach() {
     });
   }, [current, mutation]);
 
+  const decrement = useCallback((type: "sent" | "reply" | "interview") => {
+    const fieldMap = { sent: "sent", reply: "replies", interview: "interviews" } as const;
+    const field = fieldMap[type];
+    if (current[field] <= 0) return;
+    // Remove the last matching log entry
+    const logCopy = [...current.activity_log];
+    const lastIdx = logCopy.map(e => e.type).lastIndexOf(type);
+    if (lastIdx !== -1) logCopy.splice(lastIdx, 1);
+    mutation.mutate({
+      [field]: current[field] - 1,
+      activity_log: logCopy,
+    });
+  }, [current, mutation]);
+
   const replyRate = current.sent > 0 ? Math.round((current.replies / current.sent) * 100) : 0;
   const interviewRate = current.sent > 0 ? Math.round((current.interviews / current.sent) * 100) : 0;
 
