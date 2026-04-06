@@ -185,31 +185,26 @@ export function useSalesData(weekOffset: number = 0) {
     return getWeekTotals(entries);
   }
 
-  // Personal Best: highest weekly sales across all history
-  function getPersonalBestSales(): number | null {
+  // Personal Best: highest daily sales across all history, with that day's gauges
+  function getPersonalBestDay(): { sales: number; doors: number; spoken: number; presentations: number; closes: number; tablets: number; date: string } | null {
     const allEntries = historicalQuery.data || [];
     if (allEntries.length === 0) return null;
 
-    const dates = allEntries.map((e) => e.entry_date).sort();
-    const earliest = new Date(dates[0]);
-    const latest = new Date(dates[dates.length - 1]);
-
-    let best = 0;
-    let ws = getMondayOfWeek(earliest);
-
-    while (ws <= latest) {
-      const wsS = format(ws, "yyyy-MM-dd");
-      const weDate = new Date(ws); weDate.setDate(ws.getDate() + 6); weDate.setHours(23,59,59,999);
-      const weS = format(weDate, "yyyy-MM-dd");
-      const weekEntries = allEntries.filter(
-        (e) => e.entry_date >= wsS && e.entry_date <= weS
-      );
-      const totalSales = weekEntries.reduce((sum, e) => sum + e.sales, 0);
-      if (totalSales > best) best = totalSales;
-      ws = addDays(ws, 7);
+    let best: typeof allEntries[0] | null = null;
+    for (const e of allEntries) {
+      if (!best || e.sales > best.sales) best = e;
     }
 
-    return best > 0 ? best : null;
+    if (!best || best.sales === 0) return null;
+    return {
+      sales: best.sales,
+      doors: best.doors,
+      spoken: best.spoken,
+      presentations: best.presentations,
+      closes: best.closes,
+      tablets: best.tablets,
+      date: best.entry_date,
+    };
   }
 
   // Check if selected week is the current week
