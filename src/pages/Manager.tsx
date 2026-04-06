@@ -68,6 +68,7 @@ interface PersonalBestEntry {
 type RoleAction = { type: "promote" | "demote"; user: ManagedUser } | null;
 type TabKey = "home" | "performance" | "linkedin" | "team" | "approvals" | "activity";
 
+
 const TABS: { key: TabKey; label: string; icon: typeof Home }[] = [
   { key: "home", label: "Home", icon: Home },
   { key: "approvals", label: "Approvals", icon: ClipboardCheck },
@@ -81,6 +82,7 @@ export default function Manager() {
   const navigate = useNavigate();
   const { user, userRole, session } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [activityUserId, setActivityUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null);
@@ -295,7 +297,15 @@ export default function Manager() {
   const renderTab = () => {
     switch (activeTab) {
       case "home":
-        return <ManagerHome promotionCount={promotionQueue.length} personalBestCount={personalBests.length} totalSalesToday={totalSalesToday} totalCvsThisWeek={totalCvsThisWeek} onNavigate={(tab) => setActiveTab(tab as TabKey)} />;
+        return <ManagerHome promotionCount={promotionQueue.length} personalBestCount={personalBests.length} totalSalesToday={totalSalesToday} totalCvsThisWeek={totalCvsThisWeek} onNavigate={(tab) => {
+          if (tab.startsWith("activity:user:")) {
+            setActivityUserId(tab.split("activity:user:")[1]);
+            setActiveTab("activity");
+          } else {
+            setActivityUserId(null);
+            setActiveTab(tab as TabKey);
+          }
+        }} />;
       case "approvals":
         return <ManagerApprovals promotionQueue={promotionQueue} personalBests={personalBests} mondayPBs={mondayPBs} actionLoading={actionLoading} onApprove={handleApprovePromotion} onReject={handleRejectPromotion} onDismissPBs={handleDismissPBs} />;
       case "performance":
@@ -305,7 +315,7 @@ export default function Manager() {
       case "team":
         return <ManagerTeam users={users} loading={loading} currentUserId={user?.id} actionLoading={actionLoading} onPromote={handlePromoteClick} onDemote={handleDemoteClick} onResetPassword={handleResetPassword} onDisable={setDeleteTarget} />;
       case "activity":
-        return <ManagerActivityLog />;
+        return <ManagerActivityLog initialUserId={activityUserId} onUserViewed={() => setActivityUserId(null)} />;
       default:
         return null;
     }
