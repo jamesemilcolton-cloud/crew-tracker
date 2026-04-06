@@ -17,11 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type Tab = "pipeline" | "crew";
+type Tab = "pipeline" | "crew" | "office-starts";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "pipeline", label: "Pipeline", icon: <Users className="w-4 h-4" /> },
   { id: "crew", label: "Crew Bubble", icon: <GitBranch className="w-4 h-4" /> },
+  { id: "office-starts", label: "Office Starts", icon: <CalendarCheck className="w-4 h-4" /> },
 ];
 
 const Index = () => {
