@@ -1,4 +1,4 @@
-import { Trophy, Linkedin, Users, ClipboardCheck, ScrollText, Bell, AlertTriangle, Zap, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Trophy, Linkedin, Users, ClipboardCheck, ScrollText, Bell, AlertTriangle, Zap, AlertCircle, CheckCircle2, Check, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,15 +12,18 @@ interface ManagerHomeProps {
   onNavigate: (tab: string) => void;
 }
 
-interface AttentionUser {
+interface UserStatus {
   name: string;
   userId: string;
+  hasActiveAd: boolean;
+  hasCvsToday: boolean;
+  hasOutreachToday: boolean;
+  hasSalesToday: boolean;
 }
 
 export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday, totalCvsThisWeek, onNavigate }: ManagerHomeProps) {
   const [newActivityCount, setNewActivityCount] = useState(0);
-  const [noSalesUsers, setNoSalesUsers] = useState<AttentionUser[]>([]);
-  const [noAdsUsers, setNoAdsUsers] = useState<AttentionUser[]>([]);
+  const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [attentionLoading, setAttentionLoading] = useState(true);
 
   useEffect(() => {
@@ -42,7 +45,6 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
       try {
         const todayStr = format(new Date(), "yyyy-MM-dd");
 
-        // Get all non-manager profiles
         const { data: allProfiles } = await supabase
           .from("profiles")
           .select("id, user_id, full_name");
@@ -55,31 +57,48 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
         const managerUserIds = new Set((managerRoles || []).map(r => r.user_id));
         const nonManagerProfiles = (allProfiles || []).filter(p => !managerUserIds.has(p.user_id));
 
-        // Check sales today
+        const { data: activeAds } = await supabase
+          .from("ad_uploads")
+          .select("user_id")
+          .is("close_date", null);
+        const usersWithAds = new Set((activeAds || []).map(a => a.user_id));
+
+        const { data: cvsToday } = await supabase
+          .from("cv_downloads")
+          .select("user_id")
+          .eq("download_date", todayStr);
+        const usersWithCvs = new Set((cvsToday || []).map(c => c.user_id));
+
+        const { data: outreachToday } = await supabase
+          .from("linkedin_outreach")
+          .select("user_id, sent")
+          .eq("activity_date", todayStr)
+          .gt("sent", 0);
+        const usersWithOutreach = new Set((outreachToday || []).map(o => o.user_id));
+
         const { data: salesToday } = await supabase
           .from("sales_entries")
           .select("user_id")
           .eq("entry_date", todayStr)
           .gt("sales", 0);
-
         const usersWithSales = new Set((salesToday || []).map(s => s.user_id));
-        const missingSales = nonManagerProfiles
-          .filter(p => !usersWithSales.has(p.user_id))
-          .map(p => ({ name: p.full_name, userId: p.user_id }));
 
-        // Check active LinkedIn ads
-        const { data: activeAds } = await supabase
-          .from("ad_uploads")
-          .select("user_id")
-          .is("close_date", null);
+        const statuses: UserStatus[] = nonManagerProfiles.map(p => ({
+          name: p.full_name,
+          userId: p.user_id,
+          hasActiveAd: usersWithAds.has(p.user_id),
+          hasCvsToday: usersWithCvs.has(p.user_id),
+          hasOutreachToday: usersWithOutreach.has(p.user_id),
+          hasSalesToday: usersWithSales.has(p.user_id),
+        }));
 
-        const usersWithAds = new Set((activeAds || []).map(a => a.user_id));
-        const missingAds = nonManagerProfiles
-          .filter(p => !usersWithAds.has(p.user_id))
-          .map(p => ({ name: p.full_name, userId: p.user_id }));
+        statuses.sort((a, b) => {
+          const scoreA = [a.hasActiveAd, a.hasCvsToday, a.hasOutreachToday, a.hasSalesToday].filter(Boolean).length;
+          const scoreB = [b.hasActiveAd, b.hasCvsToday, b.hasOutreachToday, b.hasSalesToday].filter(Boolean).length;
+          return scoreA - scoreB;
+        });
 
-        setNoSalesUsers(missingSales);
-        setNoAdsUsers(missingAds);
+        setUserStatuses(statuses);
       } catch (err) {
         console.error("Error fetching attention data:", err);
       } finally {
@@ -110,12 +129,18 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
     { key: "activity", icon: ScrollText, title: "Activity Log", description: "Real-time feed of actions across all modules", color: "hsl(0 70% 55%)" },
   ];
 
-  const hasAttentionItems = noSalesUsers.length > 0 || noAdsUsers.length > 0;
-  const allClear = !attentionLoading && !hasAttentionItems;
+  const needsAttentionUsers = userStatuses.filter(u => !u.hasActiveAd || !u.hasCvsToday || !u.hasOutreachToday || !u.hasSalesToday);
+  const allClear = !attentionLoading && needsAttentionUsers.length === 0;
+
+  const StatusBadge = ({ ok, label, badLabel }: { ok: boolean; label: string; badLabel?: string }) => (
+    <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${ok ? "text-emerald-600 bg-emerald-500/10" : "text-destructive bg-destructive/10"}`}>
+      {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+      {ok ? label : (badLabel || label)}
+    </span>
+  );
 
   return (
     <div className="space-y-6">
-      {/* Notification Bar */}
       {notifications.length > 0 && (
         <div className="space-y-2">
           {notifications.map((n, i) => (
@@ -131,64 +156,41 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
         </div>
       )}
 
-      {/* Needs Attention */}
       {!attentionLoading && (
         <div className="rounded-lg border border-border/30 bg-muted/20 p-4 space-y-3">
           <div className="flex items-center gap-2">
-            {hasAttentionItems ? (
+            {!allClear ? (
               <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
             ) : (
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
             )}
-            <h3 className="text-sm font-semibold text-foreground">Needs Attention</h3>
+            <h3 className="text-sm font-semibold text-foreground">Team Activity Status</h3>
           </div>
 
           {allClear ? (
             <p className="text-sm text-muted-foreground">All users are up to date</p>
           ) : (
-            <div className="space-y-4">
-              {noSalesUsers.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    No Sales Logged Today — {noSalesUsers.length} user{noSalesUsers.length !== 1 ? "s" : ""}
-                  </p>
+            <div className="space-y-2">
+              {needsAttentionUsers.map((u) => (
+                <button
+                  key={u.userId}
+                  onClick={() => onNavigate(`activity:user:${u.userId}`)}
+                  className="w-full text-left p-2.5 rounded-md bg-muted/40 border border-border/20 hover:border-primary/40 transition-colors"
+                >
+                  <p className="text-sm font-medium text-foreground mb-1.5">{u.name}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {noSalesUsers.map((u) => (
-                      <button
-                        key={u.userId}
-                        onClick={() => onNavigate(`activity:user:${u.userId}`)}
-                        className="text-xs px-2 py-1 rounded-md bg-muted/40 border border-border/20 text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                      >
-                        {u.name}
-                      </button>
-                    ))}
+                    <StatusBadge ok={u.hasActiveAd} label="LinkedIn Ads" badLabel="No Active Ad" />
+                    <StatusBadge ok={u.hasCvsToday} label="CVs" badLabel="CVs" />
+                    <StatusBadge ok={u.hasOutreachToday} label="Outreach" badLabel="Outreach" />
+                    <StatusBadge ok={u.hasSalesToday} label="Sales" badLabel="Sales" />
                   </div>
-                </div>
-              )}
-              {noAdsUsers.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    No Active LinkedIn Ad — {noAdsUsers.length} user{noAdsUsers.length !== 1 ? "s" : ""}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {noAdsUsers.map((u) => (
-                      <button
-                        key={u.userId}
-                        onClick={() => onNavigate(`activity:user:${u.userId}`)}
-                        className="text-xs px-2 py-1 rounded-md bg-muted/40 border border-border/20 text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                      >
-                        {u.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                </button>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Quick Status */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {statusCards.map((s) => (
           <Card key={s.label} className="glass-panel">
@@ -200,7 +202,6 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
         ))}
       </div>
 
-      {/* Navigation Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {navItems.map((item) => (
           <Card
