@@ -79,8 +79,7 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
         const { data: salesToday } = await supabase
           .from("sales_entries")
           .select("user_id")
-          .eq("entry_date", todayStr)
-          .gt("sales", 0);
+          .eq("entry_date", todayStr);
         const usersWithSales = new Set((salesToday || []).map(s => s.user_id));
 
         const statuses: UserStatus[] = nonManagerProfiles.map(p => ({
