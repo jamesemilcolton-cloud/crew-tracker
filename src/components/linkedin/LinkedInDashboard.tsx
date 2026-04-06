@@ -227,7 +227,20 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
   }), [filteredActivities, totalAttributedCVs]);
 
   const activeAds = useMemo(() => adUploads.filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)), [adUploads]);
-  const availableAds = useMemo(() => [...adUploads].filter(a => !a.closeDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30), [adUploads]);
+  const availableAds = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    return [...adUploads]
+      .filter(a => !a.closeDate || new Date(a.closeDate) >= sevenDaysAgo)
+      .sort((a, b) => {
+        // Active ads first, then recently closed
+        if (!a.closeDate && b.closeDate) return -1;
+        if (a.closeDate && !b.closeDate) return 1;
+        return b.date.localeCompare(a.date);
+      })
+      .slice(0, 30);
+  }, [adUploads]);
 
   const handleQuickAdd = async (type: string) => {
     if (type === "cv") {
