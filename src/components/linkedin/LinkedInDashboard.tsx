@@ -259,9 +259,6 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
       setAdDateModalOpen(true);
       return;
     }
-    if (type === "attend") {
-      await logActivity("attend");
-    }
   };
 
   const handleAdDateConfirm = async () => {

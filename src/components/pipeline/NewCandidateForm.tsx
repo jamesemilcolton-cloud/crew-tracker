@@ -98,7 +98,7 @@ export function NewCandidateForm({ onAdd }: NewCandidateFormProps) {
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                      <SelectItem value="LinkedIn Ads">LinkedIn Ads</SelectItem>
                       <SelectItem value="Office">Office</SelectItem>
                       <SelectItem value="Personal">Personal</SelectItem>
                       <SelectItem value="LinkedIn Messages">LinkedIn Messages</SelectItem>
