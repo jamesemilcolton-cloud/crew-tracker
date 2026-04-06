@@ -1,0 +1,1 @@
+DELETE FROM public.linkedin_outreach WHERE id = '63f43a16-9604-4f0e-a6ea-4f11a31f137b';
