@@ -68,6 +68,7 @@ interface PersonalBestEntry {
 type RoleAction = { type: "promote" | "demote"; user: ManagedUser } | null;
 type TabKey = "home" | "performance" | "linkedin" | "team" | "approvals" | "activity";
 
+
 const TABS: { key: TabKey; label: string; icon: typeof Home }[] = [
   { key: "home", label: "Home", icon: Home },
   { key: "approvals", label: "Approvals", icon: ClipboardCheck },
