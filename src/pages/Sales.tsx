@@ -27,7 +27,7 @@ export default function Sales() {
   const {
     currentWeekEntries, saveDayMutation, getDateForDay, getEntryForDate,
     getWeekTotals, calcLOA, calcCloseLOA, getWeeklyLOAData, getPrevWeekTotals,
-    getPersonalBestSales, DAYS, isCurrentWeek, weekLabel,
+    getPersonalBestDay, DAYS, isCurrentWeek, weekLabel,
   } = useSalesData(weekOffset);
 
   // Compute week bounds for transactions
