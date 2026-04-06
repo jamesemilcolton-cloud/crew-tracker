@@ -48,12 +48,12 @@ function calcMetrics(candidates: Candidate[]): ChannelMetrics {
 export function ChannelConversion({ candidates }: ChannelConversionProps) {
   const channels = useMemo(() => {
     const office = candidates.filter((c) => c.source === "Office");
-    const linkedin = candidates.filter((c) => c.source === "LinkedIn");
+    const linkedin = candidates.filter((c) => c.source === "LinkedIn Ads");
     const personal = candidates.filter((c) => c.source === "Personal");
 
     return [
       { label: "Office", metrics: calcMetrics(office) },
-      { label: "LinkedIn", metrics: calcMetrics(linkedin) },
+      { label: "LinkedIn Ads", metrics: calcMetrics(linkedin) },
       { label: "Personal", metrics: calcMetrics(personal) },
     ];
   }, [candidates]);
