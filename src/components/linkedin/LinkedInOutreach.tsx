@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { format, startOfWeek, endOfWeek, subWeeks, eachDayOfInterval, isAfter } from "date-fns";
-import { CalendarIcon, Send, MessageSquareReply, PhoneCall, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { CalendarIcon, Send, MessageSquareReply, PhoneCall, TrendingUp, TrendingDown, Minus, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -202,6 +202,20 @@ export function LinkedInOutreach() {
     });
   }, [current, mutation]);
 
+  const decrement = useCallback((type: "sent" | "reply" | "interview") => {
+    const fieldMap = { sent: "sent", reply: "replies", interview: "interviews" } as const;
+    const field = fieldMap[type];
+    if (current[field] <= 0) return;
+    // Remove the last matching log entry
+    const logCopy = [...current.activity_log];
+    const lastIdx = logCopy.map(e => e.type).lastIndexOf(type);
+    if (lastIdx !== -1) logCopy.splice(lastIdx, 1);
+    mutation.mutate({
+      [field]: current[field] - 1,
+      activity_log: logCopy,
+    });
+  }, [current, mutation]);
+
   const replyRate = current.sent > 0 ? Math.round((current.replies / current.sent) * 100) : 0;
   const interviewRate = current.sent > 0 ? Math.round((current.interviews / current.sent) * 100) : 0;
 
@@ -345,15 +359,28 @@ export function LinkedInOutreach() {
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `hsl(${card.color} / 0.15)` }}>
                     <card.icon className="w-5 h-5" style={{ color: `hsl(${card.color})` }} />
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => increment(card.incrementType)}
-                    disabled={mutation.isPending}
-                    className="text-xs font-bold h-9 px-4 rounded-lg border-0"
-                    style={{ background: `hsl(${card.color})`, color: "#fff" }}
-                  >
-                    +1
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    {card.value > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => decrement(card.incrementType)}
+                        disabled={mutation.isPending}
+                        className="text-xs font-bold h-9 w-9 p-0 rounded-lg"
+                      >
+                        <Undo2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => increment(card.incrementType)}
+                      disabled={mutation.isPending}
+                      className="text-xs font-bold h-9 px-4 rounded-lg border-0"
+                      style={{ background: `hsl(${card.color})`, color: "#fff" }}
+                    >
+                      +1
+                    </Button>
+                  </div>
                 </div>
                 <div className="text-4xl font-bold tracking-tight text-foreground">{card.value}</div>
                 <div className="text-sm font-semibold mt-1" style={{ color: `hsl(${card.color})` }}>{card.label}</div>
