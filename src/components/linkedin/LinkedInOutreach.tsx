@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { format, startOfWeek, endOfWeek, subWeeks, eachDayOfInterval, isAfter } from "date-fns";
-import { CalendarIcon, Send, MessageSquareReply, PhoneCall, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { CalendarIcon, Send, MessageSquareReply, PhoneCall, TrendingUp, TrendingDown, Minus, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";

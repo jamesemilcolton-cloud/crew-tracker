@@ -1,0 +1,1 @@
+DELETE FROM public.activity_log WHERE id = 'c69dc48a-6317-4649-950d-e26cf80fe297';
