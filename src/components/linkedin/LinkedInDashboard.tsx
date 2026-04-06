@@ -484,7 +484,7 @@ export function LinkedInDashboard({ trendRange, signupDate }: LinkedInDashboardP
                 <SelectContent>
                   {availableAds.map((ad) => (
                     <SelectItem key={ad.id} value={ad.id}>
-                      Ad {ad.adNumber} — Title {ad.titleNumber} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} — Uploaded {format(new Date(ad.date), "d MMM")}
+                      Ad {ad.adNumber} — Title {ad.titleNumber} — {ad.type === "free" ? "📢 Free" : "💰 Paid"} — Uploaded {format(new Date(ad.date), "d MMM")}{ad.closeDate ? " (Closed)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
