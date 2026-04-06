@@ -421,16 +421,33 @@ export default function Sales() {
             <CardHeader className="pb-1 pt-3 px-3">
               <CardTitle className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
                 <Trophy className="w-3 h-3 text-[hsl(var(--module-leaderboards))]" />
-                Personal Best
+                Personal Best (Day)
               </CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3">
               <span className="text-xl font-bold font-mono text-[hsl(var(--module-leaderboards))]">
-                {personalBest !== null ? `${personalBest}` : "–"}
+                {personalBestDay !== null ? `${personalBestDay.sales}` : "–"}
               </span>
               <p className="text-[9px] text-muted-foreground mt-0.5">
-                {personalBest !== null ? "Sales (best week)" : "No record yet"}
+                {personalBestDay !== null ? `Sales — ${format(new Date(personalBestDay.date), "d MMM")}` : "No record yet"}
               </p>
+              {personalBestDay && (
+                <div className="grid grid-cols-3 gap-1 mt-2">
+                  {([
+                    ["D", personalBestDay.doors],
+                    ["Sp", personalBestDay.spoken],
+                    ["Pr", personalBestDay.presentations],
+                    ["Cl", personalBestDay.closes],
+                    ["Tb", personalBestDay.tablets],
+                    ["Sa", personalBestDay.sales],
+                  ] as [string, number][]).map(([label, val]) => (
+                    <div key={label} className="text-center bg-muted/30 rounded px-1 py-0.5">
+                      <div className="text-[8px] text-muted-foreground">{label}</div>
+                      <div className="text-[10px] font-mono font-semibold text-foreground">{val}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
