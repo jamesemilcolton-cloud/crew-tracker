@@ -195,7 +195,7 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
   }, []);
 
   const userEntries = selectedUser ? entries.filter(e => e.user_id === selectedUser) : [];
-  const selectedUserName = selectedUser ? entries.find(e => e.user_id === selectedUser)?.user_name ?? userAllEntries[0]?.user_name ?? "Unknown" : "";
+  const selectedUserName = selectedUser ? (selectedUserProfileName ?? entries.find(e => e.user_id === selectedUser)?.user_name ?? userAllEntries[0]?.user_name ?? "Unknown") : "";
 
   const getUserSummary = (): UserSummary | null => {
     if (!selectedUser) return null;
