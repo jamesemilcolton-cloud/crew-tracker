@@ -227,7 +227,7 @@ export function useSalesData(weekOffset: number = 0) {
     calcCloseLOA,
     getWeeklyLOAData,
     getPrevWeekTotals,
-    getPersonalBestSales,
+    getPersonalBestDay,
     isCurrentWeek,
     weekLabel,
     DAYS,
