@@ -211,12 +211,12 @@ export default function Sales() {
   const weekFinancials = getWeekFinancials();
 
   useEffect(() => {
-    if (personalBest !== null && weekTotals.sales > 0 && weekTotals.sales >= personalBest) {
+    if (personalBestDay !== null && weekTotals.sales > 0 && weekTotals.sales >= personalBestDay.sales) {
       setPbGlow(true);
       const t = setTimeout(() => setPbGlow(false), 2000);
       return () => clearTimeout(t);
     }
-  }, [weekTotals.sales, personalBest]);
+  }, [weekTotals.sales, personalBestDay]);
 
   const currLOANum = weekTotals.sales > 0 ? Math.round(weekTotals.spoken / weekTotals.sales) : null;
   const prevLOANum = prevTotals.sales > 0 ? Math.round(prevTotals.spoken / prevTotals.sales) : null;
