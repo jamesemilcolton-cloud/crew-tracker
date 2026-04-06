@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_log: {
+        Row: {
+          action: string
+          count: number
+          created_at: string
+          id: string
+          module: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          action: string
+          count?: number
+          created_at?: string
+          id?: string
+          module: string
+          user_id: string
+          user_name?: string
+        }
+        Update: {
+          action?: string
+          count?: number
+          created_at?: string
+          id?: string
+          module?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       ad_uploads: {
         Row: {
           ad_number: number

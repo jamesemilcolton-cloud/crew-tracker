@@ -181,6 +181,8 @@ export function LinkedInOutreach() {
         .from("linkedin_outreach")
         .upsert(payload as any, { onConflict: "user_id,activity_date" });
       if (error) throw error;
+      // Log activity
+      import("@/lib/activityLogger").then(m => m.logActivity("linkedin", "sent_messages"));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["linkedin-outreach", user?.id, dateStr] });
