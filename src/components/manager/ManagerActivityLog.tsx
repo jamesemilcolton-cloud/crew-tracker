@@ -109,6 +109,7 @@ export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActiv
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(initialUserId ?? null);
   const [userAllEntries, setUserAllEntries] = useState<ActivityEntry[]>([]);
+  const [selectedUserProfileName, setSelectedUserProfileName] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialUserId) {
