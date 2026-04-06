@@ -297,7 +297,15 @@ export default function Manager() {
   const renderTab = () => {
     switch (activeTab) {
       case "home":
-        return <ManagerHome promotionCount={promotionQueue.length} personalBestCount={personalBests.length} totalSalesToday={totalSalesToday} totalCvsThisWeek={totalCvsThisWeek} onNavigate={(tab) => setActiveTab(tab as TabKey)} />;
+        return <ManagerHome promotionCount={promotionQueue.length} personalBestCount={personalBests.length} totalSalesToday={totalSalesToday} totalCvsThisWeek={totalCvsThisWeek} onNavigate={(tab) => {
+          if (tab.startsWith("activity:user:")) {
+            setActivityUserId(tab.split("activity:user:")[1]);
+            setActiveTab("activity");
+          } else {
+            setActivityUserId(null);
+            setActiveTab(tab as TabKey);
+          }
+        }} />;
       case "approvals":
         return <ManagerApprovals promotionQueue={promotionQueue} personalBests={personalBests} mondayPBs={mondayPBs} actionLoading={actionLoading} onApprove={handleApprovePromotion} onReject={handleRejectPromotion} onDismissPBs={handleDismissPBs} />;
       case "performance":
