@@ -191,7 +191,7 @@ const Index = () => {
           />
         )}
         {activeTab === "crew" && <CrewBubbleForecast candidates={allLoading ? [] : allCandidates} />}
-        
+        {activeTab === "office-starts" && <OfficeStarts />}
       </main>
     </div>
   );
