@@ -691,7 +691,7 @@ export function WeeklySummary() {
           </div>
         )}
         {/* Recruitment KPIs */}
-        <RecruitmentKPIsInline />
+        <RecruitmentKPIsCompact />
         {/* LinkedIn */}
         <div className="bg-card/80 border border-border/50 rounded-lg p-3">
           <SectionLabel icon={Target} label="LinkedIn" />
