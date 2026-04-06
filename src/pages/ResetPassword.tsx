@@ -67,8 +67,13 @@ export default function ResetPassword() {
         body: { action: "reset_password", token, new_password: newPassword },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // supabase.functions.invoke returns the parsed body in data even on non-2xx,
+      // but also sets error for non-2xx status codes.
+      const errorMessage = data?.error || error?.message;
+      if (errorMessage) {
+        toast.error(errorMessage);
+        return;
+      }
 
       setSuccess(true);
     } catch (err: any) {
