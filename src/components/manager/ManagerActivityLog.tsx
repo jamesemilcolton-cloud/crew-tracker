@@ -97,13 +97,25 @@ function computeStreak(entries: ActivityEntry[]): { current: number; best: numbe
   return { current, best };
 }
 
-export function ManagerActivityLog() {
+interface ManagerActivityLogProps {
+  initialUserId?: string | null;
+  onUserViewed?: () => void;
+}
+
+export function ManagerActivityLog({ initialUserId, onUserViewed }: ManagerActivityLogProps = {}) {
   const [timeFilter, setTimeFilter] = useState<"today" | "week">("today");
   const [moduleFilter, setModuleFilter] = useState<"all" | "recruitment" | "linkedin" | "sales">("all");
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(initialUserId ?? null);
   const [userAllEntries, setUserAllEntries] = useState<ActivityEntry[]>([]);
+
+  useEffect(() => {
+    if (initialUserId) {
+      setSelectedUser(initialUserId);
+      onUserViewed?.();
+    }
+  }, [initialUserId]);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
