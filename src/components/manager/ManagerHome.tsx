@@ -19,6 +19,10 @@ interface UserStatus {
   hasCvsToday: boolean;
   hasOutreachToday: boolean;
   hasSalesToday: boolean;
+  lastAdTime: string | null;
+  lastCvTime: string | null;
+  lastOutreachTime: string | null;
+  lastSalesTime: string | null;
 }
 
 export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday, totalCvsThisWeek, onNavigate }: ManagerHomeProps) {
