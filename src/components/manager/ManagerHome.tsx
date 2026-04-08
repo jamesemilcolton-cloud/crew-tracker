@@ -2,7 +2,7 @@ import { Trophy, Linkedin, Users, ClipboardCheck, ScrollText, Bell, AlertTriangl
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 interface ManagerHomeProps {
   promotionCount: number;
@@ -19,6 +19,10 @@ interface UserStatus {
   hasCvsToday: boolean;
   hasOutreachToday: boolean;
   hasSalesToday: boolean;
+  lastAdTime: string | null;
+  lastCvTime: string | null;
+  lastOutreachTime: string | null;
+  lastSalesTime: string | null;
 }
 
 export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday, totalCvsThisWeek, onNavigate }: ManagerHomeProps) {
@@ -63,11 +67,32 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
           .is("close_date", null);
         const usersWithAds = new Set((activeAds || []).map(a => a.user_id));
 
+        // Last closed ad per user (for "time since last active ad")
+        const { data: allClosedAds } = await supabase
+          .from("ad_uploads")
+          .select("user_id, close_date")
+          .not("close_date", "is", null)
+          .order("close_date", { ascending: false });
+        const lastAdCloseMap = new Map<string, string>();
+        (allClosedAds || []).forEach(a => {
+          if (!lastAdCloseMap.has(a.user_id) && a.close_date) lastAdCloseMap.set(a.user_id, a.close_date);
+        });
+
         const { data: cvsToday } = await supabase
           .from("cv_downloads")
           .select("user_id")
           .eq("download_date", todayStr);
         const usersWithCvs = new Set((cvsToday || []).map(c => c.user_id));
+
+        // Last CV download per user
+        const { data: allCvs } = await supabase
+          .from("cv_downloads")
+          .select("user_id, download_date")
+          .order("download_date", { ascending: false });
+        const lastCvMap = new Map<string, string>();
+        (allCvs || []).forEach(c => {
+          if (!lastCvMap.has(c.user_id)) lastCvMap.set(c.user_id, c.download_date);
+        });
 
         const { data: outreachToday } = await supabase
           .from("linkedin_outreach")
@@ -76,11 +101,32 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
           .gt("sent", 0);
         const usersWithOutreach = new Set((outreachToday || []).map(o => o.user_id));
 
+        // Last outreach per user
+        const { data: allOutreach } = await supabase
+          .from("linkedin_outreach")
+          .select("user_id, activity_date")
+          .gt("sent", 0)
+          .order("activity_date", { ascending: false });
+        const lastOutreachMap = new Map<string, string>();
+        (allOutreach || []).forEach(o => {
+          if (!lastOutreachMap.has(o.user_id)) lastOutreachMap.set(o.user_id, o.activity_date);
+        });
+
         const { data: salesToday } = await supabase
           .from("sales_entries")
           .select("user_id")
           .eq("entry_date", todayStr);
         const usersWithSales = new Set((salesToday || []).map(s => s.user_id));
+
+        // Last sales entry per user
+        const { data: allSales } = await supabase
+          .from("sales_entries")
+          .select("user_id, entry_date")
+          .order("entry_date", { ascending: false });
+        const lastSalesMap = new Map<string, string>();
+        (allSales || []).forEach(s => {
+          if (!lastSalesMap.has(s.user_id)) lastSalesMap.set(s.user_id, s.entry_date);
+        });
 
         const statuses: UserStatus[] = nonManagerProfiles.map(p => ({
           name: p.full_name,
@@ -89,6 +135,10 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
           hasCvsToday: usersWithCvs.has(p.user_id),
           hasOutreachToday: usersWithOutreach.has(p.user_id),
           hasSalesToday: usersWithSales.has(p.user_id),
+          lastAdTime: lastAdCloseMap.get(p.user_id) || null,
+          lastCvTime: lastCvMap.get(p.user_id) || null,
+          lastOutreachTime: lastOutreachMap.get(p.user_id) || null,
+          lastSalesTime: lastSalesMap.get(p.user_id) || null,
         }));
 
         statuses.sort((a, b) => {
@@ -131,12 +181,18 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
   const needsAttentionUsers = userStatuses.filter(u => !u.hasActiveAd || !u.hasCvsToday || !u.hasOutreachToday || !u.hasSalesToday);
   const allClear = !attentionLoading && needsAttentionUsers.length === 0;
 
-  const StatusBadge = ({ ok, label, badLabel }: { ok: boolean; label: string; badLabel?: string }) => (
-    <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${ok ? "text-emerald-600 bg-emerald-500/10" : "text-destructive bg-destructive/10"}`}>
-      {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-      {ok ? label : (badLabel || label)}
-    </span>
-  );
+  const StatusBadge = ({ ok, label, badLabel, lastTime }: { ok: boolean; label: string; badLabel?: string; lastTime?: string | null }) => {
+    const sinceText = !ok && lastTime
+      ? formatDistanceToNow(new Date(lastTime), { addSuffix: false }) + " ago"
+      : null;
+    return (
+      <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${ok ? "text-emerald-600 bg-emerald-500/10" : "text-destructive bg-destructive/10"}`}>
+        {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+        {ok ? label : (badLabel || label)}
+        {sinceText && <span className="text-[10px] opacity-70">({sinceText})</span>}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -178,10 +234,10 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
                 >
                   <p className="text-sm font-medium text-foreground mb-1.5">{u.name}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <StatusBadge ok={u.hasActiveAd} label="LinkedIn Ads" badLabel="No Active Ad" />
-                    <StatusBadge ok={u.hasCvsToday} label="CVs" badLabel="CVs" />
-                    <StatusBadge ok={u.hasOutreachToday} label="Outreach" badLabel="Outreach" />
-                    <StatusBadge ok={u.hasSalesToday} label="Sales" badLabel="Sales" />
+                    <StatusBadge ok={u.hasActiveAd} label="LinkedIn Ads" badLabel="No Active Ad" lastTime={u.lastAdTime} />
+                    <StatusBadge ok={u.hasCvsToday} label="CVs" badLabel="CVs" lastTime={u.lastCvTime} />
+                    <StatusBadge ok={u.hasOutreachToday} label="Outreach" badLabel="Outreach" lastTime={u.lastOutreachTime} />
+                    <StatusBadge ok={u.hasSalesToday} label="Sales" badLabel="Sales" lastTime={u.lastSalesTime} />
                   </div>
                 </button>
               ))}
