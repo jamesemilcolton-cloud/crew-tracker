@@ -234,10 +234,10 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
                 >
                   <p className="text-sm font-medium text-foreground mb-1.5">{u.name}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <StatusBadge ok={u.hasActiveAd} label="LinkedIn Ads" badLabel="No Active Ad" />
-                    <StatusBadge ok={u.hasCvsToday} label="CVs" badLabel="CVs" />
-                    <StatusBadge ok={u.hasOutreachToday} label="Outreach" badLabel="Outreach" />
-                    <StatusBadge ok={u.hasSalesToday} label="Sales" badLabel="Sales" />
+                    <StatusBadge ok={u.hasActiveAd} label="LinkedIn Ads" badLabel="No Active Ad" lastTime={u.lastAdTime} />
+                    <StatusBadge ok={u.hasCvsToday} label="CVs" badLabel="CVs" lastTime={u.lastCvTime} />
+                    <StatusBadge ok={u.hasOutreachToday} label="Outreach" badLabel="Outreach" lastTime={u.lastOutreachTime} />
+                    <StatusBadge ok={u.hasSalesToday} label="Sales" badLabel="Sales" lastTime={u.lastSalesTime} />
                   </div>
                 </button>
               ))}
