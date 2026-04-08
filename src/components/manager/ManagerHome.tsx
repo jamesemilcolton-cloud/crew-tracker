@@ -181,12 +181,18 @@ export function ManagerHome({ promotionCount, personalBestCount, totalSalesToday
   const needsAttentionUsers = userStatuses.filter(u => !u.hasActiveAd || !u.hasCvsToday || !u.hasOutreachToday || !u.hasSalesToday);
   const allClear = !attentionLoading && needsAttentionUsers.length === 0;
 
-  const StatusBadge = ({ ok, label, badLabel }: { ok: boolean; label: string; badLabel?: string }) => (
-    <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${ok ? "text-emerald-600 bg-emerald-500/10" : "text-destructive bg-destructive/10"}`}>
-      {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-      {ok ? label : (badLabel || label)}
-    </span>
-  );
+  const StatusBadge = ({ ok, label, badLabel, lastTime }: { ok: boolean; label: string; badLabel?: string; lastTime?: string | null }) => {
+    const sinceText = !ok && lastTime
+      ? formatDistanceToNow(new Date(lastTime), { addSuffix: false }) + " ago"
+      : null;
+    return (
+      <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${ok ? "text-emerald-600 bg-emerald-500/10" : "text-destructive bg-destructive/10"}`}>
+        {ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+        {ok ? label : (badLabel || label)}
+        {sinceText && <span className="text-[10px] opacity-70">({sinceText})</span>}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
