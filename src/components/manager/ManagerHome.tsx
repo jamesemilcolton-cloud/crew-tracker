@@ -2,7 +2,7 @@ import { Trophy, Linkedin, Users, ClipboardCheck, ScrollText, Bell, AlertTriangl
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 interface ManagerHomeProps {
   promotionCount: number;
