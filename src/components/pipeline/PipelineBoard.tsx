@@ -65,7 +65,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
   }, [activeCandidates]);
 
   const upcomingStarts = useMemo(() => {
-    const preStartStages: PipelineStage[] = ["rehash", "contact_before_start"];
+    const preStartStages: PipelineStage[] = ["rehash", "contact_before_start", "attended_induction"];
     return activeCandidates
       .filter((c) => preStartStages.includes(c.stage))
       .sort((a, b) => {
@@ -180,7 +180,7 @@ export function PipelineBoard({ trendRange, candidates, onAddCandidate, onUpdate
         date: new Date().toISOString().split("T")[0],
         note: "Marked as OB Taken",
       });
-      toast.success(`${candidate.name} moved to OBS`);
+      toast.success(`${candidate.name} moved to 2nd Round`);
     } catch {
       toast.error("Failed to move candidate");
     } finally {

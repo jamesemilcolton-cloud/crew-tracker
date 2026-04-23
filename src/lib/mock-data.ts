@@ -343,12 +343,14 @@ export const mockCVDownloads: CVDownloadEntry[] = (() => {
 })();
 
 export const mockKPITargets: KPITarget[] = [
-  { label: "Obs → Questionnaire", target: 100, actual: 100 },
-  { label: "Questionnaire → Final", target: 100, actual: 95 },
-  { label: "Final → Final", target: 80, actual: 70 },
-  { label: "Final → Rehash", target: 75, actual: 62 },
-  { label: "Rehash → Contact Before Start", target: 100, actual: 90 },
-  { label: "Contact Before Start → Start", target: 67, actual: 55 },
-  { label: "Start → Solo", target: 50, actual: 40 },
+  { label: "2nd Round → Form Sent Back", target: 100, actual: 100 },
+  { label: "Form Sent Back → Final", target: 80, actual: 75 },
+  { label: "Final → Job Offered", target: 75, actual: 62 },
+  { label: "Job Offered → Rehash Call", target: 50, actual: 45 },
+  { label: "Rehash Call → Induction Confirmed", target: 100, actual: 90 },
+  { label: "Induction Confirmed → Attended Induction", target: 90, actual: 80 },
+  { label: "Attended Induction → Start", target: 95, actual: 88 },
+  { label: "Start → First Solo Sale", target: 50, actual: 40 },
+  { label: "First Solo Sale → First Bell", target: 80, actual: 65 },
   { label: "LinkedIn CVs / Week", target: 25, actual: 19 },
 ];

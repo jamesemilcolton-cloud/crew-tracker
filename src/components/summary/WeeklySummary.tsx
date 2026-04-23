@@ -36,7 +36,7 @@ interface Profile {
 function getRoleLabel(stage: string): string {
   switch (stage) {
     case "start": return "Brand Ambassador";
-    case "solo": return "Solo";
+    case "solo": return "First Solo Sale";
     case "promoted": return "Leader";
     default: return "";
   }
@@ -312,7 +312,7 @@ export function WeeklySummary() {
 
   const allOwnCandidates = ownCandidates;
 
-  const kpiStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash", "contact_before_start", "start", "solo", "promoted"];
+  const kpiStages: PipelineStage[] = ["obs", "questionnaire", "final", "job_offered", "rehash", "contact_before_start", "attended_induction", "start", "solo", "first_bell", "promoted"];
   const thisWeekCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     kpiStages.forEach((s) => { counts[s] = countInRange(allOwnCandidates, s, thisWeek.start, thisWeek.end); });
@@ -323,13 +323,15 @@ export function WeeklySummary() {
   const conversionPairs = useMemo(() => {
     const pairs: { from: PipelineStage; to: PipelineStage; label: string }[] = [
       { from: "obs", to: "questionnaire", label: "→" },
-      { from: "questionnaire", to: "bottom_line", label: "→" },
-      { from: "bottom_line", to: "final", label: "→" },
-      { from: "final", to: "rehash", label: "→" },
+      { from: "questionnaire", to: "final", label: "→" },
+      { from: "final", to: "job_offered", label: "→" },
+      { from: "job_offered", to: "rehash", label: "→" },
       { from: "rehash", to: "contact_before_start", label: "→" },
-      { from: "contact_before_start", to: "start", label: "→" },
+      { from: "contact_before_start", to: "attended_induction", label: "→" },
+      { from: "attended_induction", to: "start", label: "→" },
       { from: "start", to: "solo", label: "→" },
-      { from: "solo", to: "promoted", label: "→" },
+      { from: "solo", to: "first_bell", label: "→" },
+      { from: "first_bell", to: "promoted", label: "→" },
     ];
     return pairs.map(({ from, to, label }) => {
       const fromCount = thisWeekCounts[from] || 0;
@@ -563,8 +565,8 @@ export function WeeklySummary() {
 
   // ── Compact 2-column KPI funnel ──
   function RecruitmentKPIsCompact() {
-    const leftStages: PipelineStage[] = ["obs", "questionnaire", "bottom_line", "final", "rehash"];
-    const rightStages: PipelineStage[] = ["contact_before_start", "start", "solo", "promoted"];
+    const leftStages: PipelineStage[] = ["obs", "questionnaire", "final", "job_offered", "rehash", "contact_before_start"];
+    const rightStages: PipelineStage[] = ["attended_induction", "start", "solo", "first_bell", "promoted"];
     
     function StageBlock({ stages, startConvIdx }: { stages: PipelineStage[]; startConvIdx: number }) {
       return (
