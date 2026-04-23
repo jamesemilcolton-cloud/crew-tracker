@@ -2,12 +2,14 @@ export type PipelineStage =
   | "prospect"
   | "obs"
   | "questionnaire"
-  | "bottom_line"
   | "final"
+  | "job_offered"
   | "rehash"
   | "contact_before_start"
+  | "attended_induction"
   | "start"
   | "solo"
+  | "first_bell"
   | "promoted";
 
 export type CandidateStatus = "Offered" | "Declined" | "Dropped" | "dropped";
@@ -77,37 +79,43 @@ export interface LinkedInActivity {
 
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; colorVar: string }> = {
   prospect: { label: "Prospect", colorVar: "--stage-obs" },
-  obs: { label: "Obs", colorVar: "--stage-obs" },
-  questionnaire: { label: "Questionnaire", colorVar: "--stage-questionnaire" },
-  bottom_line: { label: "Bottom Line", colorVar: "--stage-bottom-line" },
+  obs: { label: "2nd Round", colorVar: "--stage-obs" },
+  questionnaire: { label: "Form Sent Back", colorVar: "--stage-questionnaire" },
   final: { label: "Final", colorVar: "--stage-final" },
-  rehash: { label: "Rehash", colorVar: "--stage-rehash" },
-  contact_before_start: { label: "Contact Before Start", colorVar: "--stage-contact-before-start" },
+  job_offered: { label: "Job Offered", colorVar: "--stage-job-offered" },
+  rehash: { label: "Rehash Call", colorVar: "--stage-rehash" },
+  contact_before_start: { label: "Induction Confirmed", colorVar: "--stage-contact-before-start" },
+  attended_induction: { label: "Attended Induction", colorVar: "--stage-attended-induction" },
   start: { label: "Start", colorVar: "--stage-start" },
-  solo: { label: "Solo", colorVar: "--stage-solo" },
+  solo: { label: "First Solo Sale", colorVar: "--stage-solo" },
+  first_bell: { label: "First Bell", colorVar: "--stage-first-bell" },
   promoted: { label: "Promoted", colorVar: "--stage-promoted" },
 };
 
 export const STAGES_ORDER: PipelineStage[] = [
   "obs",
   "questionnaire",
-  "bottom_line",
   "final",
+  "job_offered",
   "rehash",
   "contact_before_start",
+  "attended_induction",
   "start",
   "solo",
+  "first_bell",
   "promoted",
 ];
 
 // Fixed KPI target percentages for stage-to-stage conversion
 export const KPI_TARGETS: Record<string, number | null> = {
   "obs→questionnaire": 100,
-  "questionnaire→bottom_line": 100,
-  "bottom_line→final": 80,
-  "final→rehash": 75,
+  "questionnaire→final": 80,
+  "final→job_offered": 75,
+  "job_offered→rehash": 50,
   "rehash→contact_before_start": 100,
-  "contact_before_start→start": 67,
+  "contact_before_start→attended_induction": 90,
+  "attended_induction→start": 95,
   "start→solo": 50,
-  "solo→promoted": null, // separate metric, no fixed target
+  "solo→first_bell": 80,
+  "first_bell→promoted": null, // separate metric, no fixed target
 };

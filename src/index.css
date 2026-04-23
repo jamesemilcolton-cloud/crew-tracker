@@ -39,12 +39,14 @@
     /* Pipeline stage colors */
     --stage-obs: 217 91% 60%;
     --stage-questionnaire: 200 80% 55%;
-    --stage-bottom-line: 260 70% 60%;
     --stage-final: 239 84% 67%;
+    --stage-job-offered: 260 70% 60%;
     --stage-rehash: 320 65% 55%;
     --stage-contact-before-start: 38 92% 50%;
+    --stage-attended-induction: 25 90% 55%;
     --stage-start: 152 69% 40%;
     --stage-solo: 45 93% 47%;
+    --stage-first-bell: 60 90% 55%;
     --stage-promoted: 280 67% 55%;
     --stage-dropped: 0 72% 51%;
 
