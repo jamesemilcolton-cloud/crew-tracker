@@ -21,7 +21,7 @@ interface CrewTreeProps {
 function getRoleLabel(stage: string): string {
   switch (stage) {
     case "start": return "Brand Ambassador";
-    case "solo": return "Solo";
+    case "solo": return "First Solo Sale";
     case "promoted": return "Leader";
     default: return "";
   }

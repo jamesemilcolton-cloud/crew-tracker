@@ -19,12 +19,14 @@ export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[
 const FUNNEL_COLORS: Record<string, string> = {
   obs: "hsl(217 91% 60%)",
   questionnaire: "hsl(200 80% 55%)",
-  bottom_line: "hsl(260 70% 60%)",
   final: "hsl(239 84% 67%)",
+  job_offered: "hsl(260 70% 60%)",
   rehash: "hsl(320 65% 55%)",
   contact_before_start: "hsl(38 92% 50%)",
+  attended_induction: "hsl(25 90% 55%)",
   start: "hsl(152 69% 40%)",
   solo: "hsl(45 93% 47%)",
+  first_bell: "hsl(60 90% 55%)",
   promoted: "hsl(280 67% 55%)",
 };
 
@@ -112,13 +114,13 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
 
   const maxFunnelCount = useMemo(() => Math.max(...funnelData.map((d) => d.count), 1), [funnelData]);
 
-  // OBS override check
+  // 2nd Round override check
   const obsCount = stageCounts["obs"] || 0;
   const isLowObs = obsCount <= 2;
 
   // Focus area: find the stage transition with the biggest gap vs KPI target
   const focusArea = useMemo(() => {
-    if (isLowObs) return { label: "Primary Focus: Increase OBS volume", actual: obsCount, target: 0, isObsOverride: true };
+    if (isLowObs) return { label: "Primary Focus: Increase 2nd Round volume", actual: obsCount, target: 0, isObsOverride: true };
 
     let worstGap = 0;
     let worstLabel = "";

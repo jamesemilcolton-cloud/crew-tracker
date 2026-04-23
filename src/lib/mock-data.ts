@@ -17,8 +17,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-02-06" },
-      { from: "questionnaire", to: "bottom_line", date: "2026-02-07" },
-      { from: "bottom_line", to: "final", date: "2026-02-10", note: "Passed obs round easily" },
+      { from: "questionnaire", to: "final", date: "2026-02-07" },
+      
     ],
     createdAt: "2026-01-28",
   },
@@ -28,8 +28,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-02-04" },
-      { from: "questionnaire", to: "bottom_line", date: "2026-02-05" },
-      { from: "bottom_line", to: "final", date: "2026-02-08" },
+      { from: "questionnaire", to: "final", date: "2026-02-05" },
+      
     ],
     createdAt: "2026-01-25",
   },
@@ -39,8 +39,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-01-16" },
-      { from: "questionnaire", to: "bottom_line", date: "2026-01-17" },
-      { from: "bottom_line", to: "final", date: "2026-01-20" },
+      { from: "questionnaire", to: "final", date: "2026-01-17" },
+      
       { from: "final", to: "rehash", date: "2026-01-28" },
       { from: "rehash", to: "contact_before_start", date: "2026-02-05", note: "Wanted time to think" },
     ],
@@ -52,8 +52,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-01-12" },
-      { from: "questionnaire", to: "bottom_line", date: "2026-01-13" },
-      { from: "bottom_line", to: "final", date: "2026-01-18" },
+      { from: "questionnaire", to: "final", date: "2026-01-13" },
+      
       { from: "final", to: "rehash", date: "2026-02-01" },
       { from: "rehash", to: "contact_before_start", date: "2026-02-12" },
     ],
@@ -66,8 +66,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c9",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-12-22" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-12-23" },
-      { from: "bottom_line", to: "final", date: "2026-01-05" },
+      { from: "questionnaire", to: "final", date: "2025-12-23" },
+      
       { from: "final", to: "rehash", date: "2026-01-08" },
       { from: "rehash", to: "contact_before_start", date: "2026-01-10" },
       { from: "contact_before_start", to: "start", date: "2026-02-10" },
@@ -80,8 +80,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-12-03" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-12-04" },
-      { from: "bottom_line", to: "final", date: "2025-12-10" },
+      { from: "questionnaire", to: "final", date: "2025-12-04" },
+      
       { from: "final", to: "rehash", date: "2025-12-12" },
       { from: "rehash", to: "contact_before_start", date: "2025-12-14" },
       { from: "contact_before_start", to: "start", date: "2025-12-20" },
@@ -95,8 +95,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-10-05" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-10-06" },
-      { from: "bottom_line", to: "final", date: "2025-10-15" },
+      { from: "questionnaire", to: "final", date: "2025-10-06" },
+      
       { from: "final", to: "rehash", date: "2025-10-18" },
       { from: "rehash", to: "contact_before_start", date: "2025-10-20" },
       { from: "contact_before_start", to: "start", date: "2025-11-01" },
@@ -112,8 +112,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c9",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-12-12" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-12-13" },
-      { from: "bottom_line", to: "final", date: "2025-12-15" },
+      { from: "questionnaire", to: "final", date: "2025-12-13" },
+      
       { from: "final", to: "rehash", date: "2025-12-18" },
       { from: "rehash", to: "contact_before_start", date: "2025-12-20" },
       { from: "contact_before_start", to: "start", date: "2026-01-20" },
@@ -126,8 +126,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: false, hasEvoAppAccess: false,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-02-08" },
-      { from: "questionnaire", to: "bottom_line", date: "2026-02-10" },
-      { from: "bottom_line", to: "final", date: "2026-02-14" },
+      { from: "questionnaire", to: "final", date: "2026-02-10" },
+      
     ],
     createdAt: "2026-02-05",
   },
@@ -143,8 +143,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c19",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-12-12" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-12-13" },
-      { from: "bottom_line", to: "final", date: "2025-12-18" },
+      { from: "questionnaire", to: "final", date: "2025-12-13" },
+      
       { from: "final", to: "rehash", date: "2025-12-20" },
       { from: "rehash", to: "contact_before_start", date: "2025-12-22" },
       { from: "contact_before_start", to: "start", date: "2026-01-06" },
@@ -157,8 +157,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-12-02" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-12-03" },
-      { from: "bottom_line", to: "final", date: "2025-12-08" },
+      { from: "questionnaire", to: "final", date: "2025-12-03" },
+      
       { from: "final", to: "rehash", date: "2025-12-10" },
       { from: "rehash", to: "contact_before_start", date: "2025-12-11" },
       { from: "contact_before_start", to: "start", date: "2025-12-16" },
@@ -172,8 +172,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2026-01-03" },
-      { from: "questionnaire", to: "bottom_line", date: "2026-01-04" },
-      { from: "bottom_line", to: "final", date: "2026-01-08" },
+      { from: "questionnaire", to: "final", date: "2026-01-04" },
+      
       { from: "final", to: "rehash", date: "2026-01-12" },
       { from: "rehash", to: "contact_before_start", date: "2026-01-18" },
     ],
@@ -185,8 +185,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-11-02" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-11-03" },
-      { from: "bottom_line", to: "final", date: "2025-11-10" },
+      { from: "questionnaire", to: "final", date: "2025-11-03" },
+      
       { from: "final", to: "rehash", date: "2025-11-12" },
       { from: "rehash", to: "contact_before_start", date: "2025-11-14" },
       { from: "contact_before_start", to: "start", date: "2025-11-20" },
@@ -202,8 +202,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c23",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-11-08" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-11-09" },
-      { from: "bottom_line", to: "final", date: "2025-11-15" },
+      { from: "questionnaire", to: "final", date: "2025-11-09" },
+      
       { from: "final", to: "rehash", date: "2025-11-17" },
       { from: "rehash", to: "contact_before_start", date: "2025-11-18" },
       { from: "contact_before_start", to: "start", date: "2025-12-02" },
@@ -217,8 +217,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c19",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-11-03" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-11-04" },
-      { from: "bottom_line", to: "final", date: "2025-11-08" },
+      { from: "questionnaire", to: "final", date: "2025-11-04" },
+      
       { from: "final", to: "rehash", date: "2025-11-10" },
       { from: "rehash", to: "contact_before_start", date: "2025-11-12" },
       { from: "contact_before_start", to: "start", date: "2025-11-18" },
@@ -232,8 +232,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-09-05" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-09-06" },
-      { from: "bottom_line", to: "final", date: "2025-09-15" },
+      { from: "questionnaire", to: "final", date: "2025-09-06" },
+      
       { from: "final", to: "rehash", date: "2025-09-17" },
       { from: "rehash", to: "contact_before_start", date: "2025-09-18" },
       { from: "contact_before_start", to: "start", date: "2025-09-25" },
@@ -249,8 +249,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c23",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-09-28" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-09-29" },
-      { from: "bottom_line", to: "final", date: "2025-10-05" },
+      { from: "questionnaire", to: "final", date: "2025-09-29" },
+      
       { from: "final", to: "rehash", date: "2025-10-07" },
       { from: "rehash", to: "contact_before_start", date: "2025-10-08" },
       { from: "contact_before_start", to: "start", date: "2025-10-15" },
@@ -265,8 +265,8 @@ export const mockCandidates: Candidate[] = [
     recruitedBy: "c23",
     history: [
       { from: "obs", to: "questionnaire", date: "2025-10-02" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-10-03" },
-      { from: "bottom_line", to: "final", date: "2025-10-08" },
+      { from: "questionnaire", to: "final", date: "2025-10-03" },
+      
       { from: "final", to: "rehash", date: "2025-10-10" },
       { from: "rehash", to: "contact_before_start", date: "2025-10-12" },
       { from: "contact_before_start", to: "start", date: "2025-10-20" },
@@ -279,8 +279,8 @@ export const mockCandidates: Candidate[] = [
     hasSalesPitchAccess: true, hasEvoAppAccess: true,
     history: [
       { from: "obs", to: "questionnaire", date: "2025-09-06" },
-      { from: "questionnaire", to: "bottom_line", date: "2025-09-07" },
-      { from: "bottom_line", to: "final", date: "2025-09-12" },
+      { from: "questionnaire", to: "final", date: "2025-09-07" },
+      
       { from: "final", to: "rehash", date: "2025-09-14" },
       { from: "rehash", to: "contact_before_start", date: "2025-09-16" },
       { from: "contact_before_start", to: "start", date: "2025-09-29" },
@@ -343,12 +343,14 @@ export const mockCVDownloads: CVDownloadEntry[] = (() => {
 })();
 
 export const mockKPITargets: KPITarget[] = [
-  { label: "Obs → Questionnaire", target: 100, actual: 100 },
-  { label: "Questionnaire → Bottom Line", target: 100, actual: 95 },
-  { label: "Bottom Line → Final", target: 80, actual: 70 },
-  { label: "Final → Rehash", target: 75, actual: 62 },
-  { label: "Rehash → Contact Before Start", target: 100, actual: 90 },
-  { label: "Contact Before Start → Start", target: 67, actual: 55 },
-  { label: "Start → Solo", target: 50, actual: 40 },
+  { label: "2nd Round → Form Sent Back", target: 100, actual: 100 },
+  { label: "Form Sent Back → Final", target: 80, actual: 75 },
+  { label: "Final → Job Offered", target: 75, actual: 62 },
+  { label: "Job Offered → Rehash Call", target: 50, actual: 45 },
+  { label: "Rehash Call → Induction Confirmed", target: 100, actual: 90 },
+  { label: "Induction Confirmed → Attended Induction", target: 90, actual: 80 },
+  { label: "Attended Induction → Start", target: 95, actual: 88 },
+  { label: "Start → First Solo Sale", target: 50, actual: 40 },
+  { label: "First Solo Sale → First Bell", target: 80, actual: 65 },
   { label: "LinkedIn CVs / Week", target: 25, actual: 19 },
 ];

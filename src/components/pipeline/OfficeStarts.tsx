@@ -71,7 +71,7 @@ export function OfficeStarts() {
         .select("id, name, notes, source, potential_start_date, candidate_id, recruited_by, stage, drop_off_reason")
         .not("potential_start_date", "is", null)
         .is("drop_off_reason", null)
-        .in("stage", ["contact_before_start", "rehash", "final", "start"]);
+        .in("stage", ["contact_before_start", "attended_induction", "rehash", "final", "job_offered", "start"]);
 
       if (error) throw error;
 

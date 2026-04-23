@@ -38,7 +38,7 @@ function getRoleLabel(stage: string): string {
     case "start":
       return "Brand Ambassador";
     case "solo":
-      return "Solo";
+      return "First Solo Sale";
     case "promoted":
       return "Leader";
     default:
