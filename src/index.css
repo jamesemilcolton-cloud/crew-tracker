@@ -21,93 +21,94 @@
        ============================================================ */
 
     --background: 220 13% 7%;          /* Gunmetal Black */
-    --foreground: 217 14% 88%;         /* Light Brushed Silver */
+    --foreground: 217 22% 94%;         /* Bright Brushed Silver */
 
-    --card: 220 11% 10%;               /* Dark Steel slightly lifted */
-    --card-foreground: 217 14% 88%;
+    --card: 220 11% 11%;               /* Dark Steel slightly lifted */
+    --card-foreground: 217 22% 94%;
 
     --popover: 218 12% 13%;
-    --popover-foreground: 217 14% 88%;
+    --popover-foreground: 217 22% 94%;
 
-    /* Primary = Soft Bronze accent (moderate use) */
-    --primary: 28 14% 52%;
+    /* Primary = Bright Bronze accent */
+    --primary: 32 65% 64%;
     --primary-foreground: 220 13% 7%;
 
-    --secondary: 218 12% 16%;          /* Between Charcoal & Dark Steel */
-    --secondary-foreground: 217 14% 82%;
+    --secondary: 218 12% 17%;
+    --secondary-foreground: 217 20% 88%;
 
-    --muted: 220 11% 12%;              /* Dark Steel */
-    --muted-foreground: 217 8% 58%;    /* Dark Silver, lifted for legibility */
+    --muted: 220 11% 13%;
+    --muted-foreground: 217 14% 70%;   /* Brighter silver for legibility */
 
-    --accent: 25 12% 28%;              /* Warm Steel deep */
-    --accent-foreground: 28 18% 72%;   /* Bronze tint highlight */
+    --accent: 28 35% 38%;              /* Warm bronze accent */
+    --accent-foreground: 32 70% 80%;   /* Bright bronze tint */
 
-    /* Destructive — desaturated to a dim warm-steel tone (no bright red) */
-    --destructive: 10 25% 38%;
-    --destructive-foreground: 217 14% 92%;
+    /* Destructive — bronze (no traffic-light red) */
+    --destructive: 26 55% 48%;
+    --destructive-foreground: 217 22% 94%;
 
-    --border: 218 11% 19%;             /* Charcoal Steel */
-    --input: 218 11% 19%;
-    --ring: 28 18% 55%;                /* Bronze focus ring */
+    --border: 218 12% 22%;             /* Slightly brighter steel border */
+    --input: 218 12% 22%;
+    --ring: 32 70% 62%;                /* Bright bronze focus ring */
 
     --radius: 0.75rem;
 
-    /* Pipeline stage colors — fully monochrome metallic gradient
-       (darker steel → brushed silver → warm bronze for late stages) */
-    --stage-obs: 218 10% 38%;
-    --stage-questionnaire: 218 10% 44%;
-    --stage-final: 217 9% 52%;
-    --stage-job-offered: 217 10% 60%;
-    --stage-rehash: 217 12% 66%;
-    --stage-contact-before-start: 25 10% 50%;
-    --stage-attended-induction: 25 12% 55%;
-    --stage-start: 28 14% 58%;
-    --stage-solo: 28 16% 62%;
-    --stage-first-bell: 28 20% 68%;
-    --stage-promoted: 28 24% 74%;
-    --stage-dropped: 218 8% 30%;
+    /* Pipeline stage colors — brighter metallic gradient
+       (steel → silver → warm bronze for late stages) */
+    --stage-obs: 218 14% 46%;
+    --stage-questionnaire: 218 14% 52%;
+    --stage-final: 217 16% 60%;
+    --stage-job-offered: 217 18% 68%;
+    --stage-rehash: 217 20% 74%;
+    --stage-contact-before-start: 28 30% 58%;
+    --stage-attended-induction: 30 40% 62%;
+    --stage-start: 32 50% 66%;
+    --stage-solo: 32 58% 70%;
+    --stage-first-bell: 32 65% 74%;
+    --stage-promoted: 34 72% 78%;
+    --stage-dropped: 218 10% 32%;
 
-    /* Status colors — fully monochrome (no red, no green, no amber) */
-    --status-waiting: 28 14% 52%;       /* Bronze */
-    --status-passed: 217 12% 70%;       /* Brushed silver */
-    --status-offered: 217 14% 72%;
-    --status-declined: 218 10% 35%;
-    --status-dropped: 218 8% 28%;
+    /* Status colors — bright metallic (silver + bronze, no traffic-light) */
+    --status-waiting: 32 60% 64%;
+    --status-passed: 217 18% 80%;
+    --status-offered: 217 20% 82%;
+    --status-declined: 218 12% 38%;
+    --status-dropped: 218 10% 30%;
 
-    /* Semantic aliases — all metallic, no traffic-light colors */
-    --success: 217 14% 72%;             /* Brushed Silver = good */
+    /* Semantic aliases — bright metallic */
+    --success: 217 20% 82%;             /* Bright Brushed Silver */
     --success-foreground: 220 13% 7%;
-    --warning: 28 18% 58%;              /* Bronze = attention */
+    --warning: 32 65% 64%;              /* Bright Bronze */
     --warning-foreground: 220 13% 7%;
-    --neutral: 218 11% 26%;             /* Mid steel = inactive */
+    --neutral: 218 12% 32%;
 
-    /* Module accents — all collapsed to metallic palette (monochrome) */
-    --module-recruitment: 217 14% 72%;  /* Brushed Silver */
-    --module-sales: 28 18% 58%;         /* Bronze */
-    --module-leaderboards: 28 22% 64%;  /* Light Bronze */
+    /* Module accents — bright metallic monochrome */
+    --module-recruitment: 217 20% 82%;  /* Bright Silver */
+    --module-sales: 32 65% 64%;         /* Bright Bronze */
+    --module-leaderboards: 34 70% 72%;  /* Light Bronze */
 
-    /* Chart colors — pure steel/silver/bronze series */
-    --chart-1: 217 14% 75%;             /* Brushed Silver */
-    --chart-2: 28 20% 60%;              /* Bronze */
-    --chart-3: 217 10% 55%;             /* Dark Silver */
-    --chart-4: 25 12% 42%;              /* Warm Steel */
-    --chart-5: 218 11% 32%;             /* Mid Steel */
+    /* Chart colors — bright steel/silver/bronze series */
+    --chart-1: 217 22% 84%;
+    --chart-2: 32 70% 68%;
+    --chart-3: 217 16% 64%;
+    --chart-4: 28 45% 52%;
+    --chart-5: 218 14% 38%;
 
     /* Sidebar */
-    --sidebar-background: 220 13% 5%;   /* Deep Black */
-    --sidebar-foreground: 217 14% 82%;
-    --sidebar-primary: 28 14% 52%;      /* Bronze */
+    --sidebar-background: 220 13% 5%;
+    --sidebar-foreground: 217 20% 88%;
+    --sidebar-primary: 32 65% 64%;
     --sidebar-primary-foreground: 220 13% 7%;
     --sidebar-accent: 218 12% 14%;
-    --sidebar-accent-foreground: 217 14% 88%;
-    --sidebar-border: 218 11% 17%;
-    --sidebar-ring: 28 18% 55%;
+    --sidebar-accent-foreground: 217 22% 94%;
+    --sidebar-border: 218 12% 20%;
+    --sidebar-ring: 32 70% 62%;
 
-    /* Glow / shadow effects — depth via contrast, soft shadows */
-    --glow-primary: 0 0 20px hsl(28 18% 55% / 0.12);
-    --glow-stage: 0 0 12px;
-    --shadow-card: 0 4px 24px -4px hsl(210 17% 2% / 0.6);
-    --shadow-elevated: 0 8px 32px -8px hsl(210 17% 2% / 0.75);
+    /* Glow / shadow effects — visible metallic glow */
+    --glow-primary: 0 0 24px hsl(32 70% 62% / 0.35), 0 0 48px hsl(32 70% 62% / 0.15);
+    --glow-silver: 0 0 24px hsl(217 25% 80% / 0.30), 0 0 48px hsl(217 25% 80% / 0.12);
+    --glow-stage: 0 0 16px;
+    --shadow-card: 0 4px 24px -4px hsl(210 17% 2% / 0.7), 0 0 1px hsl(217 20% 80% / 0.08);
+    --shadow-elevated: 0 8px 32px -8px hsl(210 17% 2% / 0.85), 0 0 0 1px hsl(217 20% 80% / 0.06);
   }
 
   .dark {
