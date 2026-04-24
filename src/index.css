@@ -42,9 +42,9 @@
     --accent: 25 12% 28%;              /* Warm Steel deep */
     --accent-foreground: 28 18% 72%;   /* Bronze tint highlight */
 
-    /* Destructive kept (Hybrid status mode) */
-    --destructive: 0 62% 48%;
-    --destructive-foreground: 217 14% 95%;
+    /* Destructive — desaturated to a dim warm-steel tone (no bright red) */
+    --destructive: 10 25% 38%;
+    --destructive-foreground: 217 14% 92%;
 
     --border: 218 11% 19%;             /* Charcoal Steel */
     --input: 218 11% 19%;
