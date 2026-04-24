@@ -42,9 +42,9 @@
     --accent: 25 12% 28%;              /* Warm Steel deep */
     --accent-foreground: 28 18% 72%;   /* Bronze tint highlight */
 
-    /* Destructive kept (Hybrid status mode) */
-    --destructive: 0 62% 48%;
-    --destructive-foreground: 217 14% 95%;
+    /* Destructive — desaturated to a dim warm-steel tone (no bright red) */
+    --destructive: 10 25% 38%;
+    --destructive-foreground: 217 14% 92%;
 
     --border: 218 11% 19%;             /* Charcoal Steel */
     --input: 218 11% 19%;
@@ -52,45 +52,46 @@
 
     --radius: 0.75rem;
 
-    /* Pipeline stage colors — desaturated steel/bronze tints to fit theme */
-    --stage-obs: 217 30% 60%;
-    --stage-questionnaire: 200 25% 58%;
-    --stage-final: 220 20% 55%;
-    --stage-job-offered: 28 22% 55%;
-    --stage-rehash: 320 15% 55%;
-    --stage-contact-before-start: 38 35% 55%;
-    --stage-attended-induction: 25 30% 55%;
-    --stage-start: 152 25% 50%;
-    --stage-solo: 45 35% 55%;
-    --stage-first-bell: 50 40% 60%;
-    --stage-promoted: 28 30% 60%;
-    --stage-dropped: 0 55% 50%;
+    /* Pipeline stage colors — fully monochrome metallic gradient
+       (darker steel → brushed silver → warm bronze for late stages) */
+    --stage-obs: 218 10% 38%;
+    --stage-questionnaire: 218 10% 44%;
+    --stage-final: 217 9% 52%;
+    --stage-job-offered: 217 10% 60%;
+    --stage-rehash: 217 12% 66%;
+    --stage-contact-before-start: 25 10% 50%;
+    --stage-attended-induction: 25 12% 55%;
+    --stage-start: 28 14% 58%;
+    --stage-solo: 28 16% 62%;
+    --stage-first-bell: 28 20% 68%;
+    --stage-promoted: 28 24% 74%;
+    --stage-dropped: 218 8% 30%;
 
-    /* Status colors — Hybrid: success/warning desaturated to steel/bronze, destructive stays red */
-    --status-waiting: 28 14% 52%;       /* Bronze for attention */
-    --status-passed: 217 12% 70%;       /* Brushed silver for success */
+    /* Status colors — fully monochrome (no red, no green, no amber) */
+    --status-waiting: 28 14% 52%;       /* Bronze */
+    --status-passed: 217 12% 70%;       /* Brushed silver */
     --status-offered: 217 14% 72%;
-    --status-declined: 25 12% 45%;
-    --status-dropped: 0 62% 48%;
+    --status-declined: 218 10% 35%;
+    --status-dropped: 218 8% 28%;
 
-    /* Semantic success/warning aliases (used by gauges, badges) */
-    --success: 217 12% 68%;             /* Silver = good */
+    /* Semantic aliases — all metallic, no traffic-light colors */
+    --success: 217 14% 72%;             /* Brushed Silver = good */
     --success-foreground: 220 13% 7%;
-    --warning: 28 18% 55%;              /* Bronze = attention */
+    --warning: 28 18% 58%;              /* Bronze = attention */
     --warning-foreground: 220 13% 7%;
     --neutral: 218 11% 26%;             /* Mid steel = inactive */
 
-    /* Module accent colors — preserved per-module identity */
-    --module-recruitment: 172 66% 50%;
-    --module-sales: 0 65% 48%;
-    --module-leaderboards: 40 80% 50%;
+    /* Module accents — all collapsed to metallic palette (monochrome) */
+    --module-recruitment: 217 14% 72%;  /* Brushed Silver */
+    --module-sales: 28 18% 58%;         /* Bronze */
+    --module-leaderboards: 28 22% 64%;  /* Light Bronze */
 
-    /* Chart colors — steel/silver/bronze series */
-    --chart-1: 217 14% 72%;             /* Brushed Silver */
-    --chart-2: 28 18% 55%;              /* Bronze */
-    --chart-3: 217 8% 47%;              /* Dark Silver */
-    --chart-4: 25 12% 38%;              /* Warm Steel */
-    --chart-5: 218 11% 32%;              /* Mid Steel lifted */
+    /* Chart colors — pure steel/silver/bronze series */
+    --chart-1: 217 14% 75%;             /* Brushed Silver */
+    --chart-2: 28 20% 60%;              /* Bronze */
+    --chart-3: 217 10% 55%;             /* Dark Silver */
+    --chart-4: 25 12% 42%;              /* Warm Steel */
+    --chart-5: 218 11% 32%;             /* Mid Steel */
 
     /* Sidebar */
     --sidebar-background: 220 13% 5%;   /* Deep Black */
@@ -183,5 +184,41 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Brushed metal surface — subtle linear sheen for premium panels */
+  .metal-surface {
+    background:
+      linear-gradient(
+        135deg,
+        hsl(220 11% 12%) 0%,
+        hsl(218 12% 15%) 50%,
+        hsl(220 11% 10%) 100%
+      );
+    border: 1px solid hsl(var(--border));
+  }
+
+  .metal-surface-elevated {
+    background:
+      linear-gradient(
+        135deg,
+        hsl(218 12% 16%) 0%,
+        hsl(218 12% 19%) 50%,
+        hsl(218 12% 13%) 100%
+      );
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* Bronze accent text — for premium highlights */
+  .text-bronze {
+    color: hsl(28 22% 64%);
+  }
+
+  /* Brushed silver gradient text for hero numbers */
+  .text-metal {
+    background: linear-gradient(180deg, hsl(217 14% 88%) 0%, hsl(217 10% 60%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }
