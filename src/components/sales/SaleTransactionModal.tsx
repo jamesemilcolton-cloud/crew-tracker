@@ -140,9 +140,9 @@ export function SaleTransactionModal({ open, onConfirm, onCancel, saleNumber, to
 
           {/* Sunday Bonus Note */}
           {saleDate && isSunday(saleDate) && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/20">
-              <Sun className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(45 93% 47%)" }} />
-              <span className="text-xs font-medium" style={{ color: "hsl(45 93% 47%)" }}>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-primary/10 border border-primary/20">
+              <Sun className="w-4 h-4 flex-shrink-0 text-primary metal-glow" />
+              <span className="text-xs font-medium text-primary">
                 Sunday Bonus Applied – Owner Upfront Included
               </span>
             </div>
