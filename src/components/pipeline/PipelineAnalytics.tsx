@@ -17,17 +17,17 @@ export const TREND_OPTIONS: { value: TrendRange; label: string; weeks: number }[
 ];
 
 const FUNNEL_COLORS: Record<string, string> = {
-  obs: "hsl(217 91% 60%)",
-  questionnaire: "hsl(200 80% 55%)",
-  final: "hsl(239 84% 67%)",
-  job_offered: "hsl(260 70% 60%)",
-  rehash: "hsl(320 65% 55%)",
-  contact_before_start: "hsl(38 92% 50%)",
-  attended_induction: "hsl(25 90% 55%)",
-  start: "hsl(152 69% 40%)",
-  solo: "hsl(45 93% 47%)",
-  first_bell: "hsl(60 90% 55%)",
-  promoted: "hsl(280 67% 55%)",
+  obs: "hsl(var(--stage-obs))",
+  questionnaire: "hsl(var(--stage-questionnaire))",
+  final: "hsl(var(--stage-final))",
+  job_offered: "hsl(var(--stage-job-offered))",
+  rehash: "hsl(var(--stage-rehash))",
+  contact_before_start: "hsl(var(--stage-contact-before-start))",
+  attended_induction: "hsl(var(--stage-attended-induction))",
+  start: "hsl(var(--stage-start))",
+  solo: "hsl(var(--stage-solo))",
+  first_bell: "hsl(var(--stage-first-bell))",
+  promoted: "hsl(var(--stage-promoted))",
 };
 
 // Stages used for funnel KPI (excluding promoted which is tracked separately)
@@ -224,14 +224,14 @@ export function PipelineAnalytics({ candidates, trendRange, signupDate }: Pipeli
                         <span className="text-[10px] font-medium text-muted-foreground">baseline</span>
                       ) : item.stepConversion !== null ? (
                         <span className="text-[10px] font-medium">
-                          <span className={target !== null && item.stepConversion < target ? "text-destructive" : "text-primary"}>
+                          <span className={target !== null && item.stepConversion < target ? "text-primary" : "text-foreground"}>
                             {item.stepConversion}%
                           </span>
                           {target !== null && (
                             <>
                               <span className="text-muted-foreground ml-1">/ {target}%</span>
                               {gap !== null && gap > 0 && (
-                                <span className="text-destructive ml-1">(-{gap}%)</span>
+                                <span className="text-primary ml-1">(-{gap}%)</span>
                               )}
                             </>
                           )}
