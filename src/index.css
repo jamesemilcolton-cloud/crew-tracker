@@ -6,84 +6,107 @@
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
+    /* ============================================================
+       Paragon — Dark Steel / Metallic Theme
+       Palette anchors:
+         Deep Black      #050607  ~ 210 17% 3%
+         Gunmetal Black  #0F1115  ~ 220 13% 7%
+         Dark Steel      #1A1D23  ~ 220 11% 12%
+         Charcoal Steel  #2A2F36  ~ 218 12% 19%
+         Mid Steel       #3A4048  ~ 218 11% 26%
+         Dark Silver     #6F7782  ~ 217 8%  47%
+         Brushed Silver  #AEB6C2  ~ 217 14% 72%
+         Warm Steel      #6E6257  ~ 25  12% 38%
+         Soft Bronze     #8A7F72  ~ 28  11% 49%
+       ============================================================ */
 
-    --card: 222 44% 8%;
-    --card-foreground: 210 40% 96%;
+    --background: 220 13% 7%;          /* Gunmetal Black */
+    --foreground: 217 14% 88%;         /* Light Brushed Silver */
 
-    --popover: 222 44% 10%;
-    --popover-foreground: 210 40% 96%;
+    --card: 220 11% 10%;               /* Dark Steel slightly lifted */
+    --card-foreground: 217 14% 88%;
 
-    --primary: 172 66% 50%;
-    --primary-foreground: 222 47% 6%;
+    --popover: 218 12% 13%;
+    --popover-foreground: 217 14% 88%;
 
-    --secondary: 222 40% 14%;
-    --secondary-foreground: 210 40% 90%;
+    /* Primary = Soft Bronze accent (moderate use) */
+    --primary: 28 14% 52%;
+    --primary-foreground: 220 13% 7%;
 
-    --muted: 222 30% 12%;
-    --muted-foreground: 215 20% 55%;
+    --secondary: 218 12% 16%;          /* Between Charcoal & Dark Steel */
+    --secondary-foreground: 217 14% 82%;
 
-    --accent: 172 50% 20%;
-    --accent-foreground: 172 66% 70%;
+    --muted: 220 11% 12%;              /* Dark Steel */
+    --muted-foreground: 217 8% 58%;    /* Dark Silver, lifted for legibility */
 
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 25 12% 28%;              /* Warm Steel deep */
+    --accent-foreground: 28 18% 72%;   /* Bronze tint highlight */
 
-    --border: 222 30% 16%;
-    --input: 222 30% 16%;
-    --ring: 172 66% 50%;
+    /* Destructive kept (Hybrid status mode) */
+    --destructive: 0 62% 48%;
+    --destructive-foreground: 217 14% 95%;
+
+    --border: 218 11% 19%;             /* Charcoal Steel */
+    --input: 218 11% 19%;
+    --ring: 28 18% 55%;                /* Bronze focus ring */
 
     --radius: 0.75rem;
 
-    /* Pipeline stage colors */
-    --stage-obs: 217 91% 60%;
-    --stage-questionnaire: 200 80% 55%;
-    --stage-final: 239 84% 67%;
-    --stage-job-offered: 260 70% 60%;
-    --stage-rehash: 320 65% 55%;
-    --stage-contact-before-start: 38 92% 50%;
-    --stage-attended-induction: 25 90% 55%;
-    --stage-start: 152 69% 40%;
-    --stage-solo: 45 93% 47%;
-    --stage-first-bell: 60 90% 55%;
-    --stage-promoted: 280 67% 55%;
-    --stage-dropped: 0 72% 51%;
+    /* Pipeline stage colors — desaturated steel/bronze tints to fit theme */
+    --stage-obs: 217 30% 60%;
+    --stage-questionnaire: 200 25% 58%;
+    --stage-final: 220 20% 55%;
+    --stage-job-offered: 28 22% 55%;
+    --stage-rehash: 320 15% 55%;
+    --stage-contact-before-start: 38 35% 55%;
+    --stage-attended-induction: 25 30% 55%;
+    --stage-start: 152 25% 50%;
+    --stage-solo: 45 35% 55%;
+    --stage-first-bell: 50 40% 60%;
+    --stage-promoted: 28 30% 60%;
+    --stage-dropped: 0 55% 50%;
 
-    /* Status colors */
-    --status-waiting: 38 92% 50%;
-    --status-passed: 152 69% 50%;
-    --status-offered: 217 91% 60%;
-    --status-declined: 25 95% 53%;
-    --status-dropped: 0 72% 51%;
+    /* Status colors — Hybrid: success/warning desaturated to steel/bronze, destructive stays red */
+    --status-waiting: 28 14% 52%;       /* Bronze for attention */
+    --status-passed: 217 12% 70%;       /* Brushed silver for success */
+    --status-offered: 217 14% 72%;
+    --status-declined: 25 12% 45%;
+    --status-dropped: 0 62% 48%;
 
-    /* Module colors */
+    /* Semantic success/warning aliases (used by gauges, badges) */
+    --success: 217 12% 68%;             /* Silver = good */
+    --success-foreground: 220 13% 7%;
+    --warning: 28 18% 55%;              /* Bronze = attention */
+    --warning-foreground: 220 13% 7%;
+    --neutral: 218 11% 26%;             /* Mid steel = inactive */
+
+    /* Module accent colors — preserved per-module identity */
     --module-recruitment: 172 66% 50%;
     --module-sales: 0 65% 48%;
     --module-leaderboards: 40 80% 50%;
 
-    /* Chart colors */
-    --chart-1: 172 66% 50%;
-    --chart-2: 217 91% 60%;
-    --chart-3: 280 67% 55%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 152 69% 40%;
+    /* Chart colors — steel/silver/bronze series */
+    --chart-1: 217 14% 72%;             /* Brushed Silver */
+    --chart-2: 28 18% 55%;              /* Bronze */
+    --chart-3: 217 8% 47%;              /* Dark Silver */
+    --chart-4: 25 12% 38%;              /* Warm Steel */
+    --chart-5: 218 11% 32%;              /* Mid Steel lifted */
 
     /* Sidebar */
-    --sidebar-background: 222 44% 7%;
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 172 66% 50%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 40% 14%;
-    --sidebar-accent-foreground: 210 40% 90%;
-    --sidebar-border: 222 30% 16%;
-    --sidebar-ring: 172 66% 50%;
+    --sidebar-background: 220 13% 5%;   /* Deep Black */
+    --sidebar-foreground: 217 14% 82%;
+    --sidebar-primary: 28 14% 52%;      /* Bronze */
+    --sidebar-primary-foreground: 220 13% 7%;
+    --sidebar-accent: 218 12% 14%;
+    --sidebar-accent-foreground: 217 14% 88%;
+    --sidebar-border: 218 11% 17%;
+    --sidebar-ring: 28 18% 55%;
 
-    /* Glow effects */
-    --glow-primary: 0 0 20px hsl(172 66% 50% / 0.15);
+    /* Glow / shadow effects — depth via contrast, soft shadows */
+    --glow-primary: 0 0 20px hsl(28 18% 55% / 0.12);
     --glow-stage: 0 0 12px;
-    --shadow-card: 0 4px 24px -4px hsl(222 47% 2% / 0.5);
-    --shadow-elevated: 0 8px 32px -8px hsl(222 47% 2% / 0.6);
+    --shadow-card: 0 4px 24px -4px hsl(210 17% 2% / 0.6);
+    --shadow-elevated: 0 8px 32px -8px hsl(210 17% 2% / 0.75);
   }
 
   .dark {
