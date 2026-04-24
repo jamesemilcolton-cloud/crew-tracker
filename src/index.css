@@ -51,7 +51,21 @@
     --ring: 28 18% 55%;                /* Bronze focus ring */
 
     --radius: 0.75rem;
-...
+
+    /* Pipeline stage colors — desaturated steel/bronze tints to fit theme */
+    --stage-obs: 217 30% 60%;
+    --stage-questionnaire: 200 25% 58%;
+    --stage-final: 220 20% 55%;
+    --stage-job-offered: 28 22% 55%;
+    --stage-rehash: 320 15% 55%;
+    --stage-contact-before-start: 38 35% 55%;
+    --stage-attended-induction: 25 30% 55%;
+    --stage-start: 152 25% 50%;
+    --stage-solo: 45 35% 55%;
+    --stage-first-bell: 50 40% 60%;
+    --stage-promoted: 28 30% 60%;
+    --stage-dropped: 0 55% 50%;
+
     /* Status colors — Hybrid: success/warning desaturated to steel/bronze, destructive stays red */
     --status-waiting: 28 14% 52%;       /* Bronze for attention */
     --status-passed: 217 12% 70%;       /* Brushed silver for success */
