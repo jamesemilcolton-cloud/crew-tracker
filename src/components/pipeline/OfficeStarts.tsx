@@ -42,14 +42,14 @@ function getAppearDate(startDateStr: string): Date {
 }
 
 const SOURCE_STYLES: Record<string, { border: string; badge: string }> = {
-  Office: { border: "border-l-purple-500", badge: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
-  LinkedIn: { border: "border-l-blue-500", badge: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  "LinkedIn Ads": { border: "border-l-blue-500", badge: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  Personal: { border: "border-l-yellow-500", badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  "LinkedIn Messages": { border: "border-l-emerald-500", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  Office: { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+  LinkedIn: { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+  "LinkedIn Ads": { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+  Personal: { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+  "LinkedIn Messages": { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
 };
 
-const DEFAULT_STYLE = { border: "border-l-muted", badge: "bg-muted text-muted-foreground border-border" };
+const DEFAULT_STYLE = { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" };
 
 export function OfficeStarts() {
   const { user, profile } = useAuth();
@@ -266,7 +266,7 @@ export function OfficeStarts() {
                     {candidateReads.map((r, i) => (
                       <span
                         key={i}
-                        className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded-full"
+                        className="inline-flex items-center gap-1 text-[10px] bg-secondary/70 text-foreground px-1.5 py-0.5 rounded-full border border-border/50"
                       >
                         <ThumbsUp className="w-2.5 h-2.5" />
                         {r.reader_name.split(" ")[0]}
@@ -297,7 +297,7 @@ export function OfficeStarts() {
                 )}
 
                 {userHasRead && (
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 py-1">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-foreground py-1">
                     <ThumbsUp className="w-3.5 h-3.5" />
                     <span>You've reviewed this</span>
                   </div>

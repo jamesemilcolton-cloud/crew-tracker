@@ -13,8 +13,8 @@ const allModules = [
     subtitle: "Weekly Performance Overview",
     icon: BarChart3,
     path: "/week-summary",
-    hsl: "150 70% 45%",
-    hslDark: "150 70% 32%",
+    hsl: "217 14% 72%",
+    hslDark: "217 10% 46%",
     requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
   },
   {
@@ -23,8 +23,8 @@ const allModules = [
     subtitle: "Daily Performance",
     icon: DollarSign,
     path: "/sales",
-    hsl: "0 65% 42%",
-    hslDark: "0 65% 32%",
+    hsl: "28 18% 58%",
+    hslDark: "25 12% 40%",
     requiredRoles: ["brand_ambassador", "leader", "manager"] as string[],
   },
   {
@@ -33,8 +33,8 @@ const allModules = [
     subtitle: "Pipeline & Forecast",
     icon: Users,
     path: "/recruitment",
-    hsl: "172 66% 50%",
-    hslDark: "172 66% 38%",
+    hsl: "218 10% 62%",
+    hslDark: "218 10% 38%",
     requiredRoles: ["leader", "manager"] as string[],
   },
   {
@@ -43,8 +43,8 @@ const allModules = [
     subtitle: "Ads & Resources",
     icon: Linkedin,
     path: "/linkedin",
-    hsl: "210 70% 50%",
-    hslDark: "210 70% 38%",
+    hsl: "217 12% 66%",
+    hslDark: "217 10% 42%",
     requiredRoles: ["leader", "manager"] as string[],
   },
   {
@@ -53,8 +53,8 @@ const allModules = [
     subtitle: "Rankings & Results",
     icon: Trophy,
     path: "/leaderboards",
-    hsl: "36 75% 48%",
-    hslDark: "36 75% 36%",
+    hsl: "28 22% 66%",
+    hslDark: "28 14% 44%",
     requiredRoles: ["leader", "manager"] as string[],
   },
 ] as const;
@@ -65,8 +65,8 @@ const managerModule = {
   subtitle: "User Management",
   icon: Shield,
   path: "/manager",
-  hsl: "270 60% 50%",
-  hslDark: "270 60% 38%",
+  hsl: "217 14% 78%",
+  hslDark: "218 10% 50%",
 };
 
 // Particle system
@@ -93,12 +93,12 @@ function ParticleCanvas() {
     window.addEventListener("resize", resize);
 
       const colors = [
-      "160,160,160",
-      "160,160,160",
-      "160,160,160",
-      "74,214,192",
-      "185,72,72",
-      "198,145,52",
+      "174,182,194",
+      "130,138,148",
+      "110,98,87",
+      "138,127,114",
+      "86,92,100",
+      "196,188,178",
     ];
 
     type Particle = { x: number; y: number; vx: number; vy: number; size: number; opacity: number; maxOpacity: number; color: string; phase: number; phaseSpeed: number };
