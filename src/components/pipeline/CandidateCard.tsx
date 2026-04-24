@@ -94,11 +94,11 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
   };
 
   const sourceStyle = {
-    Office: { border: "border-l-purple-500", badge: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
-    LinkedIn: { border: "border-l-blue-500", badge: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-    Personal: { border: "border-l-yellow-500", badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-    "LinkedIn Messages": { border: "border-l-emerald-500", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  }[candidate.source] ?? { border: "border-l-muted", badge: "bg-muted text-muted-foreground border-border" };
+    Office: { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+    LinkedIn: { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+    Personal: { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+    "LinkedIn Messages": { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" },
+  }[candidate.source] ?? { border: "border-l-border", badge: "bg-muted/40 text-muted-foreground border-border/60" };
 
   return (
     <div
@@ -116,7 +116,7 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
         </div>
         {onDropOff && (
           <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 ml-1"
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary flex-shrink-0 ml-1"
             title="Drop off candidate"
             onClick={(e) => {
               e.stopPropagation();
@@ -149,13 +149,13 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
         <div className="flex items-center gap-2 mt-1.5">
           <div className="flex items-center gap-0.5 text-[10px]">
             <HelpCircle className="w-3 h-3 text-muted-foreground" />
-            <span className={candidate.hasSalesPitchAccess ? "text-status-passed" : "text-muted-foreground"}>
+            <span className={candidate.hasSalesPitchAccess ? "text-foreground" : "text-muted-foreground"}>
               Sales Pitch{candidate.hasSalesPitchAccess ? " ✓" : " ?"}
             </span>
           </div>
           <div className="flex items-center gap-0.5 text-[10px]">
             <HelpCircle className="w-3 h-3 text-muted-foreground" />
-            <span className={candidate.hasEvoAppAccess ? "text-status-passed" : "text-muted-foreground"}>
+            <span className={candidate.hasEvoAppAccess ? "text-foreground" : "text-muted-foreground"}>
               EVO App{candidate.hasEvoAppAccess ? " ✓" : " ?"}
             </span>
           </div>
@@ -168,7 +168,7 @@ export function CandidateCard({ candidate, onClick, onDropOff, onMoveStage }: Ca
           className={cn(
             "flex items-center justify-center gap-1.5 w-full mt-2 py-1.5 rounded-md text-[11px] font-medium transition-colors",
             inviteCopied
-              ? "bg-emerald-500/15 text-emerald-400"
+              ? "bg-secondary/70 text-foreground"
               : "bg-primary/10 text-primary hover:bg-primary/20"
           )}
           onClick={handleCopyInviteLink}
